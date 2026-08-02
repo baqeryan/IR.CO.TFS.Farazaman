@@ -141,22 +141,13 @@ dependencies {
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0"
 
     // Hilt
-    implementation "com.google.dagger:hilt-android:2.51"
-    kapt "com.google.dagger:hilt-compiler:2.51"
+    implementation "com.google.dagger:hilt-android:$hilt_version"
+    kapt "com.google.dagger:hilt-compiler:$hilt_version"
     implementation 'androidx.hilt:hilt-navigation-compose:1.1.0'
     implementation 'androidx.hilt:hilt-navigation:1.1.0'
     implementation "io.coil-kt:coil:2.5.0"
     implementation "io.coil-kt:coil-svg:2.5.0"
     implementation files('libs/core-splashscreen-1.0.1.aar')}
-
-repositories {
-//    maven { url 'https://maven.aliyun.com/repository/google' }
-//    maven { url 'https://maven.aliyun.com/repository/central' }
-
-    google()
-    mavenCentral()
-    maven { url "https://jitpack.io" }
-}
 
 apply from: "jacoco.gradle"
 
