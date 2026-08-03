@@ -66,9 +66,9 @@ data class ViolationData(
     @SerializedName("billCleaningViolationGroupId")
     val billCleaningViolationGroupId: Int,
     @SerializedName("billCleaningItemGroupId")
-    val billCleaningItemGroupId: Int,
+    val billCleaningItemGroupId: Int?,
     @SerializedName("billOriginCleaningItemId")
-    val billOriginCleaningItemId: Int,
+    val billOriginCleaningItemId: Int?,
     @SerializedName("TenantId")
     val tenantId: Int,
     @SerializedName("BillOriginViEventGeoLocation")

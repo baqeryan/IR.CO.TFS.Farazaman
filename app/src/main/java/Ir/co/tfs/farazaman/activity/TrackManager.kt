@@ -63,6 +63,9 @@ import java.util.Date
 import Ir.co.tfs.farazaman.activity.TrackListRecyclerViewAdapterListener
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 import androidx.lifecycle.lifecycleScope
 import Ir.co.tfs.farazaman.service.remote.RoadService
 import Ir.co.tfs.farazaman.util.LoadingDialog
@@ -93,6 +96,7 @@ class TrackManager : AppCompatActivity(), TrackListRecyclerViewAdapterListener {
     
     private var refreshHandler: android.os.Handler? = null
     private var refreshRunnable: Runnable? = null
+    private var refreshJob: Job? = null
     
     // Loading dialog
     private var loadingDialog: LoadingDialog? = null
@@ -232,11 +236,30 @@ class TrackManager : AppCompatActivity(), TrackListRecyclerViewAdapterListener {
         refreshHandler = android.os.Handler(android.os.Looper.getMainLooper())
         refreshRunnable = object : Runnable {
             override fun run() {
-                // Check if there's an active track for supervisor role
-                val activeTrackId = DataHelper.getActiveTrackId(contentResolver, "supervisor")
-                if (activeTrackId != TRACK_ID_NO_TRACK) {
-                    // Refresh the adapter to show updated track point counts
-                    updateTrackItemsInRecyclerView()
+                if (refreshJob?.isActive != true) {
+                    refreshJob = lifecycleScope.launch(Dispatchers.IO) {
+                        val activeTrackId = DataHelper.getActiveTrackId(contentResolver, "supervisor")
+                        if (activeTrackId != TRACK_ID_NO_TRACK) {
+                            val newCursor = contentResolver.query(
+                                TrackContentProvider.CONTENT_URI_TRACK, null, null, null,
+                                TrackContentProvider.Schema.COL_START_DATE + " desc"
+                            )
+                            try {
+                                withContext(Dispatchers.Main) {
+                                    if (::recyclerViewAdapter.isInitialized) {
+                                        val oldCursor = recyclerViewAdapter.cursorAdapter.swapCursor(newCursor)
+                                        oldCursor?.close()
+                                        recyclerViewAdapter.notifyDataSetChanged()
+                                    } else {
+                                        newCursor?.close()
+                                    }
+                                }
+                            } catch (throwable: Throwable) {
+                                newCursor?.close()
+                                throw throwable
+                            }
+                        }
+                    }
                 }
                 // Schedule next refresh
                 refreshHandler?.postDelayed(this, REFRESH_INTERVAL_MS)
@@ -247,6 +270,8 @@ class TrackManager : AppCompatActivity(), TrackListRecyclerViewAdapterListener {
     
     private fun stopPeriodicRefresh() {
         refreshRunnable?.let { refreshHandler?.removeCallbacks(it) }
+        refreshJob?.cancel()
+        refreshJob = null
         refreshHandler = null
         refreshRunnable = null
     }
@@ -581,7 +606,8 @@ class TrackManager : AppCompatActivity(), TrackListRecyclerViewAdapterListener {
                 TrackContentProvider.CONTENT_URI_TRACK, null, null, null,
                 TrackContentProvider.Schema.COL_START_DATE + " desc"
             )
-            recyclerViewAdapter.cursorAdapter?.swapCursor(newCursor)
+            val oldCursor = recyclerViewAdapter.cursorAdapter.swapCursor(newCursor)
+            oldCursor?.close()
             recyclerViewAdapter.notifyDataSetChanged()
         }
     }

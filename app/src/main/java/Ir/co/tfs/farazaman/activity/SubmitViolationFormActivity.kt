@@ -170,7 +170,7 @@ open class SubmitViolationFormActivity : BaseActivity() {
                 setHomeAsUpIndicator(R.drawable.ic_arrow_back)
                 setDisplayShowTitleEnabled(false)
             }
-            myToolbar.layoutDirection = android.view.View.LAYOUT_DIRECTION_LTR
+            myToolbar.layoutDirection = android.view.View.LAYOUT_DIRECTION_RTL
         }
         findViewById<View?>(R.id.btnBack)?.setOnClickListener { finish() }
 

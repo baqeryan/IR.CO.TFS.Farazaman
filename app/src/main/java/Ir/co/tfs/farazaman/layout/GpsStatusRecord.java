@@ -10,7 +10,6 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.location.GnssStatus;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -20,6 +19,8 @@ import android.preference.PreferenceManager;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.location.GnssStatusCompat;
+import androidx.core.location.LocationManagerCompat;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -116,20 +117,21 @@ public class GpsStatusRecord extends LinearLayout implements LocationListener {
 		if (request) {
 			if (ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
 				lmgr.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
-				lmgr.registerGnssStatusCallback(mStatusCallback);
+				LocationManagerCompat.registerGnssStatusCallback(
+						lmgr, ContextCompat.getMainExecutor(getContext()), mStatusCallback);
 			} else {
 				ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
 						REQUEST_CODE_GPS_PERMISSIONS);
 			}
 		} else {
 			lmgr.removeUpdates(this);
-			lmgr.unregisterGnssStatusCallback(mStatusCallback);
+			LocationManagerCompat.unregisterGnssStatusCallback(lmgr, mStatusCallback);
 		}
 	}
 
-	private GnssStatus.Callback mStatusCallback = new GnssStatus.Callback() {
+	private final GnssStatusCompat.Callback mStatusCallback = new GnssStatusCompat.Callback() {
 		@Override
-		public void onSatelliteStatusChanged(GnssStatus status) {
+		public void onSatelliteStatusChanged(GnssStatusCompat status) {
 			satCount = status.getSatelliteCount();
 			fixCount = 0;
 

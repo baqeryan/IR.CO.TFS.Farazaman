@@ -32,8 +32,6 @@ class AuthInterceptor @Inject constructor(
         Log.d(TAG, "=== INTERCEPTING REQUEST ===")
         Log.d(TAG, "URL: $url")
         Log.d(TAG, "Method: ${originalRequest.method}")
-        Log.d(TAG, "Current access token: ${tokenManager.getAccessToken()?.take(20)}...")
-        Log.d(TAG, "Current refresh token: ${tokenManager.getRefreshToken()?.take(20)}...")
         Log.d(TAG, "Token expired: ${tokenManager.isTokenExpired()}")
         Log.d(TAG, "Has refresh token: ${tokenManager.hasRefreshToken()}")
         
@@ -72,7 +70,7 @@ class AuthInterceptor @Inject constructor(
 
         // Add authorization header if available
         val requestWithAuth = addAuthHeader(originalRequest)
-        Log.d(TAG, "Making request with auth header: ${requestWithAuth.header(AUTHORIZATION_HEADER)?.take(20)}...")
+        Log.d(TAG, "Making request with auth header: ${requestWithAuth.header(AUTHORIZATION_HEADER) != null}")
         
         var response = chain.proceed(requestWithAuth)
         Log.d(TAG, "Received response code: ${response.code}")
@@ -83,7 +81,7 @@ class AuthInterceptor @Inject constructor(
             Log.w(TAG, "Response message: ${response.message}")
             Log.w(TAG, "Request URL: $url")
             Log.w(TAG, "Request method: ${originalRequest.method}")
-            Log.w(TAG, "Auth header used: ${requestWithAuth.header(AUTHORIZATION_HEADER)?.take(30)}...")
+            Log.w(TAG, "Auth header used: ${requestWithAuth.header(AUTHORIZATION_HEADER) != null}")
             Log.w(TAG, "Attempting token refresh...")
             
             val errorBody = response.peekBody(1024).string()
@@ -110,7 +108,7 @@ class AuthInterceptor @Inject constructor(
                     Log.d(TAG, "Token refresh successful, retrying original request")
                     response.close()
                     val newRequest = addAuthHeader(originalRequest)
-                    Log.d(TAG, "Retrying with new auth header: ${newRequest.header(AUTHORIZATION_HEADER)?.take(30)}...")
+                    Log.d(TAG, "Retrying with new auth header: ${newRequest.header(AUTHORIZATION_HEADER) != null}")
                     val retryResponse = chain.proceed(newRequest)
                     Log.d(TAG, "Retry response code: ${retryResponse.code}")
                     if (retryResponse.code == 401) {

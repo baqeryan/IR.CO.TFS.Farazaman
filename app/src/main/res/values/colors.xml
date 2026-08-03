@@ -44,6 +44,7 @@
 
     <!-- Intro / onboarding -->
     <color name="intro_primary">#0B5E56</color>
+    <color name="intro_primary_fill">#0B5E56</color>
     <color name="intro_text">#0A3D3B</color>
     <color name="intro_text_secondary">#3D5C59</color>
     <color name="intro_dot_inactive">#B8D9D5</color>
@@ -58,4 +59,12 @@
     <!-- Login -->
     <color name="login_button">#0A2E26</color>
     <color name="login_label">#212121</color>
+
+    <!-- Semantic application colors; overridden in values-night. -->
+    <color name="app_background">#F6F8F7</color>
+    <color name="app_surface">#FFFFFF</color>
+    <color name="app_surface_variant">#E8F5F2</color>
+    <color name="app_on_surface">#212121</color>
+    <color name="app_on_surface_secondary">#757575</color>
+    <color name="app_outline">#E0E0E0</color>
 </resources>

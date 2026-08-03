@@ -360,7 +360,6 @@ class CommitmentsViolationFormFragment : Fragment() {
                     Toast.makeText(requireContext(), state.message, Toast.LENGTH_LONG).show()
                     formDataViewModel.clearSubmissionState()
                 }
-                null -> Unit
             }
         }
     }

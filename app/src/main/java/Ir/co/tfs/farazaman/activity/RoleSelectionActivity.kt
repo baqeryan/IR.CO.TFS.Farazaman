@@ -3,15 +3,17 @@ package Ir.co.tfs.farazaman.activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
-import android.widget.ImageButton
-import android.widget.ImageView
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.card.MaterialCardView
 import dagger.hilt.android.AndroidEntryPoint
-import Ir.co.tfs.farazaman.R
+import Ir.co.tfs.farazaman.presentation.compose.FaraZamanTheme
+import Ir.co.tfs.farazaman.presentation.compose.RoleOption
+import Ir.co.tfs.farazaman.presentation.compose.RoleSelectionScreen
+import Ir.co.tfs.farazaman.presentation.compose.RoleSelectionUiState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import Ir.co.tfs.farazaman.supervisor.SupervisorMissionHelper
 import Ir.co.tfs.farazaman.util.RolesManager
 import javax.inject.Inject
@@ -26,117 +28,72 @@ class RoleSelectionActivity : AppCompatActivity() {
         DRIVER,
     }
 
-    private var selectedRole = SelectedRole.SUPERVISOR
-
-    private lateinit var supervisorCard: MaterialCardView
-    private lateinit var driverCard: MaterialCardView
-    private lateinit var supervisorRadio: ImageView
-    private lateinit var driverRadio: ImageView
-
     private val fromProfile: Boolean
         get() = intent.getBooleanExtra(EXTRA_FROM_PROFILE, false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_role_selection)
-
-        supervisorCard = findViewById(R.id.supervisorCard)
-        driverCard = findViewById(R.id.driverCard)
-        supervisorRadio = findViewById(R.id.supervisorRadio)
-        driverRadio = findViewById(R.id.driverRadio)
-
-        applyRoleVisibility()
-
-        selectedRole = when (intent.getStringExtra(EXTRA_CURRENT_ROLE)) {
+        val roleVisibility = roleVisibility()
+        val initialRole = when (intent.getStringExtra(EXTRA_CURRENT_ROLE)) {
             ROLE_DRIVER -> SelectedRole.DRIVER
             else -> when {
-                supervisorCard.visibility == View.VISIBLE -> SelectedRole.SUPERVISOR
-                driverCard.visibility == View.VISIBLE -> SelectedRole.DRIVER
+                roleVisibility.first -> SelectedRole.SUPERVISOR
+                roleVisibility.second -> SelectedRole.DRIVER
                 else -> SelectedRole.SUPERVISOR
             }
         }
-
-        findViewById<ImageButton>(R.id.btnBack).apply {
-            visibility = if (fromProfile) View.VISIBLE else View.GONE
-            setOnClickListener { finish() }
+        setContent {
+            FaraZamanTheme {
+                var selectedRole by rememberSaveable {
+                    mutableStateOf(
+                        if (initialRole == SelectedRole.SUPERVISOR) {
+                            RoleOption.SUPERVISOR
+                        } else {
+                            RoleOption.DRIVER
+                        },
+                    )
+                }
+                val state = RoleSelectionUiState(
+                    showSupervisor = roleVisibility.first,
+                    showDriver = roleVisibility.second,
+                    selectedRole = selectedRole,
+                    showBack = fromProfile,
+                )
+                RoleSelectionScreen(
+                    state = state,
+                    onRoleSelected = { selectedRole = it },
+                    onBack = ::finish,
+                    onProfile = { SupervisorProfileActivity.open(this) },
+                    onEnter = {
+                        navigateToSelectedRole(
+                            if (selectedRole == RoleOption.SUPERVISOR) {
+                                SelectedRole.SUPERVISOR
+                            } else {
+                                SelectedRole.DRIVER
+                            },
+                        )
+                    },
+                )
+            }
         }
-
-        findViewById<View>(R.id.btnProfile)?.setOnClickListener {
-            SupervisorProfileActivity.open(this)
-        }
-
-        supervisorCard.setOnClickListener {
-            selectedRole = SelectedRole.SUPERVISOR
-            updateSelectionUi()
-        }
-
-        driverCard.setOnClickListener {
-            selectedRole = SelectedRole.DRIVER
-            updateSelectionUi()
-        }
-
-        findViewById<MaterialButton>(R.id.btnEnter).setOnClickListener {
-            navigateToSelectedRole()
-        }
-
-        updateSelectionUi()
     }
 
-    private fun applyRoleVisibility() {
+    private fun roleVisibility(): Pair<Boolean, Boolean> {
         val storedRoles = rolesManager.getUserRoles()?.roles
         val showSupervisor = rolesManager.hasSupervisorRole()
         val showDriver = rolesManager.hasDriverRole()
 
-        when {
-            storedRoles.isNullOrEmpty() -> {
-                supervisorCard.visibility = View.VISIBLE
-                driverCard.visibility = View.VISIBLE
-            }
-            showSupervisor && showDriver -> {
-                supervisorCard.visibility = View.VISIBLE
-                driverCard.visibility = View.VISIBLE
-            }
-            showSupervisor -> {
-                supervisorCard.visibility = View.VISIBLE
-                driverCard.visibility = View.GONE
-            }
-            showDriver -> {
-                supervisorCard.visibility = View.GONE
-                driverCard.visibility = View.VISIBLE
-            }
-            storedRoles.size > 1 -> {
-                supervisorCard.visibility = View.VISIBLE
-                driverCard.visibility = View.VISIBLE
-            }
-            else -> {
-                supervisorCard.visibility = View.GONE
-                driverCard.visibility = View.GONE
-            }
+        return when {
+            storedRoles.isNullOrEmpty() -> true to true
+            showSupervisor && showDriver -> true to true
+            showSupervisor -> true to false
+            showDriver -> false to true
+            storedRoles.size > 1 -> true to true
+            else -> false to false
         }
     }
 
-    private fun updateSelectionUi() {
-        val selectedColor = ContextCompat.getColor(this, R.color.intro_primary)
-        val unselectedColor = ContextCompat.getColor(this, R.color.input_stroke)
-
-        val supervisorSelected = selectedRole == SelectedRole.SUPERVISOR
-        supervisorCard.strokeWidth = if (supervisorSelected) 2 else 1
-        supervisorCard.strokeColor = if (supervisorSelected) selectedColor else unselectedColor
-        supervisorRadio.setImageResource(
-            if (supervisorSelected) R.drawable.role_selection_radio_checked
-            else R.drawable.role_selection_radio_unchecked,
-        )
-
-        val driverSelected = selectedRole == SelectedRole.DRIVER
-        driverCard.strokeWidth = if (driverSelected) 2 else 1
-        driverCard.strokeColor = if (driverSelected) selectedColor else unselectedColor
-        driverRadio.setImageResource(
-            if (driverSelected) R.drawable.role_selection_radio_checked
-            else R.drawable.role_selection_radio_unchecked,
-        )
-    }
-
-    private fun navigateToSelectedRole() {
+    private fun navigateToSelectedRole(selectedRole: SelectedRole) {
         val intent = when (selectedRole) {
             SelectedRole.SUPERVISOR -> createSupervisorIntent()
             SelectedRole.DRIVER -> Intent(this, DriverActivity::class.java)

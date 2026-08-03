@@ -2,8 +2,14 @@
 
 <resources>
     <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.Material3.Light.NoActionBar">
+    <style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:fontFamily">@font/iran_sans</item>
+        <item name="android:layoutDirection">rtl</item>
+        <item name="android:textDirection">rtl</item>
+        <item name="android:colorBackground">@color/app_background</item>
+        <item name="android:windowBackground">@color/app_background</item>
+        <item name="colorSurface">@color/app_surface</item>
+        <item name="colorOnSurface">@color/app_on_surface</item>
 <!--      Customize your theme here.-->
         <item name="colorPrimary">@color/green</item>
 <!--        <item name="colorPrimary">@color/colorPrimaryText</item>-->
@@ -19,7 +25,12 @@
     </style>
 
     <!-- Base application theme. -->
-    <style name="AppThemeLight" parent="Theme.AppCompat.Light.NoActionBar">
+    <style name="AppThemeLight" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:layoutDirection">rtl</item>
+        <item name="android:textDirection">rtl</item>
+        <item name="android:colorBackground">@color/app_background</item>
+        <item name="android:windowBackground">@color/app_background</item>
+        <item name="colorSurface">@color/app_surface</item>
         <!-- Customize your theme here
         <item name="colorPrimary">@color/colorPrimaryLight</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDarkLight</item>
@@ -31,7 +42,12 @@
         <item name="android:textSize">12sp</item>
     </style>
 
-    <style name="TrackLoggerTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+    <style name="TrackLoggerTheme" parent="Theme.AppCompat.DayNight.DarkActionBar">
+        <item name="android:layoutDirection">rtl</item>
+        <item name="android:textDirection">rtl</item>
+        <item name="android:colorBackground">@color/app_background</item>
+        <item name="android:windowBackground">@color/app_background</item>
+        <item name="colorSurface">@color/app_surface</item>
         <item name="colorPrimary">@color/colorPrimaryText</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
@@ -41,12 +57,15 @@
     </style>
 
     <!-- RTL Preferences Theme -->
-    <style name="PreferencesRTLTheme" parent="Theme.AppCompat.Light">
+    <style name="PreferencesRTLTheme" parent="Theme.AppCompat.DayNight">
         <item name="android:fontFamily">@font/iran_sans</item>
         <item name="android:layoutDirection">rtl</item>
         <item name="android:textAlignment">viewStart</item>
         <item name="android:gravity">start</item>
         <item name="android:textDirection">rtl</item>
+        <item name="android:colorBackground">@color/app_background</item>
+        <item name="android:windowBackground">@color/app_background</item>
+        <item name="colorSurface">@color/app_surface</item>
         <item name="colorPrimary">@color/green</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/green</item>

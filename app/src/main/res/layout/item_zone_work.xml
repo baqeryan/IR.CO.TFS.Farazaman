@@ -34,7 +34,7 @@
             android:text="پلاک: 111ب11"
             android:textSize="14sp"
             android:fontFamily="@font/iran_sans"
-            android:textColor="@android:color/black"
+            android:textColor="@color/app_on_surface"
             android:layout_marginTop="4dp" />
 
         <!-- Contract Info -->
@@ -45,7 +45,7 @@
             android:text="قرارداد: 5568"
             android:textSize="14sp"
             android:fontFamily="@font/iran_sans"
-            android:textColor="@android:color/black"
+            android:textColor="@color/app_on_surface"
             android:layout_marginTop="4dp"
             android:visibility="gone" />
 

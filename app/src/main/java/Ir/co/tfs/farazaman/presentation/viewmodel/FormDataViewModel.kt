@@ -61,8 +61,8 @@ class FormDataViewModel @Inject constructor(
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
     
-    private val _error = MutableLiveData<String>()
-    val error: LiveData<String> = _error
+    private val _error = MutableLiveData<String?>()
+    val error: LiveData<String?> = _error
 
     private var formDataJob: Job? = null
     private var submitJob: Job? = null
@@ -460,10 +460,10 @@ class FormDataViewModel @Inject constructor(
             contractIds = listOf(selectedContractId!!), // Use actual selected contract ID
             billCleaningViolationGroupIds = listOf(selectedViolationGroupId ?: 0),
             billCleaningViolationIds = listOf(selectedViolationId!!),
-            billCleaningItemGroupIds = listOf(selectedItemGroupId ?: 0),
+            billCleaningItemGroupIds = selectedItemGroupId?.let(::listOf) ?: emptyList(),
             billCleaningItemIds = emptyList(),
             visitDate = visitDate, // Use actual visit date from form
-            billOriginCleaningItemIds = listOf(selectedOriginItemId ?: 0),
+            billOriginCleaningItemIds = selectedOriginItemId?.let(::listOf) ?: emptyList(),
             number = number, // Use actual number from form
             visitedFault = description, // Use actual description from form
             address = address, // Use actual address from form
@@ -471,8 +471,8 @@ class FormDataViewModel @Inject constructor(
             contractId = selectedContractId!!, // Use actual selected contract ID
             organId = selectedOrganId!!, // Use actual selected organ ID
             billCleaningViolationGroupId = selectedViolationGroupId ?: 0, // Use actual selected violation group ID
-            billCleaningItemGroupId = selectedItemGroupId ?: 0, // Use actual selected item group ID
-            billOriginCleaningItemId = selectedOriginItemId ?: 0, // Use actual selected origin item ID
+            billCleaningItemGroupId = selectedItemGroupId,
+            billOriginCleaningItemId = selectedOriginItemId,
             tenantId = 1,
             billOriginViEventGeoLocation = createGeoLocationData(visitDate, latitude, longitude)
         )

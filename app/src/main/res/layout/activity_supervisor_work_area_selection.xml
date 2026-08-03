@@ -243,7 +243,7 @@
         android:text="@string/work_area_confirm_continue"
         android:textColor="@color/white"
         android:textSize="16sp"
-        app:backgroundTint="@color/intro_primary"
+        app:backgroundTint="@color/intro_primary_fill"
         app:cornerRadius="12dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

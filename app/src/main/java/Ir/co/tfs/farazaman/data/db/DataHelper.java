@@ -485,14 +485,15 @@ public class DataHelper {
 		Cursor cursor = context.getContentResolver().query(
 				TrackContentProvider.CONTENT_URI_TRACK, null, selection, args,
 				null);
-		Track track = null;
-		if(cursor != null && cursor.moveToFirst()){
-			//This is due the build method. (TODO: a constructor with c as param needed in Track)
+		if (cursor == null) return null;
+		try {
+			if (!cursor.moveToFirst()) return null;
 			long trackId = cursor.getLong(
 					cursor.getColumnIndex(TrackContentProvider.Schema.COL_ID));
-			track = Track.build(trackId, cursor, contentResolver, true);
+			return Track.build(trackId, cursor, contentResolver, true);
+		} finally {
+			cursor.close();
 		}
-		return track;
 	}
 
 	//TODO: Fix this method. I suspect the query is not OK.
@@ -501,12 +502,14 @@ public class DataHelper {
 		Cursor c = context.getContentResolver().query(ContentUris.withAppendedId(
 				TrackContentProvider.CONTENT_URI_TRACK, trackId), null, null,
 				null, null);
-		Log.d(TAG, "Count of elements in cursor:" + c.getCount());
-
-		c.moveToFirst();
-		Track track = Track.build(trackId, c, contentResolver, true);
-		c.close();
-		return track;
+		if (c == null) return null;
+		try {
+			Log.d(TAG, "Count of elements in cursor:" + c.getCount());
+			if (!c.moveToFirst()) return null;
+			return Track.build(trackId, c, contentResolver, true);
+		} finally {
+			c.close();
+		}
 
 	}
 

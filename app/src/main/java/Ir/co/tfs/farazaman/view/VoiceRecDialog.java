@@ -1,7 +1,9 @@
 package Ir.co.tfs.farazaman.view;
 
 import android.app.ProgressDialog;
+import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.pm.ActivityInfo;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -82,7 +84,7 @@ public class VoiceRecDialog extends ProgressDialog implements OnInfoListener{
 	/**
 	 * saves the requested orientation at the time when the dialog was started to restore it when we stop recording
 	 */
-	private int currentRequestedOrientation = -1;
+	private int currentRequestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
 	
 	/**
 	 * saves the time when this dialog was started.
@@ -137,7 +139,10 @@ public class VoiceRecDialog extends ProgressDialog implements OnInfoListener{
 		try{
 			this.currentOrientation = context.getResources().getConfiguration().orientation;
 			this.currentRequestedOrientation = this.getOwnerActivity().getRequestedOrientation();
-			this.getOwnerActivity().setRequestedOrientation(currentOrientation);
+			int requestedOrientation = currentOrientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+					? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+					: ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+			this.getOwnerActivity().setRequestedOrientation(requestedOrientation);
 		}catch(Exception e){
 			Log.w(TAG, "No OwnerActivity found for this Dialog. Use showDialog method within the activity to handle this Dialog and to avoid voice recording problems.");
 		}
@@ -254,6 +259,7 @@ public class VoiceRecDialog extends ProgressDialog implements OnInfoListener{
 	 * called when the dialog disappears
 	 */
 	@Override
+	@SuppressLint("WrongConstant") // Value originates from Activity#getRequestedOrientation().
 	protected void onStop() {
 		Log.d(TAG, "onStop() called");
 		 

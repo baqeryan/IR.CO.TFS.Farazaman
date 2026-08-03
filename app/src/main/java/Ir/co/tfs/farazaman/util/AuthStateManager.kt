@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.util.Log
+import androidx.core.content.ContextCompat
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -42,7 +43,12 @@ class AuthStateManager @Inject constructor(
      */
     fun registerAuthStateReceiver(receiver: BroadcastReceiver) {
         val filter = IntentFilter(ACTION_AUTH_STATE_CHANGED)
-        context.registerReceiver(receiver, filter)
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
     }
     
     /**

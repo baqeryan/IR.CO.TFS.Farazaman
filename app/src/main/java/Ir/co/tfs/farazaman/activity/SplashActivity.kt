@@ -1,21 +1,19 @@
 package Ir.co.tfs.farazaman.activity
 
 import android.content.Intent
-import android.content.SharedPreferences
 import android.os.Bundle
-import android.preference.PreferenceManager
 import android.provider.Settings
-import android.view.animation.Animation
-import android.view.animation.AnimationUtils
-import android.widget.ImageView
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.compose.setContent
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.compose.runtime.LaunchedEffect
+import Ir.co.tfs.farazaman.presentation.compose.FaraZamanTheme
+import Ir.co.tfs.farazaman.presentation.compose.SplashScreen
+import Ir.co.tfs.farazaman.presentation.compose.SplashUiState
 import dagger.hilt.android.AndroidEntryPoint
-import Ir.co.tfs.farazaman.OSMTracker
-import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.presentation.login.LoginActivity
 import Ir.co.tfs.farazaman.util.TokenManager
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -27,22 +25,19 @@ class SplashActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_splash)
-
-        val logo = findViewById<ImageView>(R.id.imageView)
-        val slogan = findViewById<TextView>(R.id.slogan_text)
-
-        val logoAnim = AnimationUtils.loadAnimation(this, R.anim.splash_logo_fade_in)
-        slogan.startAnimation(AnimationUtils.loadAnimation(this, R.anim.splash_text_slide_up))
-        logo.startAnimation(logoAnim)
-
-        logoAnim.setAnimationListener(object : Animation.AnimationListener {
-            override fun onAnimationStart(animation: Animation?) {}
-            override fun onAnimationEnd(animation: Animation?) {
-                navigateToNextScreen()
+        setContent {
+            FaraZamanTheme {
+                LaunchedEffect(Unit) {
+                    delay(1_200)
+                    if (!isFinishing) {
+                        navigateToNextScreen()
+                    }
+                }
+                SplashScreen(
+                    state = SplashUiState(slogan = "تحولی نوین در شهر"),
+                )
             }
-            override fun onAnimationRepeat(animation: Animation?) {}
-        })
+        }
     }
 
     private fun navigateToNextScreen() {

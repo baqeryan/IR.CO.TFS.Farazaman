@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
+    android:background="@color/app_background"
     android:padding="24dp">
 
     <!-- Warning Icon -->
@@ -43,7 +43,7 @@
         android:gravity="center"
         android:lineSpacingExtra="4dp"
         android:text="برای استفاده از این برنامه، لطفاً گزینه‌های توسعه‌دهنده (Developer Options) را خاموش کنید."
-        android:textColor="@android:color/black"
+        android:textColor="@color/app_on_surface"
         android:textSize="16sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

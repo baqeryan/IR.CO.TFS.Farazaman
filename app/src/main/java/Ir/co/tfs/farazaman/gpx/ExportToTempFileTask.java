@@ -7,6 +7,7 @@ import android.util.Log;
 
 import Ir.co.tfs.farazaman.OSMTracker;
 import Ir.co.tfs.farazaman.data.db.DataHelper;
+import Ir.co.tfs.farazaman.data.db.model.Track;
 import Ir.co.tfs.farazaman.exception.ExportTrackException;
 // import Ir.co.tfs.farazaman.util.PersianNumberConverter; // Not used, can be removed
 
@@ -33,9 +34,13 @@ public abstract class ExportToTempFileTask extends ExportTrackTask {
 
 		try {
 			DataHelper dataHelper = new DataHelper(context); // Instantiate DataHelper once
-			String trackName = dataHelper.getTrackById(trackId).getName();
+			Track track = dataHelper.getTrackById(trackId);
+			if (track == null) {
+				throw new IllegalArgumentException("Track ID not found: " + trackId);
+			}
+			String trackName = track.getName();
 
-			long startDate = dataHelper.getTrackById(trackId).getTrackDate();
+			long startDate = track.getTrackDate();
 			String formattedTrackStartDate = DataHelper.FILENAME_FORMATTER.format(new Date(startDate));
 
 			// Create temporary file

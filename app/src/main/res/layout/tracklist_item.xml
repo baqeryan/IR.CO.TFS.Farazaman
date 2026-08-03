@@ -85,7 +85,7 @@ android:visibility="gone"
             android:layout_marginStart="8dp"
             android:layout_marginTop="4dp"
             android:orientation="horizontal"
-            app:layout_constraintRight_toLeftOf="@id/id_container"
+            app:layout_constraintEnd_toStartOf="@id/id_container"
             app:layout_constraintTop_toBottomOf="@id/trackmgr_item_nameordate">
 
             <TextView
@@ -294,8 +294,8 @@ android:visibility="gone"
             android:layout_marginTop="8dp"
             app:cardBackgroundColor="#F5F5F5"
             app:layout_constraintBottom_toTopOf="@id/first_card"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@id/line"
             app:strokeWidth="0dp">
 
@@ -332,8 +332,8 @@ android:visibility="gone"
             android:layout_marginTop="12dp"
             app:cardBackgroundColor="#F5F5F5"
             app:layout_constraintBottom_toTopOf="@id/secound_card"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@id/submit_violation_card"
             app:strokeWidth="0dp">
 
@@ -383,8 +383,8 @@ android:visibility="gone"
             android:layout_marginTop="8dp"
             app:cardBackgroundColor="#F5F5F5"
             app:layout_constraintBottom_toTopOf="@id/line"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@id/first_card"
             app:strokeWidth="0dp">
 
@@ -445,8 +445,8 @@ android:visibility="gone"
             android:orientation="horizontal"
             android:weightSum="2"
             app:layout_constraintBottom_toTopOf="@id/line"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@id/info_container">
 
             <com.google.android.material.button.MaterialButton

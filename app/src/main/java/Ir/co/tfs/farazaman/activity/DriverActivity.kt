@@ -22,6 +22,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -47,6 +48,10 @@ import java.io.FileWriter
 import java.io.IOException
 import java.util.Date
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 class DriverActivity : AppCompatActivity() {
@@ -71,6 +76,7 @@ class DriverActivity : AppCompatActivity() {
     private var pendingTrackId: Long = TRACK_ID_NO_TRACK
     private var currentZoneWorkVehicleId: Int = -1
     private var currentZoneInfoSummary: String = ""
+    private var refreshJob: Job? = null
 
     private lateinit var missionCard: MaterialCardView
     private lateinit var emptyView: View
@@ -425,9 +431,26 @@ class DriverActivity : AppCompatActivity() {
         refreshHandler = android.os.Handler(android.os.Looper.getMainLooper())
         refreshRunnable = object : Runnable {
             override fun run() {
-                val activeTrackId = DataHelper.getActiveTrackId(contentResolver, "driver")
-                if (activeTrackId != TRACK_ID_NO_TRACK && activeTrackId == currentTrackId) {
-                    updateTrackCounts()
+                if (refreshJob?.isActive != true) {
+                    refreshJob = lifecycleScope.launch(Dispatchers.IO) {
+                        val activeTrackId = DataHelper.getActiveTrackId(contentResolver, "driver")
+                        if (activeTrackId != TRACK_ID_NO_TRACK && activeTrackId == currentTrackId) {
+                            val waypointsCursor = contentResolver.query(
+                                TrackContentProvider.waypointsUri(currentTrackId),
+                                null, null, null, null
+                            )
+                            val waypointCount = waypointsCursor?.use { it.count } ?: 0
+                            val trackpointsCursor = contentResolver.query(
+                                TrackContentProvider.trackPointsUri(currentTrackId),
+                                null, null, null, null
+                            )
+                            val trackpointCount = trackpointsCursor?.use { it.count } ?: 0
+                            withContext(Dispatchers.Main) {
+                                waypointsCount.text = waypointCount.toString()
+                                trackpointsCount.text = trackpointCount.toString()
+                            }
+                        }
+                    }
                 }
                 refreshHandler?.postDelayed(this, REFRESH_INTERVAL_MS)
             }
@@ -437,6 +460,8 @@ class DriverActivity : AppCompatActivity() {
 
     private fun stopPeriodicRefresh() {
         refreshRunnable?.let { refreshHandler?.removeCallbacks(it) }
+        refreshJob?.cancel()
+        refreshJob = null
         refreshHandler = null
         refreshRunnable = null
     }

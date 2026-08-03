@@ -22,6 +22,8 @@ import Ir.co.tfs.farazaman.gpx.ZipHelper;
 import Ir.co.tfs.farazaman.AppConstants;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 
 import okhttp3.Call;
@@ -99,7 +101,7 @@ public class OpenStreetMapUpload extends TrackDetailEditor {
 								File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
 								if (downloadDir != null && downloadDir.mkdirs()) { // مطمئن شوید دایرکتوری Downloads وجود دارد
 									File destFile = new File(downloadDir, zipFile.getName());
-									java.nio.file.Files.copy(zipFile.toPath(), destFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+									copyFile(zipFile, destFile);
 									Log.d(TAG, "ZIP file copied to: " + destFile.getAbsolutePath());
 									runOnUiThread(() -> Toast.makeText(OpenStreetMapUpload.this, "ZIP file copied to Downloads: " + destFile.getName(), Toast.LENGTH_LONG).show());
 								}
@@ -122,6 +124,17 @@ public class OpenStreetMapUpload extends TrackDetailEditor {
 				}
 			}
 		}.execute();
+	}
+
+	private static void copyFile(File source, File destination) throws IOException {
+		try (FileInputStream input = new FileInputStream(source);
+			 FileOutputStream output = new FileOutputStream(destination, false)) {
+			byte[] buffer = new byte[8192];
+			int bytesRead;
+			while ((bytesRead = input.read(buffer)) != -1) {
+				output.write(buffer, 0, bytesRead);
+			}
+		}
 	}
 
 	private void uploadToCustomServer(File file) {

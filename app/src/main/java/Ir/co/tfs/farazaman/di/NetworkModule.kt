@@ -39,41 +39,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideCustomLoggingInterceptor(): Interceptor {
-        return Interceptor { chain ->
-            val request = chain.request()
-            
-            Log.d("NETWORK_REQUEST", "=== DETAILED REQUEST LOG ===")
-            Log.d("NETWORK_REQUEST", "URL: ${request.url}")
-            Log.d("NETWORK_REQUEST", "Method: ${request.method}")
-            Log.d("NETWORK_REQUEST", "Headers:")
-            request.headers.forEach { (name, value) ->
-                if (name.equals("Authorization", ignoreCase = true)) {
-                    Log.d("NETWORK_REQUEST", "  $name: ${value.take(20)}...")
-                } else {
-                    Log.d("NETWORK_REQUEST", "  $name: $value")
-                }
-            }
-            
-            val requestBody = request.body
-            if (requestBody != null) {
-                Log.d("NETWORK_REQUEST", "Request Body Type: ${requestBody.contentType()}")
-                Log.d("NETWORK_REQUEST", "Request Body Length: ${requestBody.contentLength()}")
-            }
-            Log.d("NETWORK_REQUEST", "=== END REQUEST LOG ===")
-            
-            val response = chain.proceed(request)
-            
-            Log.d("NETWORK_RESPONSE", "=== DETAILED RESPONSE LOG ===")
-            Log.d("NETWORK_RESPONSE", "Response Code: ${response.code}")
-            Log.d("NETWORK_RESPONSE", "Response Message: ${response.message}")
-            Log.d("NETWORK_RESPONSE", "Response Headers:")
-            response.headers.forEach { (name, value) ->
-                Log.d("NETWORK_RESPONSE", "  $name: $value")
-            }
-            Log.d("NETWORK_RESPONSE", "=== END RESPONSE LOG ===")
-            
-            response
-        }
+        return Interceptor { chain -> chain.proceed(chain.request()) }
     }
     
     @Provides
@@ -130,7 +96,8 @@ object NetworkModule {
         authInterceptor: AuthInterceptor
     ): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            redactHeader("Authorization")
+            level = HttpLoggingInterceptor.Level.NONE
         }
         
         return OkHttpClient.Builder()

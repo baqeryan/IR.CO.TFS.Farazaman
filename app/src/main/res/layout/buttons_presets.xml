@@ -14,7 +14,7 @@
         android:layout_height="wrap_content"
         android:text="@string/prefs_ui_buttons_layout_default_section"
         android:padding="7dp"
-        android:layout_marginLeft="10dp"/>
+        android:layout_marginEnd="10dp"/>
 
     <CheckBox
         android:id="@+id/def_layout"
@@ -22,7 +22,7 @@
         android:layout_height="wrap_content"
         android:padding="7dp"
         android:text="@string/prefs_ui_buttons_layout_defaut"
-        android:layout_marginLeft="20dp"
+        android:layout_marginEnd="20dp"
         android:textSize="20sp"/>
 
     <TextView
@@ -31,7 +31,7 @@
         android:layout_height="wrap_content"
         android:text="@string/prefs_ui_buttons_layout_downloaded_section"
         android:padding="7dp"
-        android:layout_marginLeft="10dp"/>
+        android:layout_marginEnd="10dp"/>
 
     <LinearLayout
         android:layout_width="match_parent"

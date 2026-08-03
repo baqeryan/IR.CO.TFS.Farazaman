@@ -36,6 +36,7 @@ import Ir.co.tfs.farazaman.data.model.FormDataApiRequest
 import Ir.co.tfs.farazaman.data.model.FormDataRequest
 import Ir.co.tfs.farazaman.data.model.MissionIndexResponse
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -287,7 +288,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
         setOrganLoading(true)
         Log.d("NewMissionBottomSheet", "=== fetchOrgans - Using FormDataApiService with AuthInterceptor ===")
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val request = createFormDataRequest()
                 val response = formDataApiService.getFormData(request)
@@ -313,6 +314,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
                     }
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e("NewMissionBottomSheet", "خطا در دریافت لیست کارفرما: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     setOrganLoading(false)
@@ -332,7 +334,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
         setContractLoading(true)
         Log.d("NewMissionBottomSheet", "=== fetchContracts - Using FormDataApiService with AuthInterceptor ===")
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val request = createFormDataRequest(organIds = listOf(organId))
                 val response = formDataApiService.getFormData(request)
@@ -365,6 +367,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
                     }
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e("NewMissionBottomSheet", "خطا در دریافت لیست قراردادها: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     setContractLoading(false)
@@ -385,7 +388,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
         
         Log.d("NewMissionBottomSheet", "=== createMission - Using FormDataApiService with AuthInterceptor ===")
         
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
         // Get today date in yyyy-MM-dd
         val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
@@ -423,6 +426,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
                     Ir.co.tfs.farazaman.util.ErrorHandler.handleRetrofitHttpError(response, requireContext(), "خطا در ثبت ماموریت جدید")
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e("NewMissionBottomSheet", "Exception in createMission", e)
                     loadingDialog?.dismiss()
                     loadingDialog = null
@@ -440,7 +444,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
         // Show loading dialog
         loadingDialog = LoadingDialog.showWithTimeout(requireContext(), "در حال دریافت جزئیات برنامه کاری...", 180000) // 3 minutes timeout
         
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val requestBody = mapOf(
                     "request" to mapOf(
@@ -485,6 +489,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
                 }
                 
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e("NewMissionBottomSheet", "Exception in fetchMissionDetailsWithService", e)
                 withContext(Dispatchers.Main) {
                     loadingDialog?.dismiss()
@@ -515,16 +520,20 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
             val missionData = processMissionData(dataArray, encryptionsMap, organId, contractId, visitDate)
             
             // Create mission in TrackManager
-            lifecycleScope.launch(Dispatchers.Main) {
-                createMissionFromData(missionData)
-            }
+            createMissionFromData(missionData)
             
         } catch (e: Exception) {
             Log.e("NewMissionBottomSheet", "Error processing mission data from response", e)
-            lifecycleScope.launch(Dispatchers.Main) {
-                Toast.makeText(context, "خطا در پردازش داده‌های برنامه کاری", Toast.LENGTH_SHORT).show()
+            context?.let {
+                Toast.makeText(it, "خطا در پردازش داده‌های برنامه کاری", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    override fun onDestroyView() {
+        loadingDialog?.dismiss()
+        loadingDialog = null
+        super.onDestroyView()
     }
 
     private fun fetchMissionDetails(organId: Int, contractId: Int, visitDate: String, client: OkHttpClient) {

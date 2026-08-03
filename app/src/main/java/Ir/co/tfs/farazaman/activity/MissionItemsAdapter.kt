@@ -1,11 +1,11 @@
 package Ir.co.tfs.farazaman.activity
 
-import android.content.Context
 import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import Ir.co.tfs.farazaman.R
 
@@ -53,21 +53,25 @@ class MissionItemsAdapter(
             holder.violationButton.setColorFilter(Color.WHITE)
         } else {
             holder.itemView.setBackgroundColor(Color.TRANSPARENT)
-            holder.titleTextView.setTextColor(Color.BLACK) // Reset text color
-            // Reset icon colors to default
-            holder.mapButton.clearColorFilter()
-            holder.violationButton.clearColorFilter()
+            val context = holder.itemView.context
+            holder.titleTextView.setTextColor(ContextCompat.getColor(context, R.color.app_on_surface))
+            val iconColor = ContextCompat.getColor(context, R.color.app_on_surface_secondary)
+            holder.mapButton.setColorFilter(iconColor)
+            holder.violationButton.setColorFilter(iconColor)
         }
         
         // Set up click listeners
         holder.mapButton.setOnClickListener {
+            @Suppress("DEPRECATION")
+            val currentPosition = holder.adapterPosition
+            if (currentPosition == RecyclerView.NO_POSITION) return@setOnClickListener
             // Clear previous highlight
             val previousSection = globalLastClickedSection
             val previousPosition = globalLastClickedPosition
             
             // Set new global highlight
             globalLastClickedSection = sectionType
-            globalLastClickedPosition = position
+            globalLastClickedPosition = currentPosition
             
             // Notify previous item to remove highlight
             if (previousSection != null && previousPosition != RecyclerView.NO_POSITION) {
@@ -75,19 +79,22 @@ class MissionItemsAdapter(
             }
             
             // Notify current item to add highlight
-            notifyItemChanged(position)
+            notifyItemChanged(currentPosition)
             
-            onMapClick?.invoke(position)
+            onMapClick?.invoke(currentPosition)
         }
         
         holder.violationButton.setOnClickListener {
+            @Suppress("DEPRECATION")
+            val currentPosition = holder.adapterPosition
+            if (currentPosition == RecyclerView.NO_POSITION) return@setOnClickListener
             // Clear previous highlight
             val previousSection = globalLastClickedSection
             val previousPosition = globalLastClickedPosition
             
             // Set new global highlight
             globalLastClickedSection = sectionType
-            globalLastClickedPosition = position
+            globalLastClickedPosition = currentPosition
             
             // Notify previous item to remove highlight
             if (previousSection != null && previousPosition != RecyclerView.NO_POSITION) {
@@ -95,9 +102,9 @@ class MissionItemsAdapter(
             }
             
             // Notify current item to add highlight
-            notifyItemChanged(position)
+            notifyItemChanged(currentPosition)
             
-            onViolationClick?.invoke(position)
+            onViolationClick?.invoke(currentPosition)
         }
     }
 
