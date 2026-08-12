@@ -14,8 +14,8 @@ public class TrackPoint extends Point {
 
     public TrackPoint(Cursor c) {
         super(c);
-        if ( ! c.isNull(c.getColumnIndex(TrackContentProvider.Schema.COL_SPEED)) ) {
-            speed = c.getDouble(c.getColumnIndex(TrackContentProvider.Schema.COL_SPEED));
+        if ( ! c.isNull(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_SPEED)) ) {
+            speed = c.getDouble(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_SPEED));
         }
     }
 

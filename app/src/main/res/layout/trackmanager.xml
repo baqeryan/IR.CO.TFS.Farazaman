@@ -41,6 +41,7 @@
 			android:id="@+id/recyclerview"
 			android:layout_width="fill_parent"
 			android:layout_height="fill_parent"
+			android:layoutAnimation="@anim/list_layout_enter"
 			android:layout_marginBottom="8dp"
 			tools:listitem="@layout/tracklist_item" />
 
@@ -75,9 +76,9 @@
 				android:layout_height="wrap_content"
 				android:text="دریافت برنامه کاری"
 				app:cornerRadius="4dp"
-				android:backgroundTint="@color/brand_green_dark"
+				android:backgroundTint="@color/app_primary"
 				android:layout_margin="8dp"
-				android:textColor="#FFFFFF"
+				android:textColor="@color/app_on_primary"
 				android:fontFamily="@font/iran_sans"
 				android:padding="12dp" />
 		</LinearLayout>
@@ -114,9 +115,9 @@ android:visibility="gone"
 		android:layout_height="wrap_content"
 		android:text="شروع ماموریت جدید"
 		app:cornerRadius="4dp"
-		android:backgroundTint="@color/brand_green_dark"
+		android:backgroundTint="@color/app_primary"
 		android:layout_margin="8dp"
-		android:textColor="#FFFFFF"
+		android:textColor="@color/app_on_primary"
 		android:fontFamily="@font/iran_sans"
 		android:padding="12dp" />
 

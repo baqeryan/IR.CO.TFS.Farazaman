@@ -32,6 +32,7 @@ import Ir.co.tfs.farazaman.R;
 import Ir.co.tfs.farazaman.activity.DisplayTrackMap;
 import Ir.co.tfs.farazaman.data.db.DataHelper;
 import Ir.co.tfs.farazaman.data.db.TrackContentProvider;
+import Ir.co.tfs.farazaman.domain.tracking.TrackingPointPolicy;
 import Ir.co.tfs.farazaman.listener.PressureListener;
 import Ir.co.tfs.farazaman.listener.SensorListener;
 
@@ -53,10 +54,6 @@ public class GPSLogger extends Service implements LocationListener {
 
 	private long currentTrackId = -1;
 	private long gpsLoggingMinDistance;
-
-	private static final float WALKING_MAX_ACCEPTABLE_ACCURACY = 30.0f;
-	private static final float DRIVING_MAX_ACCEPTABLE_ACCURACY = 50.0f;
-	private static final float WALKING_SPEED_THRESHOLD_MS = 3.0f;
 
 	private final Handler guaranteedLogHandler = new Handler(Looper.getMainLooper());
 	private static final long GUARANTEED_LOG_INTERVAL_MS = 10000;
@@ -167,7 +164,7 @@ public class GPSLogger extends Service implements LocationListener {
 		isGpsEnabled = true;
 		mostRecentLocation = location;
 
-		if (isLocationAcceptable(location)) {
+		if (TrackingPointPolicy.isAccuracyAcceptable(location.getAccuracy(), location.getSpeed())) {
 			if (lastLoggedLocation == null) {
 				logPoint(location, "First Acceptable");
 				return;
@@ -189,12 +186,6 @@ public class GPSLogger extends Service implements LocationListener {
 
 		Log.d(TAG, "Point logged. Reason: [" + reason + "]. Accuracy: " + location.getAccuracy() + "m");
 		guaranteedLogHandler.postDelayed(guaranteedLogRunnable, GUARANTEED_LOG_INTERVAL_MS);
-	}
-
-	private boolean isLocationAcceptable(Location location) {
-		if (location == null) return false;
-		float maxAccuracy = location.getSpeed() < WALKING_SPEED_THRESHOLD_MS ? WALKING_MAX_ACCEPTABLE_ACCURACY : DRIVING_MAX_ACCEPTABLE_ACCURACY;
-		return location.getAccuracy() <= maxAccuracy;
 	}
 
 	public class GPSLoggerBinder extends Binder {

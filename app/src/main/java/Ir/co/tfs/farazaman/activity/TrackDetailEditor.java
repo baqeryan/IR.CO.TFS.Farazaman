@@ -97,8 +97,8 @@ public abstract class TrackDetailEditor extends Activity {
 		long startDateLong = 0;
 		String tname = "";
 		if (cursor != null && cursor.moveToFirst()) {
-			startDateLong = cursor.getLong(cursor.getColumnIndex(TrackContentProvider.Schema.COL_START_DATE));
-			tname = cursor.getString(cursor.getColumnIndex(TrackContentProvider.Schema.COL_NAME));
+			startDateLong = cursor.getLong(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_START_DATE));
+			tname = cursor.getString(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_NAME));
 			cursor.close();
 		}
 
@@ -108,9 +108,10 @@ public abstract class TrackDetailEditor extends Activity {
 		// Save name field, if changed, to db.
 		// String class required for equals to work, and for trim().
 		String nameToSave = etName.getText().toString().trim();
-		if(nameToSave.length() == 0)
+		if (nameToSave.length() == 0) {
 			nameToSave = DataHelper.FILENAME_FORMATTER.format(startDate); // Set default track name
-        values.put(TrackContentProvider.Schema.COL_NAME, nameToSave);
+		}
+		values.put(TrackContentProvider.Schema.COL_NAME, nameToSave);
 
 		// All other values updated even if empty
 		values.put(TrackContentProvider.Schema.COL_DESCRIPTION, etDescription.getText().toString().trim());

@@ -8,9 +8,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import Ir.co.tfs.farazaman.data.api.FormDataApiService
 import Ir.co.tfs.farazaman.data.model.RoadData
-import Ir.co.tfs.farazaman.service.remote.RoadService
+import Ir.co.tfs.farazaman.data.repository.AddressLookupCoordinator
 import Ir.co.tfs.farazaman.service.remote.ApiService
 import Ir.co.tfs.farazaman.util.RoadQueryBuffer
 import Ir.co.tfs.farazaman.data.model.GisLayerIndexResponse
@@ -19,7 +20,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DisplayTrackMapViewModel @Inject constructor(
-    private val roadService: RoadService,
+    private val addressLookup: AddressLookupCoordinator,
     private val apiService: ApiService,
     private val formDataApiService: FormDataApiService
 ) : ViewModel() {
@@ -50,6 +51,8 @@ class DisplayTrackMapViewModel @Inject constructor(
     // UI State for mission details
     private val _missionDetails = MutableStateFlow<Any?>(null)
     val missionDetails: StateFlow<Any?> = _missionDetails.asStateFlow()
+    private var roadInfoJob: Job? = null
+    private var pendingRoadInfoRequest: RoadInfoRequest? = null
 
     /**
      * Fetch road information for the given coordinates
@@ -58,18 +61,31 @@ class DisplayTrackMapViewModel @Inject constructor(
         latitude: Double,
         longitude: Double,
         buffer: Int = RoadQueryBuffer.BUFFER_DEFAULT,
+        onRequestCompleted: (Boolean) -> Unit = {},
     ) {
-        viewModelScope.launch {
+        if (addressLookup.isCoolingDown()) {
+            onRequestCompleted(false)
+            return
+        }
+        val request = RoadInfoRequest(latitude, longitude, buffer, onRequestCompleted)
+        if (roadInfoJob?.isActive == true) {
+            // Keep only the newest GPS position; intermediate points do not need reverse geocoding.
+            pendingRoadInfoRequest = request
+            return
+        }
+        roadInfoJob = viewModelScope.launch {
+            var requestCompleted = false
             _isLoadingRoadInfo.value = true
             _errorMessage.value = null
             
             try {
                 Log.d(TAG, "Fetching road info for: $latitude, $longitude (buffer=$buffer)")
-                val roadDataList = roadService.getRoadData(
+                val roadDataList = addressLookup.getRoadData(
                     latitude = latitude,
                     longitude = longitude,
                     buffer = buffer,
                 )
+                requestCompleted = true
                 
                 if (roadDataList.isNotEmpty()) {
                     val firstRoadResult = roadDataList[0]
@@ -100,6 +116,17 @@ class DisplayTrackMapViewModel @Inject constructor(
                 _errorMessage.value = "خطا در دریافت اطلاعات جاده"
             } finally {
                 _isLoadingRoadInfo.value = false
+                onRequestCompleted(requestCompleted)
+                roadInfoJob = null
+                pendingRoadInfoRequest?.also { pending ->
+                    pendingRoadInfoRequest = null
+                    fetchRoadInfo(
+                        latitude = pending.latitude,
+                        longitude = pending.longitude,
+                        buffer = pending.buffer,
+                        onRequestCompleted = pending.onRequestCompleted,
+                    )
+                }
             }
         }
     }
@@ -113,9 +140,13 @@ class DisplayTrackMapViewModel @Inject constructor(
         buffer: Int = RoadQueryBuffer.BUFFER_DEFAULT,
         callback: (String) -> Unit,
     ) {
+        if (addressLookup.isCoolingDown()) {
+            callback("")
+            return
+        }
         viewModelScope.launch {
             try {
-                val roadDataList = roadService.getRoadData(
+                val roadDataList = addressLookup.getRoadData(
                     latitude = latitude,
                     longitude = longitude,
                     buffer = buffer,
@@ -172,6 +203,13 @@ class DisplayTrackMapViewModel @Inject constructor(
             }
         }
     }
+
+    private data class RoadInfoRequest(
+        val latitude: Double,
+        val longitude: Double,
+        val buffer: Int,
+        val onRequestCompleted: (Boolean) -> Unit,
+    )
 
     /**
      * Fetch mission details by encryption

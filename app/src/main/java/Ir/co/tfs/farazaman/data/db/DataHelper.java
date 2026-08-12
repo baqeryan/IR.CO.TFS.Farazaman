@@ -343,7 +343,7 @@ public class DataHelper {
 		
 		if (ca != null) {
 			if (ca.moveToFirst()) {
-				currentTrackId = ca.getLong(ca.getColumnIndex(TrackContentProvider.Schema.COL_ID));
+				currentTrackId = ca.getLong(ca.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ID));
 			}
 			ca.close();
 		}
@@ -431,7 +431,7 @@ public class DataHelper {
 		if (c != null && c.getCount() != 0) {
 			c.moveToFirst();
 			@SuppressWarnings("deprecation")
-			String trackPath = c.getString(c.getColumnIndex(TrackContentProvider.Schema.COL_DIR));
+			String trackPath = c.getString(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_DIR));
 			if (trackPath != null) {
 				trackDir = new File(trackPath);
 			}
@@ -466,7 +466,7 @@ public class DataHelper {
 		Cursor cursor = contentResolver.query(trackUri, null, null,
 				null, null);
 		if(cursor != null && cursor.moveToFirst()) {
-			trackName = cursor.getString(cursor.getColumnIndex(TrackContentProvider.Schema.COL_NAME));
+			trackName = cursor.getString(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_NAME));
 			cursor.close();
 		}
 
@@ -489,7 +489,7 @@ public class DataHelper {
 		try {
 			if (!cursor.moveToFirst()) return null;
 			long trackId = cursor.getLong(
-					cursor.getColumnIndex(TrackContentProvider.Schema.COL_ID));
+					cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ID));
 			return Track.build(trackId, cursor, contentResolver, true);
 		} finally {
 			cursor.close();
@@ -525,7 +525,7 @@ public class DataHelper {
 		Log.d(TAG, "Count of elements in cursor:" + cWayPoints.getCount());
 		for(cWayPoints.moveToFirst(); !cWayPoints.isAfterLast(); cWayPoints.moveToNext()) {
 			out.add(cWayPoints.getInt(
-					cWayPoints.getColumnIndex(TrackContentProvider.Schema.COL_ID)));
+					cWayPoints.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ID)));
 		}
 		cWayPoints.close();
 
@@ -560,7 +560,7 @@ public class DataHelper {
 		Log.d(TAG, "Count of elements in cTrackPoints:" + cTrackPoints.getCount());
 		for(cTrackPoints.moveToFirst(); !cTrackPoints.isAfterLast(); cTrackPoints.moveToNext()) {
 			out.add(cTrackPoints.getInt(
-					cTrackPoints.getColumnIndex(TrackContentProvider.Schema.COL_ID)));
+					cTrackPoints.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ID)));
 		}
 		cTrackPoints.close();
 		Log.d(TAG, "Count of elements in returned list:" + out.size());

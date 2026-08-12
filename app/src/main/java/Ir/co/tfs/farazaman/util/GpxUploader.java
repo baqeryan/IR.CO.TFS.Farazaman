@@ -1,12 +1,14 @@
 
 package Ir.co.tfs.farazaman.util;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
 import java.io.File;
 import java.io.IOException;
 
-import Ir.co.tfs.farazaman.AppConstants;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.MediaType;
@@ -23,11 +25,12 @@ public class GpxUploader{
         void onFailure(String error);
     }
 
-    public static void uploadFile(File zipFile, String token, UploadCallback callback) {
+    public static void uploadFile(Context context, File zipFile, String token, UploadCallback callback) {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
         OkHttpClient client = new OkHttpClient.Builder()
-                .connectTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
-                .writeTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
+                .connectTimeout(NetworkTimeouts.UPLOAD_CONNECT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(NetworkTimeouts.UPLOAD_READ_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+                .writeTimeout(NetworkTimeouts.UPLOAD_WRITE_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
                 .build();
 
         RequestBody requestBody = new MultipartBody.Builder()
@@ -37,7 +40,7 @@ public class GpxUploader{
                 .build();
 
         Request request = new Request.Builder()
-                .url(AppConstants.BASE_URL + "api/GisGeolocation/upload")
+                .url(SelectedServerUrl.apiUrl(preferences, "api/GisGeolocation/upload"))
                 .addHeader("Accept", "application/json")
                 .addHeader("Authorization", token)
                 .post(requestBody)

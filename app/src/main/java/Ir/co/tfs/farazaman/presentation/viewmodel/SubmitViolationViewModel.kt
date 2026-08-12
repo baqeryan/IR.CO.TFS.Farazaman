@@ -9,13 +9,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import Ir.co.tfs.farazaman.data.model.RoadData
-import Ir.co.tfs.farazaman.service.remote.RoadService
+import Ir.co.tfs.farazaman.data.repository.AddressLookupCoordinator
 import Ir.co.tfs.farazaman.util.RoadQueryBuffer
 import javax.inject.Inject
 
 @HiltViewModel
 class SubmitViolationViewModel @Inject constructor(
-    private val roadService: RoadService
+    private val addressLookup: AddressLookupCoordinator
 ) : ViewModel() {
 
     companion object {
@@ -41,14 +41,21 @@ class SubmitViolationViewModel @Inject constructor(
         latitude: Double,
         longitude: Double,
         buffer: Int = RoadQueryBuffer.BUFFER_DEFAULT,
+        onRequestCompleted: (Boolean) -> Unit = {},
     ) {
+        if (addressLookup.isCoolingDown()) {
+            onRequestCompleted(false)
+            return
+        }
         viewModelScope.launch {
+            var requestCompleted = false
             _isLoadingRoadData.value = true
             _errorMessage.value = null
             
             try {
                 Log.d(TAG, "Fetching road data for: $latitude, $longitude (buffer=$buffer)")
-                val roadDataList = roadService.getRoadData(latitude, longitude, buffer)
+                val roadDataList = addressLookup.getRoadData(latitude, longitude, buffer)
+                requestCompleted = true
                 
                 if (roadDataList.isNotEmpty()) {
                     _roadData.value = roadDataList[0]
@@ -63,6 +70,7 @@ class SubmitViolationViewModel @Inject constructor(
                 _roadData.value = null
             } finally {
                 _isLoadingRoadData.value = false
+                onRequestCompleted(requestCompleted)
             }
         }
     }

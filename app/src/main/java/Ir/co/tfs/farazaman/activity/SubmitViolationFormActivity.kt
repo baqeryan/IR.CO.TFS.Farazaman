@@ -35,6 +35,7 @@ import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import Ir.co.tfs.farazaman.supervisor.DailyPlanItemViolationHelper
 import Ir.co.tfs.farazaman.supervisor.SupervisorViolationHistoryStore
+import Ir.co.tfs.farazaman.util.AddressLocationHelper
 import Ir.co.tfs.farazaman.util.GpsAccuracyHelper
 import dagger.hilt.android.AndroidEntryPoint
 import ir.hamsaa.persiandatepicker.PersianDatePickerDialog
@@ -45,6 +46,8 @@ import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.data.db.TrackContentProvider
 import Ir.co.tfs.farazaman.data.db.DatabaseHelper
 import Ir.co.tfs.farazaman.data.model.DropdownItem
+import Ir.co.tfs.farazaman.data.repository.AddressLookupCoordinator
+import Ir.co.tfs.farazaman.domain.validation.ViolationFormValidator
 import Ir.co.tfs.farazaman.layout.URLValidatorTask.TAG
 import Ir.co.tfs.farazaman.presentation.viewmodel.FormDataViewModel
 import Ir.co.tfs.farazaman.presentation.viewmodel.FormDataViewModel.SubmissionState
@@ -56,13 +59,19 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 open class SubmitViolationFormActivity : BaseActivity() {
 
     companion object {
         private const val TAG = "SubmitViolationForm"
+        private const val ADDRESS_UPDATE_INTERVAL_MS = 1_000L
     }
 
     protected val formDataViewModel: FormDataViewModel by viewModels()
@@ -70,6 +79,8 @@ open class SubmitViolationFormActivity : BaseActivity() {
     private var latitude: Double = 0.0
     private var longitude: Double = 0.0
     private var address: String = ""
+    private var addressUpdateJob: Job? = null
+    private var lastAddressCoordinates: Pair<Double, Double>? = null
     private lateinit var btnPickImage: Button
     private lateinit var imagesRecyclerView: androidx.recyclerview.widget.RecyclerView
     private var cameraImageUri: Uri? = null
@@ -154,7 +165,7 @@ open class SubmitViolationFormActivity : BaseActivity() {
         }
 
     @Inject
-    lateinit var roadService: Ir.co.tfs.farazaman.service.remote.RoadService
+    lateinit var addressLookup: AddressLookupCoordinator
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -247,7 +258,7 @@ open class SubmitViolationFormActivity : BaseActivity() {
             addressEditText.setText(address)
         } else if (latitude != 0.0 && longitude != 0.0) {
             // Fetch address from RoadService in background
-            fetchAddressFromRoadService(latitude, longitude)
+            lifecycleScope.launch { fetchAddressFromRoadService(latitude, longitude) }
         }
         
         // بررسی اینکه آیا موقعیت معتبری دریافت شده است یا خیر
@@ -278,6 +289,13 @@ open class SubmitViolationFormActivity : BaseActivity() {
         super.onResume()
         // Update GPS warning visibility when activity resumes
         updateGpsWarningVisibility()
+        startAddressUpdater()
+    }
+
+    override fun onPause() {
+        addressUpdateJob?.cancel()
+        addressUpdateJob = null
+        super.onPause()
     }
 
     override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
@@ -1191,18 +1209,14 @@ open class SubmitViolationFormActivity : BaseActivity() {
                 }
             }
 
-            if (number <= 0) {
-                Toast.makeText(this, "لطفا تعداد را وارد کنید", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            if (address.isBlank()) {
-                Toast.makeText(this, "لطفا آدرس را وارد کنید", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            if (description.isBlank()) {
-                Toast.makeText(this, "لطفا توضیحات را وارد کنید", Toast.LENGTH_SHORT).show()
+            val basicValidationError = ViolationFormValidator.validateBasic(number, address, description)
+            if (basicValidationError != null) {
+                val message = when (basicValidationError) {
+                    ViolationFormValidator.Error.INVALID_COUNT -> "لطفا تعداد را وارد کنید"
+                    ViolationFormValidator.Error.EMPTY_ADDRESS -> "لطفا آدرس را وارد کنید"
+                    ViolationFormValidator.Error.EMPTY_DESCRIPTION -> "لطفا توضیحات را وارد کنید"
+                }
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -1498,25 +1512,74 @@ open class SubmitViolationFormActivity : BaseActivity() {
         // The permission handling is now done in the permissionLauncher callback
     }
 
-    private fun fetchAddressFromRoadService(lat: Double, lon: Double) {
-        // Optionally show a loading indicator here
-        addressEditText.setText("در حال دریافت...")
-        lifecycleScope.launch {
-            try {
-                val buffer = GpsAccuracyHelper.resolveBuffer(this@SubmitViolationFormActivity, currentTrackId)
-                val roadDataList = roadService.getRoadData(latitude = lat, longitude = lon, buffer = buffer)
-                val fetchedAddress = roadDataList.firstOrNull()?.name ?: ""
-                if (addressEditText.text.toString() == "در حال دریافت..." && fetchedAddress.isNotEmpty()) {
-                    addressEditText.setText(fetchedAddress)
-                } else if (addressEditText.text.toString() == "در حال دریافت...") {
-                    addressEditText.setText("")
+    private fun startAddressUpdater() {
+        if (currentTrackId == -1L || addressUpdateJob?.isActive == true) return
+        addressUpdateJob = lifecycleScope.launch {
+            while (isActive) {
+                val location = withContext(Dispatchers.IO) { getLastLocationOfTrack(currentTrackId) }
+                val coordinates = location?.let { it.latitude to it.longitude }
+                if (coordinates != null &&
+                    AddressLocationHelper.shouldUpdateAddress(lastAddressCoordinates, coordinates)
+                ) {
+                    latitude = coordinates.first
+                    longitude = coordinates.second
+                    fetchAddressFromRoadService(latitude, longitude)
                 }
-            } catch (e: Exception) {
-                if (addressEditText.text.toString() == "در حال دریافت...") {
-                    addressEditText.setText("")
+                delay(ADDRESS_UPDATE_INTERVAL_MS)
+            }
+        }
+    }
+
+    private suspend fun fetchAddressFromRoadService(lat: Double, lon: Double) {
+        if (addressLookup.isCoolingDown()) return
+        if (addressEditText.text.isNullOrBlank()) addressEditText.setText("در حال دریافت...")
+        try {
+            val buffer = withContext(Dispatchers.IO) {
+                GpsAccuracyHelper.resolveBuffer(this@SubmitViolationFormActivity, currentTrackId)
+            }
+            val fetchedAddress = addressLookup.getRoadData(
+                latitude = lat,
+                longitude = lon,
+                buffer = buffer,
+            ).firstOrNull()?.name?.trim().orEmpty()
+            lastAddressCoordinates = lat to lon
+            if (fetchedAddress.isNotEmpty()) {
+                addressEditText.setText(fetchedAddress)
+            } else if (addressEditText.text.toString() == "در حال دریافت...") {
+                addressEditText.setText("")
+            }
+        } catch (e: Exception) {
+            if (addressEditText.text.toString() == "در حال دریافت...") {
+                addressEditText.setText("")
+            }
+        }
+    }
+
+    private fun getLastLocationOfTrack(trackId: Long): android.location.Location? {
+        val cursor = contentResolver.query(
+            TrackContentProvider.trackPointsUri(trackId),
+            arrayOf(
+                TrackContentProvider.Schema.COL_LATITUDE,
+                TrackContentProvider.Schema.COL_LONGITUDE,
+                TrackContentProvider.Schema.COL_TIMESTAMP,
+            ),
+            null,
+            null,
+            "${TrackContentProvider.Schema.COL_TIMESTAMP} DESC",
+        )
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val latIndex = it.getColumnIndex(TrackContentProvider.Schema.COL_LATITUDE)
+                val lonIndex = it.getColumnIndex(TrackContentProvider.Schema.COL_LONGITUDE)
+                if (latIndex >= 0 && lonIndex >= 0) {
+                    return android.location.Location("track_last_location").apply {
+                        latitude = it.getDouble(latIndex)
+                        longitude = it.getDouble(lonIndex)
+                    }
                 }
             }
         }
+        return null
     }
 
     /**
@@ -1577,7 +1640,7 @@ open class SubmitViolationFormActivity : BaseActivity() {
 
         cursor?.use {
             if (it.moveToFirst()) {
-                val isActive = it.getInt(it.getColumnIndex(TrackContentProvider.Schema.COL_ACTIVE)) == TrackContentProvider.Schema.VAL_TRACK_ACTIVE
+                val isActive = it.getInt(it.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ACTIVE)) == TrackContentProvider.Schema.VAL_TRACK_ACTIVE
                 Log.d(TAG, "Track $trackId active status: $isActive")
                 return isActive
             }
@@ -1635,6 +1698,7 @@ open class SubmitViolationFormActivity : BaseActivity() {
         if (::addressEditText.isInitialized) {
             addressEditText.text?.clear()
         }
+        lastAddressCoordinates = null
         selectedImages.clear()
         updateImageDisplay()
         val organId = intent.getIntExtra("organ_id", -1)

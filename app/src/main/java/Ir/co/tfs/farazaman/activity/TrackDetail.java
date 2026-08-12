@@ -81,6 +81,7 @@ public class TrackDetail extends TrackDetailEditor implements AdapterView.OnItem
 	private ListView lv;
 	
 	@Override
+	@SuppressWarnings("MissingSuperCall")
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState, R.layout.trackdetail, getIntent().getExtras().getLong(TrackContentProvider.Schema.COL_TRACK_ID));
 
@@ -180,10 +181,10 @@ public class TrackDetail extends TrackDetailEditor implements AdapterView.OnItem
 		// OSM Upload date
 		map = new HashMap<String, String>();
 		map.put(ITEM_KEY, getResources().getString(R.string.trackdetail_osm_upload_date));
-		if (cursor.isNull(cursor.getColumnIndex(TrackContentProvider.Schema.COL_OSM_UPLOAD_DATE))) {
+		if (cursor.isNull(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_OSM_UPLOAD_DATE))) {
 			map.put(ITEM_VALUE, getResources().getString(R.string.trackdetail_osm_upload_notyet));
 		} else {
-			map.put(ITEM_VALUE, DateFormat.getDateTimeInstance().format(new Date(cursor.getLong(cursor.getColumnIndex(TrackContentProvider.Schema.COL_OSM_UPLOAD_DATE)))));
+			map.put(ITEM_VALUE, DateFormat.getDateTimeInstance().format(new Date(cursor.getLong(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_OSM_UPLOAD_DATE)))));
 		}
 		data.add(map);
 		
@@ -191,10 +192,10 @@ public class TrackDetail extends TrackDetailEditor implements AdapterView.OnItem
 		// if the user exports the track
 		map = new HashMap<String, String>();
 		map.put(ITEM_KEY, getResources().getString(R.string.trackdetail_exportdate));
-		if (cursor.isNull(cursor.getColumnIndex(TrackContentProvider.Schema.COL_EXPORT_DATE))) {
+		if (cursor.isNull(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_EXPORT_DATE))) {
 			map.put(ITEM_VALUE, getResources().getString(R.string.trackdetail_export_notyet));
 		} else {
-			map.put(ITEM_VALUE, (DateFormat.getDateTimeInstance().format(new Date(cursor.getLong(cursor.getColumnIndex(TrackContentProvider.Schema.COL_EXPORT_DATE))))));
+			map.put(ITEM_VALUE, (DateFormat.getDateTimeInstance().format(new Date(cursor.getLong(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_EXPORT_DATE))))));
 		}
 		data.add(map);
 		

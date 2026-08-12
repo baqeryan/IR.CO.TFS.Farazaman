@@ -9,7 +9,7 @@ class LoginUseCase @Inject constructor(
     private val authRepository: AuthRepository
 ) {
     suspend operator fun invoke(username: String, password: String): LoginResult {
-        Log.d("LoginUseCase", "Login use case invoked for username: $username")
+        Log.d("LoginUseCase", "Login use case invoked")
         return try {
             val response = authRepository.login(username, password)
             Log.d("LoginUseCase", "Login use case completed successfully")

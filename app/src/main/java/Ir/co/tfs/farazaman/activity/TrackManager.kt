@@ -542,8 +542,8 @@ class TrackManager : AppCompatActivity(), TrackListRecyclerViewAdapterListener {
         
         cursor?.use {
             if (it.moveToFirst()) {
-                val latitude = it.getDouble(it.getColumnIndex(TrackContentProvider.Schema.COL_LATITUDE))
-                val longitude = it.getDouble(it.getColumnIndex(TrackContentProvider.Schema.COL_LONGITUDE))
+                val latitude = it.getDouble(it.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LATITUDE))
+                val longitude = it.getDouble(it.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LONGITUDE))
                 
                 // Create a Location object
                 val location = android.location.Location("track_last_location")
@@ -618,7 +618,7 @@ class TrackManager : AppCompatActivity(), TrackListRecyclerViewAdapterListener {
         }
         val cursor = contentResolver.query(TrackContentProvider.CONTENT_URI_TRACK, null, null, null, null)
         cursor?.use {
-            val idCol = cursor.getColumnIndex(TrackContentProvider.Schema.COL_ID)
+            val idCol = cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ID)
             while (cursor.moveToNext()) {
                 deleteTrack(cursor.getLong(idCol))
             }

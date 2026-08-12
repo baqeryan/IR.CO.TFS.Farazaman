@@ -63,6 +63,7 @@
         android:id="@+id/zones_recycler_view"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layoutAnimation="@anim/list_layout_enter"
         android:maxHeight="400dp"
         android:scrollbars="vertical" />
 

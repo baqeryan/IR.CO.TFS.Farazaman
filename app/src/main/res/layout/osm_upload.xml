@@ -21,8 +21,8 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:layout_weight="1"
-            android:backgroundTint="#263238"
-            android:textColor="#FFFFFF"
+            android:backgroundTint="@color/app_primary"
+            android:textColor="@color/app_on_primary"
             android:text="@string/osm_upload_ok" />
 
 
@@ -30,8 +30,8 @@
             android:id="@+id/osm_upload_btn_cancel"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
-            android:backgroundTint="#263238"
-            android:textColor="#FFFFFF"
+            android:backgroundTint="@color/app_surface_container_high"
+            android:textColor="@color/app_on_surface"
             android:layout_gravity="center_vertical"
             android:layout_weight="1"
             android:text="@string/tracklogger_btnBack" />

@@ -1,12 +1,14 @@
 package Ir.co.tfs.farazaman.activity
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
@@ -14,11 +16,27 @@ import androidx.core.content.ContextCompat
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.databinding.FragmentSupervisorTodayBinding
 import Ir.co.tfs.farazaman.supervisor.bindSupervisorProfileButton
+import Ir.co.tfs.farazaman.data.repository.AddressLookupCoordinator
+import Ir.co.tfs.farazaman.util.AddressLocationHelper
+import Ir.co.tfs.farazaman.util.RoadQueryBuffer
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class SupervisorTodayFragment : Fragment() {
+
+    @Inject lateinit var addressLookup: AddressLookupCoordinator
 
     private var _binding: FragmentSupervisorTodayBinding? = null
     private val binding get() = _binding!!
+    private var streetLookupJob: Job? = null
+    private var streetLookupTrackId: Long = Ir.co.tfs.farazaman.supervisor.SupervisorTrackController.TRACK_ID_NONE
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -63,14 +81,67 @@ class SupervisorTodayFragment : Fragment() {
     }
 
     private fun refreshHeaderState() {
-        val tracking = (activity as? NewSupervisorActivity)?.controller?.isTracking() == true
+        val host = activity as? NewSupervisorActivity
+        val tracking = host?.controller?.isTracking() == true
         binding.activeVisitBanner.visibility = if (tracking) View.VISIBLE else View.GONE
+        if (!tracking || host == null) {
+            streetLookupJob?.cancel()
+            streetLookupJob = null
+            streetLookupTrackId = Ir.co.tfs.farazaman.supervisor.SupervisorTrackController.TRACK_ID_NONE
+            binding.currentStreetName.visibility = View.GONE
+            binding.currentStreetName.text = ""
+            return
+        }
+
+        resolveCurrentStreet(host)
+    }
+
+    private fun resolveCurrentStreet(host: NewSupervisorActivity) {
+        val trackId = host.controller.currentTrackId
+        if (trackId == Ir.co.tfs.farazaman.supervisor.SupervisorTrackController.TRACK_ID_NONE) return
+        if (streetLookupTrackId == trackId && streetLookupJob?.isActive == true) return
+
+        streetLookupJob?.cancel()
+        if (streetLookupTrackId != trackId) {
+            binding.currentStreetName.text = ""
+            binding.currentStreetName.visibility = View.GONE
+        }
+        streetLookupTrackId = trackId
+        streetLookupJob = viewLifecycleOwner.lifecycleScope.launch {
+            var lastResolvedCoordinates: Pair<Double, Double>? = null
+            while (isActive && host.controller.isTracking() && host.controller.currentTrackId == trackId) {
+                val point = withContext(Dispatchers.IO) { host.controller.lastTrackLocation() }
+                val coordinates = point?.let { it.latitude to it.longitude }
+                if (coordinates != null &&
+                    AddressLocationHelper.shouldUpdateAddress(lastResolvedCoordinates, coordinates) &&
+                    !addressLookup.isCoolingDown()
+                ) {
+                    try {
+                        val streetName = addressLookup.getRoadData(
+                            latitude = coordinates.first,
+                            longitude = coordinates.second,
+                            buffer = RoadQueryBuffer.BUFFER_DEFAULT,
+                        ).firstOrNull()?.name?.trim().orEmpty()
+
+                        lastResolvedCoordinates = coordinates
+                        if (_binding != null && streetName.isNotEmpty() && host.controller.isTracking()) {
+                            binding.currentStreetName.text = streetName
+                            binding.currentStreetName.visibility = View.VISIBLE
+                        }
+                    } catch (error: Exception) {
+                        Log.w(TAG, "Unable to resolve current street", error)
+                    }
+                }
+
+                delay(STREET_LOCATION_POLL_INTERVAL_MS)
+            }
+        }
     }
 
     fun selectVisitTab(index: Int): Boolean {
         val binding = _binding ?: return false
         if (index !in 0 until binding.visitPager.adapter?.itemCount.orZero()) return false
-        binding.visitPager.setCurrentItem(index, false)
+        binding.visitPager.setCurrentItem(index, true)
         binding.visitTabs.getTabAt(index)?.select()
         styleVisitTabs()
         return true
@@ -79,6 +150,8 @@ class SupervisorTodayFragment : Fragment() {
     private fun Int?.orZero(): Int = this ?: 0
 
     override fun onDestroyView() {
+        streetLookupJob?.cancel()
+        streetLookupJob = null
         _binding = null
         super.onDestroyView()
     }
@@ -133,5 +206,10 @@ class SupervisorTodayFragment : Fragment() {
             1 -> TodayVisitTabFragment.newInstance("system")
             else -> TodayVisitTabFragment.newInstance("commitments")
         }
+    }
+
+    companion object {
+        private const val TAG = "SupervisorToday"
+        private const val STREET_LOCATION_POLL_INTERVAL_MS = 1_000L
     }
 }

@@ -2,7 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#80000000">
+    android:background="@color/app_scrim">
 
     <LinearLayout
         android:layout_width="280dp"
@@ -29,7 +29,7 @@
             android:layout_height="wrap_content"
             android:text="در حال بارگذاری..."
             android:textSize="16sp"
-            android:textColor="#333333"
+            android:textColor="@color/app_on_surface"
             android:fontFamily="@font/iran_sans"
             android:gravity="center"
             android:layout_marginBottom="16dp" />
@@ -39,7 +39,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:indeterminate="true"
-            android:indeterminateTint="@color/brand_green_dark" />
+            android:indeterminateTint="@color/app_primary" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnLoadingCancel"
@@ -48,10 +48,10 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="@string/menu_cancel"
-            android:textColor="@color/brand_green_dark"
+            android:textColor="@color/app_primary"
             android:fontFamily="@font/iran_sans"
             android:visibility="gone" />
 
     </LinearLayout>
 
-</FrameLayout> 
+</FrameLayout>

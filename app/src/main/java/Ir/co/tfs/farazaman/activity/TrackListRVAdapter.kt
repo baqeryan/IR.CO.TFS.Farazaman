@@ -41,7 +41,7 @@ class TrackListRVAdapter(
     fun deleteTrack(position: Int, onCancel: (() -> Unit)?) {
         val cursor = cursorAdapter.cursor
         if (cursor.moveToPosition(position)) {
-            val trackId = cursor.getLong(cursor.getColumnIndex("_id"))
+            val trackId = cursor.getLong(cursor.getColumnIndexOrThrow("_id"))
             MaterialAlertDialogBuilder(context)
                 .setTitle(R.string.trackmgr_contextmenu_delete)
                 .setMessage(R.string.trackmgr_delete_confirm)
@@ -333,8 +333,8 @@ class TrackListRVAdapter(
             
             cursor?.use {
                 if (it.moveToFirst()) {
-                    val latitude = it.getDouble(it.getColumnIndex(Ir.co.tfs.farazaman.data.db.TrackContentProvider.Schema.COL_LATITUDE))
-                    val longitude = it.getDouble(it.getColumnIndex(Ir.co.tfs.farazaman.data.db.TrackContentProvider.Schema.COL_LONGITUDE))
+                    val latitude = it.getDouble(it.getColumnIndexOrThrow(Ir.co.tfs.farazaman.data.db.TrackContentProvider.Schema.COL_LATITUDE))
+                    val longitude = it.getDouble(it.getColumnIndexOrThrow(Ir.co.tfs.farazaman.data.db.TrackContentProvider.Schema.COL_LONGITUDE))
                     
                     // Create a Location object
                     val location = android.location.Location("track_last_location")
@@ -604,7 +604,7 @@ class TrackListRVAdapter(
         cursorAdapter.bindView(holder.itemView, context, cursorAdapter.cursor)
         
         // Load and populate mission data if available
-        val trackId = cursorAdapter.cursor.getLong(cursorAdapter.cursor.getColumnIndex("_id"))
+        val trackId = cursorAdapter.cursor.getLong(cursorAdapter.cursor.getColumnIndexOrThrow("_id"))
         holder.loadMissionData(trackId)
         
         // Set organization and contract titles from mission data

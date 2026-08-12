@@ -10,6 +10,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import Ir.co.tfs.farazaman.OSMTracker
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.activity.Intro
@@ -17,12 +19,14 @@ import Ir.co.tfs.farazaman.auth.OidcAuthManager
 import Ir.co.tfs.farazaman.domain.repository.AuthRepository
 import Ir.co.tfs.farazaman.domain.model.LoginResult
 import Ir.co.tfs.farazaman.domain.usecase.LoginUseCase
+import Ir.co.tfs.farazaman.domain.validation.LoginInputValidator
 import Ir.co.tfs.farazaman.supervisor.SupervisorMissionHelper
 import Ir.co.tfs.farazaman.databinding.ActivityLoginBinding
 import Ir.co.tfs.farazaman.util.LoadingDialog
 import Ir.co.tfs.farazaman.util.UserManager
 import Ir.co.tfs.farazaman.util.RolesManager
 import Ir.co.tfs.farazaman.util.TokenManager
+import Ir.co.tfs.farazaman.util.NetworkTimeouts
 import Ir.co.tfs.farazaman.service.remote.UserService
 import Ir.co.tfs.farazaman.service.remote.RolesService
 import android.util.Log
@@ -163,7 +167,9 @@ class LoginActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                val response = userService.getUserInfo()
+                val response = withContext(Dispatchers.IO) {
+                    userService.getUserInfo().execute()
+                }
                 
                 if (response.isSuccessful) {
                     val userInfoResponse = response.body()
@@ -236,7 +242,9 @@ class LoginActivity : AppCompatActivity() {
                     return@launch
                 }
                 
-                val response = rolesService.getUserRoles("Bearer $token")
+                val response = withContext(Dispatchers.IO) {
+                    rolesService.getUserRoles("Bearer $token").execute()
+                }
                 
                 if (response.isSuccessful) {
                     val rolesResponse = response.body()
@@ -354,7 +362,7 @@ class LoginActivity : AppCompatActivity() {
     private fun startPasswordLogin() {
         val username = binding.usernameInput.text?.toString()?.trim().orEmpty()
         val password = binding.passwordInput.text?.toString().orEmpty()
-        if (username.isEmpty() || password.isEmpty()) {
+        if (!LoginInputValidator.isValid(username, password)) {
             Toast.makeText(this, "لطفاً نام کاربری و رمز عبور را وارد کنید", Toast.LENGTH_SHORT).show()
             return
         }
@@ -473,9 +481,9 @@ class LoginActivity : AppCompatActivity() {
 
         setCityLoading(true)
         val client = OkHttpClient.Builder()
-            .connectTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
-            .writeTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
+            .connectTimeout(NetworkTimeouts.CONNECT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(NetworkTimeouts.READ_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(NetworkTimeouts.WRITE_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
             .build()
         // Always load the full city list from the central registry (not the saved regional BASE_URL).
         val instancesUrl = "${AppConstants.BASE_URL.trimEnd('/')}/api/Application/Instances"

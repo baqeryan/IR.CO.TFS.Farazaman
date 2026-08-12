@@ -25,8 +25,8 @@ import kotlinx.coroutines.launch
 import Ir.co.tfs.farazaman.OSMTracker
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.data.model.RoadData
-import Ir.co.tfs.farazaman.service.remote.RoadService
 import Ir.co.tfs.farazaman.presentation.viewmodel.SubmitViolationViewModel
+import Ir.co.tfs.farazaman.util.AddressLocationHelper
 import org.osmdroid.api.IMapController
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -52,10 +52,9 @@ class SubmitViolationActivity : AppCompatActivity() {
     private var zoomedToTrackAlready = false
     private var trackId: Long = -1
     private var trackPolyline: Polyline? = null
+    private var lastRoadAddressCoordinates: Pair<Double, Double>? = null
+    private var receivingLocationUpdates = false
 
-    @Inject
-    lateinit var roadService: RoadService
-    
     // ViewModel
     private val viewModel: SubmitViolationViewModel by viewModels()
 
@@ -64,6 +63,7 @@ class SubmitViolationActivity : AppCompatActivity() {
     private lateinit var speedLimitTextView: TextView
 
     companion object {
+        private const val TAG = "SubmitViolationActivity"
         private const val DEFAULT_ZOOM = 16
         private const val CURRENT_SCROLL_X = "currentScrollX"
         private const val CURRENT_CENTER_TO_GPS_POS = "currentCenterToGpsPos"
@@ -195,18 +195,20 @@ class SubmitViolationActivity : AppCompatActivity() {
     private fun startGettingLocation() {
         try {
             if (hasLocationPermission()) {
+                if (receivingLocationUpdates) return
                 locationManager.requestLocationUpdates(
                     LocationManager.GPS_PROVIDER,
                     1000L,
-                    1f,
+                    0f,
                     locationListener
                 )
                 locationManager.requestLocationUpdates(
                     LocationManager.NETWORK_PROVIDER,
                     1000L,
-                    1f,
+                    0f,
                     locationListener
                 )
+                receivingLocationUpdates = true
             }
         } catch (e: SecurityException) {
             e.printStackTrace()
@@ -232,8 +234,10 @@ class SubmitViolationActivity : AppCompatActivity() {
                 osmViewController.animateTo(currentPosition, CENTER_DEFAULT_ZOOM_LEVEL, ANIMATION_DURATION_MS)
             }
 
-            // Fetch road data for the current location
-            fetchRoadData(location.latitude, location.longitude, location.accuracy)
+            val coordinates = location.latitude to location.longitude
+            if (AddressLocationHelper.shouldUpdateAddress(lastRoadAddressCoordinates, coordinates)) {
+                fetchRoadData(location.latitude, location.longitude, location.accuracy, coordinates)
+            }
 
             osmView.invalidate()
         }
@@ -260,7 +264,9 @@ class SubmitViolationActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.isLoadingRoadData.collect { isLoading ->
-                    if (isLoading) {
+                    // Keep the last resolved address visible during GPS refreshes.
+                    // Otherwise every new location update replaces it with loading.
+                    if (isLoading && viewModel.roadData.value == null) {
                         roadNameTextView.text = "در حال دریافت..."
                         roadTypeTextView.text = ""
                         speedLimitTextView.text = ""
@@ -285,11 +291,18 @@ class SubmitViolationActivity : AppCompatActivity() {
         }
     }
 
-    private fun fetchRoadData(latitude: Double, longitude: Double, accuracyMeters: Float) {
+    private fun fetchRoadData(
+        latitude: Double,
+        longitude: Double,
+        accuracyMeters: Float,
+        requestedCoordinates: Pair<Double, Double>,
+    ) {
         val buffer = Ir.co.tfs.farazaman.util.RoadQueryBuffer.forAccuracy(
             accuracyMeters.takeIf { it > 0f },
         )
-        viewModel.fetchRoadData(latitude, longitude, buffer)
+        viewModel.fetchRoadData(latitude, longitude, buffer) { completed ->
+            if (completed) lastRoadAddressCoordinates = requestedCoordinates
+        }
     }
 
     private fun updateRoadInfo(roadData: RoadData) {
@@ -327,17 +340,31 @@ class SubmitViolationActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        stopGettingLocation()
+        osmView.onPause()
         super.onPause()
-//        if (hasLocationPermission()) {
-//            locationManager.removeUpdates(locationListener)
-//        }
+    }
+
+    override fun onDestroy() {
+        stopGettingLocation()
+        super.onDestroy()
     }
 
     override fun onResume() {
         super.onResume()
-//        if (hasLocationPermission()) {
-//            startGettingLocation()
-//        }
+        osmView.onResume()
+        if (hasLocationPermission()) startGettingLocation()
+    }
+
+    private fun stopGettingLocation() {
+        if (!receivingLocationUpdates) return
+        try {
+            locationManager.removeUpdates(locationListener)
+        } catch (error: SecurityException) {
+            Log.w(TAG, "Location permission was revoked before listener cleanup", error)
+        } finally {
+            receivingLocationUpdates = false
+        }
     }
 
     private fun displayTrackPoints() {

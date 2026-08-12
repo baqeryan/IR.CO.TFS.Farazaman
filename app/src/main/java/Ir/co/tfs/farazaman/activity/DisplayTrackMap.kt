@@ -26,16 +26,18 @@ import androidx.lifecycle.repeatOnLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import Ir.co.tfs.farazaman.OSMTracker
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.presentation.viewmodel.DisplayTrackMapViewModel
+import Ir.co.tfs.farazaman.util.AddressLocationHelper
 import Ir.co.tfs.farazaman.data.db.TrackContentProvider
 import Ir.co.tfs.farazaman.layout.GpsStatusRecordDisplay
 import Ir.co.tfs.farazaman.listener.SensorListener
 import Ir.co.tfs.farazaman.overlay.WayPointsOverlay
 import Ir.co.tfs.farazaman.service.gps.GPSLogger
 import Ir.co.tfs.farazaman.service.gps.GPSLoggerServiceConnectionDisplay
-import Ir.co.tfs.farazaman.service.remote.RoadService
 import Ir.co.tfs.farazaman.util.GpsAccuracyHelper
 import Ir.co.tfs.farazaman.service.remote.ApiService
 import com.google.gson.Gson
@@ -59,6 +61,7 @@ import java.io.File
 import java.io.FileOutputStream
 import android.content.ContentValues
 import Ir.co.tfs.farazaman.data.model.GisLayerIndexResponse
+import Ir.co.tfs.farazaman.domain.road.RoadWidthCategory
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 
 @AndroidEntryPoint
@@ -70,7 +73,7 @@ class DisplayTrackMap : AppCompatActivity() {
         const val EXTRA_LATITUDE = "extra_latitude"
         const val EXTRA_LONGITUDE = "extra_longitude"
         const val EXTRA_FROM_NEW_SUPERVISOR = "from_new_supervisor"
-        private const val ROAD_INFO_UPDATE_INTERVAL_MS = 5000L
+        private const val ROAD_INFO_UPDATE_INTERVAL_MS = 1_000L
     }
 
     private lateinit var osmView: MapView
@@ -90,8 +93,6 @@ class DisplayTrackMap : AppCompatActivity() {
     private var gpsLoggerConnection: ServiceConnection = GPSLoggerServiceConnectionDisplay(this)
 
     @Inject
-    lateinit var roadService: RoadService
-    @Inject
     lateinit var apiService: ApiService
     @Inject
     lateinit var formDataApiService: Ir.co.tfs.farazaman.data.api.FormDataApiService
@@ -103,6 +104,11 @@ class DisplayTrackMap : AppCompatActivity() {
     private lateinit var btnLayersToggle: ImageButton
     private val roadInfoUpdateHandler = Handler(Looper.getMainLooper())
     private lateinit var roadInfoRunnable: Runnable
+    private var lastRoadInfoCoordinates: Pair<Double, Double>? = null
+    private var pathUpdateJob: Job? = null
+    private var pathUpdatePending = false
+    private var lastLoadedTrackPointId = 0L
+    private val displayedTrackPoints = mutableListOf<GeoPoint>()
     private var layersExpanded = false
     private var cachedLayers: List<Ir.co.tfs.farazaman.presentation.viewmodel.SpeedDialLayerItem> = emptyList()
 
@@ -192,7 +198,8 @@ class DisplayTrackMap : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.isLoadingRoadInfo.collect { isLoading ->
-                    if (isLoading) {
+                    // Periodic refreshes must not hide an address that is already shown.
+                    if (isLoading && viewModel.roadInfo.value.name.isBlank()) {
                         roadNameTextView.text = getString(R.string.map_loading_address)
                     }
                 }
@@ -230,7 +237,23 @@ class DisplayTrackMap : AppCompatActivity() {
      * Update road info UI elements
      */
     private fun updateRoadInfoUI(roadInfo: Ir.co.tfs.farazaman.presentation.viewmodel.RoadInfo) {
-        roadNameTextView.text = roadInfo.name.ifBlank { getString(R.string.map_address_unknown) }
+        val roadName = roadInfo.name.ifBlank { getString(R.string.map_address_unknown) }
+        roadNameTextView.text = if (roadInfo.isValid) {
+            getString(
+                R.string.map_road_name_with_width,
+                roadName,
+                getString(RoadWidthCategory.fromFclass(roadInfo.fclass).labelResource()),
+            )
+        } else {
+            roadName
+        }
+    }
+
+    private fun RoadWidthCategory.labelResource(): Int = when (this) {
+        RoadWidthCategory.UP_TO_15_METERS -> R.string.road_width_up_to_15
+        RoadWidthCategory.OVER_15_TO_25_METERS -> R.string.road_width_over_15_to_25
+        RoadWidthCategory.OVER_25_TO_45_METERS -> R.string.road_width_over_25_to_45
+        RoadWidthCategory.OVER_45_METERS -> R.string.road_width_over_45
     }
 
     private fun updateLayerControlsWithLayers(
@@ -395,8 +418,11 @@ class DisplayTrackMap : AppCompatActivity() {
             if (!isPlaybackMode) {
                 val loc = myLocationOverlay.myLocation
                 if (loc != null) {
-                    Log.d(TAG, "RoadInfoUpdater tick: lat=${loc.latitude}, lon=${loc.longitude}")
-                    fetchAndDisplayRoadInfo(loc.latitude, loc.longitude)
+                    val coordinates = loc.latitude to loc.longitude
+                    if (AddressLocationHelper.shouldUpdateAddress(lastRoadInfoCoordinates, coordinates)) {
+                        Log.d(TAG, "RoadInfoUpdater location changed: lat=${loc.latitude}, lon=${loc.longitude}")
+                        fetchAndDisplayRoadInfo(loc.latitude, loc.longitude, coordinates)
+                    }
                 } else {
                     Log.d(TAG, "RoadInfoUpdater tick: location is null; will retry")
                 }
@@ -412,9 +438,15 @@ class DisplayTrackMap : AppCompatActivity() {
         }
     }
 
-    private fun fetchAndDisplayRoadInfo(lat: Double, lon: Double) {
+    private fun fetchAndDisplayRoadInfo(
+        lat: Double,
+        lon: Double,
+        requestedCoordinates: Pair<Double, Double>,
+    ) {
         val buffer = GpsAccuracyHelper.resolveBuffer(this, currentTrackId)
-        viewModel.fetchRoadInfo(lat, lon, buffer)
+        viewModel.fetchRoadInfo(lat, lon, buffer) { completed ->
+            if (completed) lastRoadInfoCoordinates = requestedCoordinates
+        }
     }
 
     private fun roadQueryBuffer(): Int = GpsAccuracyHelper.resolveBuffer(this, currentTrackId)
@@ -460,7 +492,7 @@ class DisplayTrackMap : AppCompatActivity() {
         
         contentResolver.registerContentObserver(TrackContentProvider.trackPointsUri(currentTrackId), true, trackpointContentObserver)
         zoomedToTrackAlready = false
-        pathChanged()
+        pathChanged(reset = true)
         wayPointsOverlay.refresh()
     }
 
@@ -468,6 +500,9 @@ class DisplayTrackMap : AppCompatActivity() {
         super.onPause()
         osmView.onPause()
         roadInfoUpdateHandler.removeCallbacks(roadInfoRunnable)
+        pathUpdateJob?.cancel()
+        pathUpdateJob = null
+        pathUpdatePending = false
         contentResolver.unregisterContentObserver(trackpointContentObserver)
         
         if (isPlaybackMode) {
@@ -489,52 +524,82 @@ class DisplayTrackMap : AppCompatActivity() {
         }
     }
 
-    private fun pathChanged() {
+    private fun pathChanged(reset: Boolean = false) {
         if (isFinishing) return
-
-        val points = mutableListOf<GeoPoint>()
-        var minLat = 91.0
-        var minLon = 181.0
-        var maxLat = -91.0
-        var maxLon = -181.0
-
-        val projection = arrayOf(TrackContentProvider.Schema.COL_LATITUDE, TrackContentProvider.Schema.COL_LONGITUDE)
-        contentResolver.query(
-            TrackContentProvider.trackPointsUri(currentTrackId),
-            projection, null, null, "${TrackContentProvider.Schema.COL_ID} asc"
-        )?.use { c ->
-            if (c.moveToFirst()) {
-                val latCol = c.getColumnIndex(TrackContentProvider.Schema.COL_LATITUDE)
-                val lonCol = c.getColumnIndex(TrackContentProvider.Schema.COL_LONGITUDE)
-                do {
-                    val lat = c.getDouble(latCol)
-                    val lon = c.getDouble(lonCol)
-                    points.add(GeoPoint(lat, lon))
-
-                    if (lat < minLat) minLat = lat
-                    if (lon < minLon) minLon = lon
-                    if (lat > maxLat) maxLat = lat
-                    if (lon > maxLon) maxLon = lon
-                } while (c.moveToNext())
-            }
+        if (reset) {
+            pathUpdateJob?.cancel()
+            pathUpdateJob = null
+            lastLoadedTrackPointId = 0L
+            displayedTrackPoints.clear()
+            polyline.setPoints(emptyList())
         }
-        polyline.setPoints(points)
-        osmView.invalidate()
 
-        if (!zoomedToTrackAlready && points.isNotEmpty()) {
-            if (points.size > 1) {
-                osmView.post {
-                    val boundingBox = BoundingBox(maxLat, maxLon, minLat, minLon)
-                    osmView.zoomToBoundingBox(boundingBox, true, 50)
-                    zoomedToTrackAlready = true
+        pathUpdatePending = true
+        if (pathUpdateJob?.isActive == true) return
+        pathUpdateJob = lifecycleScope.launch {
+            do {
+                pathUpdatePending = false
+                val afterId = lastLoadedTrackPointId
+                val newPoints = withContext(Dispatchers.IO) { loadTrackPointsAfter(afterId) }
+                if (newPoints.isNotEmpty()) {
+                    lastLoadedTrackPointId = newPoints.last().id
+                    newPoints.forEach { loadedPoint ->
+                        displayedTrackPoints += loadedPoint.point
+                        polyline.addPoint(loadedPoint.point)
+                    }
+                    osmView.invalidate()
+                    zoomToTrackOnce()
                 }
-            } else {
-                osmViewController.animateTo(points.first())
-                osmViewController.setZoom(18.0)
-                zoomedToTrackAlready = true
-            }
+            } while (pathUpdatePending)
         }
     }
+
+    private fun loadTrackPointsAfter(afterId: Long): List<LoadedTrackPoint> {
+        val projection = arrayOf(
+            TrackContentProvider.Schema.COL_ID,
+            TrackContentProvider.Schema.COL_LATITUDE,
+            TrackContentProvider.Schema.COL_LONGITUDE,
+        )
+        val selection = if (afterId > 0L) "${TrackContentProvider.Schema.COL_ID} > ?" else null
+        val selectionArgs = if (afterId > 0L) arrayOf(afterId.toString()) else null
+        val result = mutableListOf<LoadedTrackPoint>()
+        contentResolver.query(
+            TrackContentProvider.trackPointsUri(currentTrackId),
+            projection,
+            selection,
+            selectionArgs,
+            "${TrackContentProvider.Schema.COL_ID} asc",
+        )?.use { cursor ->
+            val idColumn = cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ID)
+            val latColumn = cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LATITUDE)
+            val lonColumn = cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LONGITUDE)
+            while (cursor.moveToNext()) {
+                result += LoadedTrackPoint(
+                    id = cursor.getLong(idColumn),
+                    point = GeoPoint(cursor.getDouble(latColumn), cursor.getDouble(lonColumn)),
+                )
+            }
+        }
+        return result
+    }
+
+    private fun zoomToTrackOnce() {
+        if (zoomedToTrackAlready || displayedTrackPoints.isEmpty()) return
+        if (displayedTrackPoints.size == 1) {
+            osmViewController.animateTo(displayedTrackPoints.first())
+            osmViewController.setZoom(18.0)
+            zoomedToTrackAlready = true
+            return
+        }
+
+        val boundingBox = BoundingBox.fromGeoPointsSafe(displayedTrackPoints)
+        osmView.post {
+            osmView.zoomToBoundingBox(boundingBox, true, 50)
+            zoomedToTrackAlready = true
+        }
+    }
+
+    private data class LoadedTrackPoint(val id: Long, val point: GeoPoint)
 
     private fun setupSubmitButton() {
         val submitButton = findViewById<Button>(R.id.submit_violation)

@@ -30,6 +30,8 @@ import Ir.co.tfs.farazaman.auth.OidcAuthManager
 import Ir.co.tfs.farazaman.util.AuthInterceptor
 import Ir.co.tfs.farazaman.util.AuthStateManager
 import Ir.co.tfs.farazaman.util.TokenManager
+import Ir.co.tfs.farazaman.util.SecureTokenStorage
+import Ir.co.tfs.farazaman.util.NetworkTimeouts
 
 
 @Module
@@ -50,8 +52,11 @@ object NetworkModule {
     
     @Provides
     @Singleton
-    fun provideTokenManager(sharedPreferences: android.content.SharedPreferences): TokenManager {
-        return TokenManager(sharedPreferences)
+    fun provideTokenManager(
+        sharedPreferences: android.content.SharedPreferences,
+        secureTokenStorage: SecureTokenStorage,
+    ): TokenManager {
+        return TokenManager(sharedPreferences, secureTokenStorage)
     }
     
     @Provides
@@ -82,11 +87,10 @@ object NetworkModule {
     @Singleton
     fun provideAuthInterceptor(
         tokenManager: TokenManager,
-        @ApplicationContext context: Context,
         authStateManager: AuthStateManager,
         authRepository: Ir.co.tfs.farazaman.domain.repository.AuthRepository,
     ): AuthInterceptor {
-        return AuthInterceptor(tokenManager, context, authStateManager, authRepository)
+        return AuthInterceptor(tokenManager, authStateManager, authRepository)
     }
     
     @Provides
@@ -101,9 +105,9 @@ object NetworkModule {
         }
         
         return OkHttpClient.Builder()
-            .connectTimeout(180, TimeUnit.SECONDS)
-            .readTimeout(180, TimeUnit.SECONDS)
-            .writeTimeout(180, TimeUnit.SECONDS)
+            .connectTimeout(NetworkTimeouts.CONNECT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(NetworkTimeouts.READ_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(NetworkTimeouts.WRITE_SECONDS, TimeUnit.SECONDS)
             .addInterceptor(authInterceptor) // Add auth interceptor first
             .addInterceptor(customLoggingInterceptor)
             .addInterceptor(loggingInterceptor)

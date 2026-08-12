@@ -148,6 +148,7 @@ class NewSupervisorActivity : AppCompatActivity(), SupervisorMissionHost {
         val history = historyFragment ?: return
 
         val transaction = supportFragmentManager.beginTransaction()
+        transaction.setCustomAnimations(R.anim.fragment_fade_in, R.anim.fragment_fade_out)
         transaction.hide(home)
         transaction.hide(today)
         transaction.hide(history)

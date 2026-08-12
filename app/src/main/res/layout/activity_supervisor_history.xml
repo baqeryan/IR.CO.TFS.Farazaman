@@ -40,7 +40,8 @@
         app:layout_constraintBottom_toBottomOf="@id/headerBg"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.3" />
 
     <ImageButton
         android:id="@+id/btnProfile"
@@ -60,6 +61,7 @@
         android:id="@+id/historyRecycler"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:layoutAnimation="@anim/list_layout_enter"
         android:clipToPadding="false"
         android:padding="12dp"
         app:layout_constraintBottom_toTopOf="@id/supervisorBottomNav"

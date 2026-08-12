@@ -6,10 +6,12 @@ import android.util.Base64
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import Ir.co.tfs.farazaman.auth.OidcAuthManager
+import Ir.co.tfs.farazaman.BuildConfig
 import Ir.co.tfs.farazaman.data.model.res.LoginResponse
 import Ir.co.tfs.farazaman.domain.repository.AuthRepository
 import Ir.co.tfs.farazaman.presentation.login.LoginModeHelper
 import Ir.co.tfs.farazaman.util.TokenManager
+import Ir.co.tfs.farazaman.util.NetworkTimeouts
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
@@ -25,8 +27,6 @@ class AuthRepositoryImpl @Inject constructor(
 ) : AuthRepository {
 
     override suspend fun login(username: String, password: String): LoginResponse {
-        Log.d(TAG, "Password login request for username: $username")
-
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val baseUrl = normalizeBaseUrl(prefs.getString("BASE_URL", "https://app.tfs.co.ir/")!!)
         val scope = LoginModeHelper.getOidcScope(prefs)
@@ -38,6 +38,9 @@ class AuthRepositoryImpl @Inject constructor(
             tokenType = tokenResponse.tokenType,
             expiresIn = tokenResponse.expiresIn,
         )
+        check(tokenManager.hasAccessToken()) {
+            "ذخیره امن توکن ورود ناموفق بود"
+        }
 
         return LoginResponse(
             access_token = tokenResponse.accessToken,
@@ -93,10 +96,15 @@ class AuthRepositoryImpl @Inject constructor(
 
         tokenManager.saveTokens(
             accessToken = tokenResponse.accessToken,
-            refreshToken = tokenResponse.refreshToken,
+            // Some OAuth servers rotate refresh tokens while others omit it.
+            // Keep the previous one when no replacement is returned.
+            refreshToken = tokenResponse.refreshToken.ifBlank { refreshToken },
             tokenType = tokenResponse.tokenType,
             expiresIn = tokenResponse.expiresIn,
         )
+        check(tokenManager.hasAccessToken()) {
+            "ذخیره امن توکن ورود ناموفق بود"
+        }
 
         return LoginResponse(
             access_token = tokenResponse.accessToken,
@@ -190,10 +198,7 @@ class AuthRepositoryImpl @Inject constructor(
 
             client.newCall(request).execute().use { response ->
                 val bodyString = response.body?.string().orEmpty()
-                Log.d(
-                    TAG,
-                    "Token response from $url: HTTP ${response.code}, prefix=${bodyString.take(120)}",
-                )
+                Log.d(TAG, "Token endpoint response: HTTP ${response.code}")
 
                 if (bodyString.isBlank()) {
                     lastError = Exception("پاسخ خالی از سرور ورود")
@@ -249,9 +254,9 @@ class AuthRepositoryImpl @Inject constructor(
 
     private fun createBasicOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
-            .connectTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
-            .writeTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
+            .connectTimeout(NetworkTimeouts.TOKEN_CONNECT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(NetworkTimeouts.TOKEN_READ_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(NetworkTimeouts.TOKEN_WRITE_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
             .build()
     }
 
@@ -260,7 +265,10 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     private fun buildBasicAuthHeader(): String {
-        val credentials = "$LEGACY_CLIENT_ID:$LEGACY_CLIENT_SECRET"
+        check(BuildConfig.LEGACY_CLIENT_SECRET.isNotBlank()) {
+            "Legacy login is not configured for this build"
+        }
+        val credentials = "$LEGACY_CLIENT_ID:${BuildConfig.LEGACY_CLIENT_SECRET}"
         return "Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)}"
     }
 
@@ -279,6 +287,5 @@ class AuthRepositoryImpl @Inject constructor(
     companion object {
         private const val TAG = "AuthRepository"
         private const val LEGACY_CLIENT_ID = "b1aa497a-8778-4351-8c91-9719e2b0362f"
-        private const val LEGACY_CLIENT_SECRET = "i4uCgAvIAw7BuAn7dDxDW0jHznYaqIhA"
     }
 }

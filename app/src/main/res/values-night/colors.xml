@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="app_background">#101413</color>
+    <color name="app_surface">#191C1B</color>
+    <color name="app_surface_variant">#24312E</color>
+    <color name="app_on_surface">#E1E3E1</color>
+    <color name="app_on_surface_secondary">#BFC9C6</color>
+    <color name="app_outline">#54615E</color>
+    <color name="app_primary">#72D8C8</color>
+    <color name="app_on_primary">#003730</color>
+    <color name="app_primary_container">#005144</color>
+    <color name="app_on_primary_container">#D5F5ED</color>
+    <color name="app_surface_container">#1D2422</color>
+    <color name="app_surface_container_high">#28302E</color>
+    <color name="app_scrim">#B3000000</color>
+    <color name="app_success_container">#123C27</color>
+    <color name="app_on_success_container">#A6F2C3</color>
+    <color name="app_warning_container">#493100</color>
+    <color name="app_on_warning_container">#FFDDA1</color>
+    <color name="app_info_container">#16364D</color>
+    <color name="app_on_info_container">#B8DDFF</color>
+    <color name="app_error">#FFB4AB</color>
+    <color name="app_on_error">#690005</color>
+    <color name="app_error_container">#93000A</color>
+    <color name="app_on_error_container">#FFDAD6</color>
+
+    <!-- Existing semantic aliases used throughout legacy XML screens. -->
+    <color name="text_dark">@color/app_on_surface</color>
+    <color name="icon_gray">@color/app_on_surface_secondary</color>
+    <color name="input_stroke">@color/app_outline</color>
+    <color name="button_gray">#303634</color>
+    <color name="colorPrimaryTextLight">@color/app_on_surface</color>
+    <color name="black">@color/app_on_surface</color>
+    <color name="gray">@color/app_on_surface_secondary</color>
+    <color name="gray_disabled">#6F7976</color>
+    <color name="text_primary_dark">@color/app_on_surface</color>
+    <color name="text_secondary_dark">@color/app_on_surface_secondary</color>
+    <color name="intro_text">#A9E5DA</color>
+    <color name="intro_primary">#72D8C8</color>
+    <color name="intro_primary_fill">#0B5E56</color>
+    <color name="intro_text_secondary">#BFC9C6</color>
+    <color name="intro_dot_inactive">#4D6661</color>
+    <color name="login_label">@color/app_on_surface</color>
+    <color name="withe">@color/app_surface</color>
+</resources>

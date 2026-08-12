@@ -39,7 +39,7 @@
         android:src="@drawable/ic_intro_arrow_forward"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:tint="#212121" />
+        app:tint="@color/app_on_surface" />
 
     <ImageButton
         android:id="@+id/displaytrackmap_imgZoomCenter"
@@ -142,7 +142,7 @@
             android:fontFamily="@font/iran_sans"
             android:gravity="center"
             android:text="@string/map_street_name_label"
-            android:textColor="#05493E"
+            android:textColor="@color/app_on_surface"
             android:textSize="16sp"
             android:textStyle="bold" />
 

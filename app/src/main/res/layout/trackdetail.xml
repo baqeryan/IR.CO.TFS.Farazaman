@@ -18,8 +18,8 @@
         <Button
             android:id="@+id/trackdetail_btn_ok"
             android:layout_width="fill_parent"
-            android:backgroundTint="#263238"
-            android:textColor="#FFFFFF"
+            android:backgroundTint="@color/app_primary"
+            android:textColor="@color/app_on_primary"
             android:fontFamily="@font/iran_sans"
 
             android:layout_height="wrap_content"
@@ -29,8 +29,8 @@
         <Button
             android:id="@+id/trackdetail_btn_cancel"
             android:layout_width="fill_parent"
-            android:backgroundTint="#263238"
-            android:textColor="#FFFFFF"
+            android:backgroundTint="@color/app_surface_container_high"
+            android:textColor="@color/app_on_surface"
             android:fontFamily="@font/iran_sans"
 
             android:layout_height="wrap_content"

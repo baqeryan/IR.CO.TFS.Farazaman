@@ -214,9 +214,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		if(cursor != null && cursor.moveToFirst()){
 			Log.d(TAG, "manageNewStoragePath (found " + cursor.getCount() + " tracks to be processed)");
 			do{
-				long trackId = cursor.getLong(cursor.getColumnIndex(TrackContentProvider.Schema.COL_ID));
+				long trackId = cursor.getLong(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ID));
 				Log.d(TAG,"manageNewStoragePath (" + trackId + ")");
-				String oldDirName = cursor.getString(cursor.getColumnIndex(TrackContentProvider.Schema.COL_DIR));
+				String oldDirName = cursor.getString(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_DIR));
 				File newDir = DataHelper.getTrackDirectory(trackId, context);
 				File oldDir = new File(oldDirName);
 				if(oldDir.exists() && oldDir.canRead()){

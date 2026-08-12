@@ -1,5 +1,6 @@
 package Ir.co.tfs.farazaman.activity
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
@@ -52,6 +53,7 @@ class DeveloperOptionsWarningActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("MissingSuperCall")
     override fun onBackPressed() {
         // Prevent back button press - user must disable Developer Options
         // Do nothing

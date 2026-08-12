@@ -63,7 +63,7 @@ public class TracklistAdapter extends CursorAdapter {
 		Button end = (Button) v.findViewById(R.id.end_mission);
 
 		// Bind id and build Track object first (needed for button logic)
-		long trackId = cursor.getLong(cursor.getColumnIndex(TrackContentProvider.Schema.COL_ID));
+		long trackId = cursor.getLong(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ID));
 		String strTrackId = Long.toString(trackId);
 		vId.setText(strTrackId);
 
@@ -77,7 +77,7 @@ public class TracklistAdapter extends CursorAdapter {
 		vNameOrStartDate.setText(t.getDisplayName());
 
 		// Is track active ?
-		int active = cursor.getInt(cursor.getColumnIndex(TrackContentProvider.Schema.COL_ACTIVE));
+		int active = cursor.getInt(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ACTIVE));
 		if (TrackContentProvider.Schema.VAL_TRACK_ACTIVE == active) {
 			// Yellow clock icon for Active
 			vStatus.setImageResource(android.R.drawable.presence_away);
@@ -85,7 +85,7 @@ public class TracklistAdapter extends CursorAdapter {
 			stopOrResume.setText("توقف");
 			stopOrResume.setBackgroundColor(context.getResources().getColor(R.color.stop)); // Set red background
 			line.setBackgroundColor(context.getResources().getColor(R.color.stop)); // Set red background
-		} else if (cursor.isNull(cursor.getColumnIndex(TrackContentProvider.Schema.COL_EXPORT_DATE))) {
+		} else if (cursor.isNull(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_EXPORT_DATE))) {
 			// Hide green circle icon: Track not yet exported
 			vStatus.setVisibility(View.GONE);
 			
@@ -107,7 +107,7 @@ public class TracklistAdapter extends CursorAdapter {
 		}
 		
 		// Upload status
-		if (cursor.isNull(cursor.getColumnIndex(TrackContentProvider.Schema.COL_OSM_UPLOAD_DATE))) {
+		if (cursor.isNull(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_OSM_UPLOAD_DATE))) {
 			vUploadStatus.setVisibility(View.GONE);
 		}		
 		else{

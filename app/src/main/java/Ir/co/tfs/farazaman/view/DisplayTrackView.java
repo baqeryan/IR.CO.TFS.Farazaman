@@ -17,9 +17,9 @@ import android.graphics.Paint;
 import android.graphics.Paint.Align;
 import android.os.Handler;
 import android.util.Log;
-import android.widget.TextView;
+import androidx.appcompat.widget.AppCompatTextView;
 
-public class DisplayTrackView extends TextView {
+public class DisplayTrackView extends AppCompatTextView {
 
 	private static final String TAG = DisplayTrackView.class.getSimpleName();
 
@@ -267,8 +267,8 @@ public class DisplayTrackView extends TextView {
 		int i=0;
 		
 		for(c.moveToFirst(); !c.isAfterLast(); c.moveToNext(), i++) {
-			coords[i][MercatorProjection.LONGITUDE] = c.getDouble(c.getColumnIndex(TrackContentProvider.Schema.COL_LONGITUDE));
-			coords[i][MercatorProjection.LATITUDE] = c.getDouble(c.getColumnIndex(TrackContentProvider.Schema.COL_LATITUDE));
+			coords[i][MercatorProjection.LONGITUDE] = c.getDouble(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LONGITUDE));
+			coords[i][MercatorProjection.LATITUDE] = c.getDouble(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LATITUDE));
 		}
 		c.close();
 		
@@ -280,8 +280,8 @@ public class DisplayTrackView extends TextView {
 		wayPointsCoords = new double[c.getCount()][2];
 		
 		for(c.moveToFirst(), i=0; !c.isAfterLast(); c.moveToNext(), i++) {
-			wayPointsCoords[i][MercatorProjection.LONGITUDE] = c.getDouble(c.getColumnIndex(TrackContentProvider.Schema.COL_LONGITUDE));
-			wayPointsCoords[i][MercatorProjection.LATITUDE] = c.getDouble(c.getColumnIndex(TrackContentProvider.Schema.COL_LATITUDE));
+			wayPointsCoords[i][MercatorProjection.LONGITUDE] = c.getDouble(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LONGITUDE));
+			wayPointsCoords[i][MercatorProjection.LATITUDE] = c.getDouble(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LATITUDE));
 		}
 		c.close();
 		

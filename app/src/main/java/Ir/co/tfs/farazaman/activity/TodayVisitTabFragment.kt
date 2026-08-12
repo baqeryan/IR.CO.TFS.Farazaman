@@ -158,6 +158,7 @@ class TodayVisitTabFragment : Fragment() {
             commitmentsFormContainer.visibility = View.VISIBLE
             if (childFragmentManager.findFragmentByTag(TAG_COMMITMENTS_FORM) == null) {
                 childFragmentManager.beginTransaction()
+                    .setCustomAnimations(R.anim.fragment_fade_in, R.anim.fragment_fade_out)
                     .replace(
                         R.id.commitmentsFormContainer,
                         CommitmentsViolationFormFragment.newInstance(),

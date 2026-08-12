@@ -73,35 +73,35 @@ public class WaypointListAdapter extends CursorAdapter {
 		TextView vTimestamp = (TextView) tl.findViewById(R.id.wplist_item_timestamp);
 
 		// Bind name
-		String name = cursor.getString(cursor.getColumnIndex(TrackContentProvider.Schema.COL_NAME));
+		String name = cursor.getString(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_NAME));
 		vName.setText(name);
 
 		// Bind location
 		StringBuffer locationAsString = new StringBuffer();
 		locationAsString.append(context.getResources().getString(R.string.wplist_latitude)
-				+ cursor.getString(cursor.getColumnIndex(TrackContentProvider.Schema.COL_LATITUDE)));
+				+ cursor.getString(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LATITUDE)));
 		locationAsString.append(", " + context.getResources().getString(R.string.wplist_longitude)
-				+ cursor.getString(cursor.getColumnIndex(TrackContentProvider.Schema.COL_LONGITUDE)));
-		if (!cursor.isNull(cursor.getColumnIndex(TrackContentProvider.Schema.COL_ELEVATION))) {
+				+ cursor.getString(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LONGITUDE)));
+		if (!cursor.isNull(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ELEVATION))) {
 			locationAsString.append(", " + context.getResources().getString(R.string.wplist_elevation)
-					+ cursor.getString(cursor.getColumnIndex(TrackContentProvider.Schema.COL_ELEVATION)));
+					+ cursor.getString(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ELEVATION)));
 		}
-		if (!cursor.isNull(cursor.getColumnIndex(TrackContentProvider.Schema.COL_ACCURACY))) {
+		if (!cursor.isNull(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ACCURACY))) {
 			locationAsString.append(", " + context.getResources().getString(R.string.wplist_accuracy)
-					+ cursor.getString(cursor.getColumnIndex(TrackContentProvider.Schema.COL_ACCURACY)));
+					+ cursor.getString(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ACCURACY)));
 		}
-		if (!cursor.isNull(cursor.getColumnIndex(TrackContentProvider.Schema.COL_COMPASS))) {
+		if (!cursor.isNull(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_COMPASS))) {
 			locationAsString.append(", " + context.getResources().getString(R.string.wplist_compass)
-					+ cursor.getString(cursor.getColumnIndex(TrackContentProvider.Schema.COL_COMPASS)));
+					+ cursor.getString(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_COMPASS)));
 			locationAsString.append(", " + context.getResources().getString(R.string.wplist_compass_accuracy)
-					+ cursor.getString(cursor.getColumnIndex(TrackContentProvider.Schema.COL_COMPASS_ACCURACY)));
+					+ cursor.getString(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_COMPASS_ACCURACY)));
 			
 		
 		}		
 		vLocation.setText(locationAsString.toString());
 
 		// Bind timestamp
-		Date ts = new Date(cursor.getLong(cursor.getColumnIndex(TrackContentProvider.Schema.COL_TIMESTAMP)));
+		Date ts = new Date(cursor.getLong(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_TIMESTAMP)));
 		vTimestamp.setText(DATE_FORMATTER.format(ts));
 		return tl;
 	}

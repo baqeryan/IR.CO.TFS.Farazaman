@@ -17,7 +17,7 @@ object GpsAccuracyHelper {
             "${TrackContentProvider.Schema.COL_TIMESTAMP} DESC",
         )?.use { cursor ->
             if (!cursor.moveToFirst()) return null
-            val index = cursor.getColumnIndex(TrackContentProvider.Schema.COL_ACCURACY)
+            val index = cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ACCURACY)
             if (index < 0 || cursor.isNull(index)) return null
             return cursor.getFloat(index).takeIf { it > 0f }
         }

@@ -94,14 +94,14 @@ public class WaypointList extends ListActivity {
 		Button buttonCancel = editWaypointDialog.findViewById(R.id.edit_waypoint_button_cancel);
 
 		// Retrieve existing waypoint name
-		String oldName = cursor.getString(cursor.getColumnIndex(TrackContentProvider.Schema.COL_NAME));
+		String oldName = cursor.getString(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_NAME));
 		editWaypointName.setText(oldName);
 		editWaypointName.setSelection(oldName.length());
 
 		// Retrieve waypoint details
-		final long trackId = cursor.getLong(cursor.getColumnIndex(TrackContentProvider.Schema.COL_TRACK_ID));
-		final String uuid = cursor.getString(cursor.getColumnIndex(TrackContentProvider.Schema.COL_UUID));
-		final String link = cursor.getString(cursor.getColumnIndex(TrackContentProvider.Schema.COL_LINK));
+		final long trackId = cursor.getLong(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_TRACK_ID));
+		final String uuid = cursor.getString(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_UUID));
+		final String link = cursor.getString(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LINK));
 
 		final String filePath = (link != null) ? DataHelper.getTrackDirectory(trackId, l.getContext()) + "/" + link : null;
 		File file = (filePath != null) ? new File(filePath) : null;

@@ -176,6 +176,9 @@ class OidcAuthManager @Inject constructor(
             tokenType = tokenResponse.tokenType ?: "Bearer",
             expiresIn = expiresIn,
         )
+        check(tokenManager.hasAccessToken()) {
+            "ذخیره امن توکن ورود ناموفق بود"
+        }
         tokenManager.saveIdToken(tokenResponse.idToken)
     }
 

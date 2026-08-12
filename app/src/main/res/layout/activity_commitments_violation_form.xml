@@ -47,7 +47,7 @@
         android:background="@drawable/warning_background"
         android:fontFamily="@font/iran_sans"
         android:padding="12dp"
-        android:textColor="@color/white"
+        android:textColor="@color/app_on_warning_container"
         android:textSize="13sp"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
@@ -204,6 +204,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/image_picker"
+                    style="@style/FaraZaman.Form.PrimaryButton"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:background="@drawable/violation_pick_image_btn"
@@ -214,7 +215,7 @@
                     android:paddingStart="12dp"
                     android:paddingEnd="12dp"
                     android:text="@string/violation_pick_images"
-                    android:textColor="@color/white"
+                    android:textColor="@color/app_on_primary"
                     android:textSize="11sp"
                     app:backgroundTint="@null"
                     app:cornerRadius="0dp"
@@ -222,7 +223,7 @@
                     app:iconGravity="textStart"
                     app:iconPadding="4dp"
                     app:iconSize="18dp"
-                    app:iconTint="@color/white" />
+                    app:iconTint="@color/app_on_primary" />
 
                 <TextView
                     android:id="@+id/txtImageFileName"
@@ -305,6 +306,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/save"
+        style="@style/FaraZaman.Form.PrimaryButton"
         android:layout_width="0dp"
         android:layout_height="52dp"
         android:layout_marginStart="16dp"
@@ -312,9 +314,9 @@
         android:layout_marginBottom="16dp"
         android:fontFamily="@font/iran_sans"
         android:text="@string/violation_save"
-        android:textColor="@color/white"
+        android:textColor="@color/app_on_primary"
         android:textSize="16sp"
-        app:backgroundTint="@color/intro_primary_fill"
+        app:backgroundTint="@color/app_primary"
         app:cornerRadius="12dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

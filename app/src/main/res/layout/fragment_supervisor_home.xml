@@ -221,7 +221,7 @@
                     app:cardBackgroundColor="@color/app_surface"
                     app:cardCornerRadius="20dp"
                     app:cardElevation="2dp"
-                    app:strokeColor="#E8EDF2"
+                    app:strokeColor="@color/app_outline"
                     app:strokeWidth="1dp">
 
                     <LinearLayout
@@ -249,7 +249,7 @@
                                 android:layout_height="20dp"
                                 android:contentDescription="@null"
                                 android:src="@android:drawable/ic_dialog_alert"
-                                app:tint="#E65100" />
+                                app:tint="@color/app_on_warning_container" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -258,7 +258,7 @@
                                 android:layout_weight="1"
                                 android:fontFamily="@font/iran_sans"
                                 android:text="@string/supervisor_home_warning_start_visit"
-                                android:textColor="#E65100"
+                                android:textColor="@color/app_on_warning_container"
                                 android:textSize="12sp" />
                         </LinearLayout>
 

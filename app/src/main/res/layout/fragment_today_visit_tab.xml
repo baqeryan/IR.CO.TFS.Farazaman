@@ -18,6 +18,7 @@
             android:id="@+id/itemsRecycler"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layoutAnimation="@anim/list_layout_enter"
             android:clipToPadding="false"
             android:paddingStart="16dp"
             android:paddingTop="8dp"

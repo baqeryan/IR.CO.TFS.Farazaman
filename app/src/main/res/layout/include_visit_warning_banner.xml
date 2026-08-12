@@ -28,7 +28,7 @@
             android:layout_height="wrap_content"
             android:fontFamily="@font/iran_sans"
             android:text="@string/daily_plan_visit_not_started_title"
-            android:textColor="#E65100"
+            android:textColor="@color/app_on_warning_container"
             android:textSize="13sp"
             android:textStyle="bold" />
 
@@ -38,7 +38,7 @@
             android:layout_marginTop="2dp"
             android:fontFamily="@font/iran_sans"
             android:text="@string/supervisor_home_warning_start_visit"
-            android:textColor="#E65100"
+            android:textColor="@color/app_on_warning_container"
             android:textSize="11sp" />
     </LinearLayout>
 
@@ -87,7 +87,7 @@
             android:text="@string/supervisor_start_visit"
             android:textColor="@color/white"
             android:textSize="12sp"
-            app:backgroundTint="#F57C00"
+            app:backgroundTint="@color/app_on_warning_container"
             app:cornerRadius="18dp" />
     </LinearLayout>
 </LinearLayout>

@@ -53,6 +53,7 @@
         android:id="@+id/citiesRecyclerView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layoutAnimation="@anim/list_layout_enter"
         android:clipToPadding="false"
         android:nestedScrollingEnabled="true"
         android:overScrollMode="never"

@@ -570,7 +570,12 @@
     <string name="daily_plan_no_violation">موردی ثبت نشده</string>
     <string name="supervisor_no_items">آیتمی برای نمایش وجود ندارد</string>
     <string name="daily_plan_show_on_map">نمایش روی نقشه</string>
-    <string name="map_street_name_label">نام خیابان</string>
+    <string name="map_street_name_label">نام معبر</string>
+    <string name="map_road_name_with_width">%1$s — عرض %2$s</string>
+    <string name="road_width_up_to_15">تا ۱۵ متر</string>
+    <string name="road_width_over_15_to_25">بیشتر از ۱۵ تا ۲۵ متر</string>
+    <string name="road_width_over_25_to_45">بیشتر از ۲۵ تا ۴۵ متر</string>
+    <string name="road_width_over_45">بیشتر از ۴۵ متر</string>
     <string name="map_back">بازگشت</string>
     <string name="map_my_location">موقعیت من</string>
     <string name="map_layers">لایه‌های نقشه</string>

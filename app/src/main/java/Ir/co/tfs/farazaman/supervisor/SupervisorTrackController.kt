@@ -265,6 +265,11 @@ class SupervisorTrackController(
         return null
     }
 
+    fun lastTrackLocation(): android.location.Location? {
+        if (currentTrackId == TRACK_ID_NONE) return null
+        return getLastLocationOfTrack(currentTrackId)
+    }
+
     fun onRequestPermissionsResult(requestCode: Int, grantResults: IntArray) {
         when (requestCode) {
             LOCATION_PERMISSION_REQUEST_CODE -> {

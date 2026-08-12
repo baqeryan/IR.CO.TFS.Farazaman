@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu
-  xmlns:android="http://schemas.android.com/apk/res/android">
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:app="http://schemas.android.com/apk/res-auto">
 	<item 
 		android:id="@+id/displaytrackmap_menu_center_to_gps" 
 		android:icon="@android:drawable/ic_menu_mylocation"
@@ -12,5 +13,5 @@
         android:id="@+id/menu_export_gpx"
         android:title="ذخیره GPX در حافظه"
         android:icon="@android:drawable/ic_menu_save"
-        android:showAsAction="ifRoom" />
+        app:showAsAction="ifRoom" />
 </menu>

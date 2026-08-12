@@ -36,13 +36,21 @@ import Ir.co.tfs.farazaman.data.db.TrackContentProvider
 import Ir.co.tfs.farazaman.data.model.DropdownItem
 import Ir.co.tfs.farazaman.data.model.FormDataRequest
 import Ir.co.tfs.farazaman.data.model.FormDataResponse
+import Ir.co.tfs.farazaman.data.repository.AddressLookupCoordinator
+import Ir.co.tfs.farazaman.domain.validation.ViolationFormValidator
 import Ir.co.tfs.farazaman.presentation.viewmodel.FormDataViewModel
 import Ir.co.tfs.farazaman.presentation.viewmodel.FormDataViewModel.SubmissionState
 import Ir.co.tfs.farazaman.supervisor.SupervisorTrackController
 import Ir.co.tfs.farazaman.supervisor.SupervisorViolationHistoryStore
+import Ir.co.tfs.farazaman.util.AddressLocationHelper
 import Ir.co.tfs.farazaman.util.GpsAccuracyHelper
 import Ir.co.tfs.farazaman.util.LoadingDialog
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -53,7 +61,7 @@ class CommitmentsViolationFormFragment : Fragment() {
 
     private lateinit var formDataViewModel: FormDataViewModel
 
-    @Inject lateinit var roadService: Ir.co.tfs.farazaman.service.remote.RoadService
+    @Inject lateinit var addressLookup: AddressLookupCoordinator
 
     private lateinit var organsTextView: AutoCompleteTextView
     private lateinit var contractNumberTextView: AutoCompleteTextView
@@ -87,6 +95,8 @@ class CommitmentsViolationFormFragment : Fragment() {
     private var gridAdapter: SelectedImagesAdapter? = null
     private var calculationListenerAttached = false
     private var initialFormDataApplied = false
+    private var addressUpdateJob: Job? = null
+    private var lastAddressCoordinates: Pair<Double, Double>? = null
 
     private val takePictureLauncher =
         registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
@@ -135,20 +145,25 @@ class CommitmentsViolationFormFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         updateGpsWarningVisibility()
+        startAddressUpdater()
+    }
+
+    override fun onPause() {
+        addressUpdateJob?.cancel()
+        addressUpdateJob = null
+        super.onPause()
     }
 
     fun reloadForm() {
         if (!isAdded || view == null) return
         initialFormDataApplied = false
-        currentTrackId = requireActivity().intent.getLongExtra(
+        val refreshedTrackId = requireActivity().intent.getLongExtra(
             TrackContentProvider.Schema.COL_TRACK_ID,
             SupervisorTrackController.TRACK_ID_NONE,
         )
+        if (refreshedTrackId != currentTrackId) lastAddressCoordinates = null
+        currentTrackId = refreshedTrackId
         if (currentTrackId == SupervisorTrackController.TRACK_ID_NONE) return
-
-        val lastLocation = getLastLocationOfTrack(currentTrackId)
-        latitude = lastLocation?.latitude ?: 0.0
-        longitude = lastLocation?.longitude ?: 0.0
 
         val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
         val missionJson = prefs.getString("mission_data_$currentTrackId", null)
@@ -188,11 +203,6 @@ class CommitmentsViolationFormFragment : Fragment() {
             formDataViewModel.fetchFormData()
         }
 
-        if (addressEditText.text.isNullOrBlank()) {
-            if (latitude != 0.0 && longitude != 0.0) {
-                fetchAddressFromRoadService(latitude, longitude)
-            }
-        }
     }
 
     private fun bindViews(view: View) {
@@ -430,16 +440,14 @@ class CommitmentsViolationFormFragment : Fragment() {
             val address = addressEditText.text.toString()
             val description = view.findViewById<TextInputEditText>(R.id.description).text.toString()
 
-            if (number <= 0) {
-                Toast.makeText(requireContext(), "لطفا تعداد را وارد کنید", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            if (address.isBlank()) {
-                Toast.makeText(requireContext(), "لطفا آدرس را وارد کنید", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            if (description.isBlank()) {
-                Toast.makeText(requireContext(), "لطفا توضیحات را وارد کنید", Toast.LENGTH_SHORT).show()
+            val basicValidationError = ViolationFormValidator.validateBasic(number, address, description)
+            if (basicValidationError != null) {
+                val message = when (basicValidationError) {
+                    ViolationFormValidator.Error.INVALID_COUNT -> "لطفا تعداد را وارد کنید"
+                    ViolationFormValidator.Error.EMPTY_ADDRESS -> "لطفا آدرس را وارد کنید"
+                    ViolationFormValidator.Error.EMPTY_DESCRIPTION -> "لطفا توضیحات را وارد کنید"
+                }
+                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             if (violationGroupTextView.text.isBlank()) {
@@ -608,6 +616,7 @@ class CommitmentsViolationFormFragment : Fragment() {
         view?.findViewById<EditText>(R.id.count)?.text?.clear()
         view?.findViewById<TextInputEditText>(R.id.description)?.text?.clear()
         addressEditText.text?.clear()
+        lastAddressCoordinates = null
         selectedImages.clear()
         updateImageDisplay()
         reloadForm()
@@ -650,22 +659,45 @@ class CommitmentsViolationFormFragment : Fragment() {
         }
     }
 
-    private fun fetchAddressFromRoadService(lat: Double, lon: Double) {
-        addressEditText.setText("در حال دریافت...")
-        viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                val buffer = GpsAccuracyHelper.resolveBuffer(requireContext(), currentTrackId)
-                val roadDataList = roadService.getRoadData(latitude = lat, longitude = lon, buffer = buffer)
-                val fetchedAddress = roadDataList.firstOrNull()?.name ?: ""
-                if (addressEditText.text.toString() == "در حال دریافت..." && fetchedAddress.isNotEmpty()) {
-                    addressEditText.setText(fetchedAddress)
-                } else if (addressEditText.text.toString() == "در حال دریافت...") {
-                    addressEditText.setText("")
+    private fun startAddressUpdater() {
+        if (currentTrackId == SupervisorTrackController.TRACK_ID_NONE || addressUpdateJob?.isActive == true) return
+        addressUpdateJob = viewLifecycleOwner.lifecycleScope.launch {
+            while (isActive) {
+                val location = withContext(Dispatchers.IO) { getLastLocationOfTrack(currentTrackId) }
+                val coordinates = location?.let { it.latitude to it.longitude }
+                if (coordinates != null &&
+                    AddressLocationHelper.shouldUpdateAddress(lastAddressCoordinates, coordinates)
+                ) {
+                    latitude = coordinates.first
+                    longitude = coordinates.second
+                    fetchAddressFromRoadService(latitude, longitude)
                 }
-            } catch (_: Exception) {
-                if (addressEditText.text.toString() == "در حال دریافت...") {
-                    addressEditText.setText("")
-                }
+                delay(ADDRESS_UPDATE_INTERVAL_MS)
+            }
+        }
+    }
+
+    private suspend fun fetchAddressFromRoadService(lat: Double, lon: Double) {
+        if (addressLookup.isCoolingDown()) return
+        if (addressEditText.text.isNullOrBlank()) addressEditText.setText("در حال دریافت...")
+        try {
+            val buffer = withContext(Dispatchers.IO) {
+                GpsAccuracyHelper.resolveBuffer(requireContext(), currentTrackId)
+            }
+            val fetchedAddress = addressLookup.getRoadData(
+                latitude = lat,
+                longitude = lon,
+                buffer = buffer,
+            ).firstOrNull()?.name?.trim().orEmpty()
+            lastAddressCoordinates = lat to lon
+            if (fetchedAddress.isNotEmpty()) {
+                addressEditText.setText(fetchedAddress)
+            } else if (addressEditText.text.toString() == "در حال دریافت...") {
+                addressEditText.setText("")
+            }
+        } catch (_: Exception) {
+            if (addressEditText.text.toString() == "در حال دریافت...") {
+                addressEditText.setText("")
             }
         }
     }
@@ -698,7 +730,7 @@ class CommitmentsViolationFormFragment : Fragment() {
         )
         cursor?.use {
             if (it.moveToFirst()) {
-                return it.getInt(it.getColumnIndex(TrackContentProvider.Schema.COL_ACTIVE)) ==
+                return it.getInt(it.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ACTIVE)) ==
                     TrackContentProvider.Schema.VAL_TRACK_ACTIVE
             }
         }
@@ -765,6 +797,8 @@ class CommitmentsViolationFormFragment : Fragment() {
     }
 
     companion object {
+        private const val ADDRESS_UPDATE_INTERVAL_MS = 1_000L
+
         fun newInstance(): CommitmentsViolationFormFragment = CommitmentsViolationFormFragment()
 
         fun formatMissionVisitDateForSubmission(missionVisitDate: String?): String {

@@ -74,11 +74,11 @@ public class WayPointsOverlay extends ItemizedOverlay<OverlayItem> {
  
 		for(c.moveToFirst(); !c.isAfterLast(); c.moveToNext()) {
 			OverlayItem i = new OverlayItem(
-					c.getString(c.getColumnIndex(TrackContentProvider.Schema.COL_NAME)),
-					c.getString(c.getColumnIndex(TrackContentProvider.Schema.COL_NAME)),
+					c.getString(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_NAME)),
+					c.getString(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_NAME)),
 					new GeoPoint(
-							c.getDouble(c.getColumnIndex(TrackContentProvider.Schema.COL_LATITUDE)),
-							c.getDouble(c.getColumnIndex(TrackContentProvider.Schema.COL_LONGITUDE)))
+							c.getDouble(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LATITUDE)),
+							c.getDouble(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LONGITUDE)))
 					);
 			wayPointItems.add(i);
 		}

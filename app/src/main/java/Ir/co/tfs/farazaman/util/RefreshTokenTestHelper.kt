@@ -35,8 +35,8 @@ class RefreshTokenTestHelper @Inject constructor(
         val hasRefresh = tokenManager.hasRefreshToken()
         val timeUntilExpiry = tokenManager.getTimeUntilExpiry()
         
-        Log.d(TAG, "Access Token: ${accessToken?.take(20)}... (length: ${accessToken?.length ?: 0})")
-        Log.d(TAG, "Refresh Token: ${refreshToken?.take(20)}... (length: ${refreshToken?.length ?: 0})")
+        Log.d(TAG, "Access token available: ${!accessToken.isNullOrEmpty()}")
+        Log.d(TAG, "Refresh token available: ${!refreshToken.isNullOrEmpty()}")
         Log.d(TAG, "Is Logged In: $isLoggedIn")
         Log.d(TAG, "Is Token Expired: $isExpired")
         Log.d(TAG, "Has Refresh Token: $hasRefresh")
@@ -70,7 +70,7 @@ class RefreshTokenTestHelper @Inject constructor(
         
         if (hasTokens) {
             val authHeader = tokenManager.getAuthorizationHeader()
-            Log.d(TAG, "Authorization header: ${authHeader?.take(30)}...")
+            Log.d(TAG, "Authorization header available: ${!authHeader.isNullOrEmpty()}")
         }
         
         Log.d(TAG, "=== END INTERCEPTOR CHECK ===")
@@ -90,8 +90,8 @@ class RefreshTokenTestHelper @Inject constructor(
                 return TestResult.Error("No refresh token available")
             }
             
-            Log.d(TAG, "Refresh token exists: ${refreshToken.take(20)}...")
-            Log.d(TAG, "Current access token: ${tokenManager.getAccessToken()?.take(20)}...")
+            Log.d(TAG, "Refresh token is available")
+            Log.d(TAG, "Access token available: ${!tokenManager.getAccessToken().isNullOrEmpty()}")
             Log.d(TAG, "Token expired: ${tokenManager.isTokenExpired()}")
             
             // Get base URL
@@ -103,9 +103,9 @@ class RefreshTokenTestHelper @Inject constructor(
             
             // Create basic retrofit instance without interceptors
             val basicClient = okhttp3.OkHttpClient.Builder()
-                .connectTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
-                .writeTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
+                .connectTimeout(NetworkTimeouts.TOKEN_CONNECT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(NetworkTimeouts.TOKEN_READ_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+                .writeTimeout(NetworkTimeouts.TOKEN_WRITE_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
                 .build()
 
             val retrofit = Retrofit.Builder()
@@ -136,8 +136,8 @@ class RefreshTokenTestHelper @Inject constructor(
                 val tokenResponse = response.body()
                 if (tokenResponse != null) {
                     Log.d(TAG, "✅ Refresh successful!")
-                    Log.d(TAG, "New access token: ${tokenResponse.access_token.take(20)}...")
-                    Log.d(TAG, "New refresh token: ${tokenResponse.refresh_token.take(20)}...")
+                    Log.d(TAG, "New access token received: ${tokenResponse.access_token.isNotEmpty()}")
+                    Log.d(TAG, "New refresh token received: ${tokenResponse.refresh_token.isNotEmpty()}")
                     Log.d(TAG, "Token type: ${tokenResponse.token_type}")
                     Log.d(TAG, "Expires in: ${tokenResponse.expires_in} seconds")
                     

@@ -23,28 +23,28 @@ public abstract class Point {
 
 
     protected Point(Cursor c) {
-        id = c.getInt(c.getColumnIndex(TrackContentProvider.Schema.COL_ID));
-        trackId = c.getInt(c.getColumnIndex(TrackContentProvider.Schema.COL_TRACK_ID));
-        latitude = c.getDouble(c.getColumnIndex(TrackContentProvider.Schema.COL_LATITUDE));
-        longitude = c.getDouble(c.getColumnIndex(TrackContentProvider.Schema.COL_LONGITUDE));
-        pointTimestamp = c.getLong(c.getColumnIndex(TrackContentProvider.Schema.COL_TIMESTAMP));
+        id = c.getInt(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ID));
+        trackId = c.getInt(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_TRACK_ID));
+        latitude = c.getDouble(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LATITUDE));
+        longitude = c.getDouble(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LONGITUDE));
+        pointTimestamp = c.getLong(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_TIMESTAMP));
 
-        if ( ! c.isNull(c.getColumnIndex(TrackContentProvider.Schema.COL_ELEVATION)) ) {
-            elevation = c.getDouble(c.getColumnIndex(TrackContentProvider.Schema.COL_ELEVATION));
+        if ( ! c.isNull(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ELEVATION)) ) {
+            elevation = c.getDouble(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ELEVATION));
         }
-        if ( ! c.isNull(c.getColumnIndex(TrackContentProvider.Schema.COL_ACCURACY)) ) {
-            accuracy = c.getDouble(c.getColumnIndex(TrackContentProvider.Schema.COL_ACCURACY));
+        if ( ! c.isNull(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ACCURACY)) ) {
+            accuracy = c.getDouble(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ACCURACY));
         }
-        if ( ! c.isNull(c.getColumnIndex(TrackContentProvider.Schema.COL_COMPASS)) ) {
-            compassHeading = c.getDouble(c.getColumnIndex(TrackContentProvider.Schema.COL_COMPASS));
+        if ( ! c.isNull(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_COMPASS)) ) {
+            compassHeading = c.getDouble(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_COMPASS));
         }
-        if ( ! c.isNull(c.getColumnIndex(TrackContentProvider.Schema.COL_COMPASS_ACCURACY)) ) {
+        if ( ! c.isNull(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_COMPASS_ACCURACY)) ) {
             compassAccuracy = c.getDouble(
-                    c.getColumnIndex(TrackContentProvider.Schema.COL_COMPASS_ACCURACY));
+                    c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_COMPASS_ACCURACY));
         }
-        if ( ! c.isNull(c.getColumnIndex(TrackContentProvider.Schema.COL_ATMOSPHERIC_PRESSURE)) ) {
+        if ( ! c.isNull(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ATMOSPHERIC_PRESSURE)) ) {
             atmosphericPressure = c.getDouble(
-                    c.getColumnIndex(TrackContentProvider.Schema.COL_ATMOSPHERIC_PRESSURE));
+                    c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ATMOSPHERIC_PRESSURE));
         }
     }
 

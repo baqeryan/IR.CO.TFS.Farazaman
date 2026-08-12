@@ -40,6 +40,7 @@
             android:id="@+id/selectionRecyclerView"
             android:layout_width="match_parent"
             android:layout_height="0dp"
+            android:layoutAnimation="@anim/list_layout_enter"
             android:layout_weight="1"
             android:clipToPadding="false"
             android:overScrollMode="never"

@@ -44,16 +44,16 @@ class MissionItemsAdapter(
         
         // Highlight if this is the globally last clicked item in this section
         val isHighlighted = (globalLastClickedSection == sectionType && globalLastClickedPosition == position)
+        val context = holder.itemView.context
         
         if (isHighlighted) {
-            holder.itemView.setBackgroundColor(Color.parseColor("#4f9a94"))
-            holder.titleTextView.setTextColor(Color.parseColor("#ffffff"))
-            // Set icon colors to white
-            holder.mapButton.setColorFilter(Color.WHITE)
-            holder.violationButton.setColorFilter(Color.WHITE)
+            holder.itemView.setBackgroundColor(ContextCompat.getColor(context, R.color.app_primary))
+            val selectedContentColor = ContextCompat.getColor(context, R.color.app_on_primary)
+            holder.titleTextView.setTextColor(selectedContentColor)
+            holder.mapButton.setColorFilter(selectedContentColor)
+            holder.violationButton.setColorFilter(selectedContentColor)
         } else {
             holder.itemView.setBackgroundColor(Color.TRANSPARENT)
-            val context = holder.itemView.context
             holder.titleTextView.setTextColor(ContextCompat.getColor(context, R.color.app_on_surface))
             val iconColor = ContextCompat.getColor(context, R.color.app_on_surface_secondary)
             holder.mapButton.setColorFilter(iconColor)

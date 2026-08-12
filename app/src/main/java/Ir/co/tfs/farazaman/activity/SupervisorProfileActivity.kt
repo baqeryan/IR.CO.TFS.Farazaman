@@ -18,6 +18,8 @@ import Ir.co.tfs.farazaman.util.RolesManager
 import Ir.co.tfs.farazaman.util.TokenManager
 import Ir.co.tfs.farazaman.util.UserManager
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -61,7 +63,9 @@ class SupervisorProfileActivity : AppCompatActivity() {
                 .create(RolesService::class.java)
 
             try {
-                val response = rolesService.getUserRoles("Bearer $token")
+                val response = withContext(Dispatchers.IO) {
+                    rolesService.getUserRoles("Bearer $token").execute()
+                }
                 if (response.isSuccessful) {
                     response.body()?.let { rolesManager.saveUserRoles(it) }
                     setupChangeRoleButton()

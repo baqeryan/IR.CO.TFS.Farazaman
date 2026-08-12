@@ -190,7 +190,7 @@ class FormDataViewModel @Inject constructor(
 
         cursor?.use {
             if (it.moveToFirst()) {
-                val isActive = it.getInt(it.getColumnIndex(TrackContentProvider.Schema.COL_ACTIVE)) == TrackContentProvider.Schema.VAL_TRACK_ACTIVE
+                val isActive = it.getInt(it.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_ACTIVE)) == TrackContentProvider.Schema.VAL_TRACK_ACTIVE
                 Log.d("ViewModelLog", "Track $trackId active status: $isActive")
                 return isActive
             }

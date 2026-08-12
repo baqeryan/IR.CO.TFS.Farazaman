@@ -19,7 +19,11 @@ import Ir.co.tfs.farazaman.data.db.TrackContentProvider;
 import Ir.co.tfs.farazaman.data.db.model.Track;
 import Ir.co.tfs.farazaman.gpx.ExportToTempFileTask;
 import Ir.co.tfs.farazaman.gpx.ZipHelper;
-import Ir.co.tfs.farazaman.AppConstants;
+import Ir.co.tfs.farazaman.util.AndroidKeyStoreCipher;
+import Ir.co.tfs.farazaman.util.NetworkTimeouts;
+import Ir.co.tfs.farazaman.util.SecureTokenStorage;
+import Ir.co.tfs.farazaman.util.TokenManager;
+import Ir.co.tfs.farazaman.util.SelectedServerUrl;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -38,10 +42,9 @@ import okhttp3.Response;
 public class OpenStreetMapUpload extends TrackDetailEditor {
 
 	private static final String TAG = OpenStreetMapUpload.class.getSimpleName();
-	private static final String UPLOAD_URL = AppConstants.BASE_URL + "api/GisGeolocation/upload";
-	private static final String PREF_TOKEN_KEY = "ACCESS_TOKEN";
 
 	@Override
+	@SuppressWarnings("MissingSuperCall")
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState, R.layout.osm_upload, getTrackId());
 		fieldsMandatory = true;
@@ -139,7 +142,8 @@ public class OpenStreetMapUpload extends TrackDetailEditor {
 
 	private void uploadToCustomServer(File file) {
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		String token = prefs.getString(PREF_TOKEN_KEY, null);
+		SecureTokenStorage secureStorage = new SecureTokenStorage(prefs, new AndroidKeyStoreCipher());
+		String token = new TokenManager(prefs, secureStorage).getAccessToken();
 
 		if (token == null) {
 			Toast.makeText(this, "Access token not found.", Toast.LENGTH_SHORT).show();
@@ -147,9 +151,9 @@ public class OpenStreetMapUpload extends TrackDetailEditor {
 		}
 
 		OkHttpClient client = new OkHttpClient.Builder()
-				.connectTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
-				.readTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
-				.writeTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
+				.connectTimeout(NetworkTimeouts.UPLOAD_CONNECT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+				.readTimeout(NetworkTimeouts.UPLOAD_READ_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+				.writeTimeout(NetworkTimeouts.UPLOAD_WRITE_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
 				.build();
 
 		// Ensure the MediaType is correct. The original error said it's a GPX file, but you're trying to upload it as "application/zip".
@@ -163,7 +167,7 @@ public class OpenStreetMapUpload extends TrackDetailEditor {
 				.build();
 
 		Request request = new Request.Builder()
-				.url(UPLOAD_URL)
+				.url(SelectedServerUrl.apiUrl(prefs, "api/GisGeolocation/upload"))
 				.addHeader("Accept", "application/json")
 				.addHeader("Authorization", "Bearer "+token)
 				.post(requestBody)

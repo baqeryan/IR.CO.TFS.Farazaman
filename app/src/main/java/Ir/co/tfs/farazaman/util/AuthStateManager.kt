@@ -31,6 +31,7 @@ class AuthStateManager @Inject constructor(
         Log.d(TAG, "Notifying auth state change: isLoggedIn=$isLoggedIn, reason=$reason")
         
         val intent = Intent(ACTION_AUTH_STATE_CHANGED).apply {
+            setPackage(context.packageName)
             putExtra(EXTRA_IS_LOGGED_IN, isLoggedIn)
             putExtra(EXTRA_REASON, reason)
         }

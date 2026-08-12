@@ -17,9 +17,9 @@ public class WayPoint extends Point {
 
     public WayPoint(Cursor c) {
         super(c);
-        uuid = c.getString(c.getColumnIndex(TrackContentProvider.Schema.COL_UUID));
-        numberOfSatellites = c.getInt(c.getColumnIndex(TrackContentProvider.Schema.COL_NBSATELLITES));
-        name = c.getString(c.getColumnIndex(TrackContentProvider.Schema.COL_NAME));
+        uuid = c.getString(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_UUID));
+        numberOfSatellites = c.getInt(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_NBSATELLITES));
+        name = c.getString(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_NAME));
     }
 
     public WayPoint() {

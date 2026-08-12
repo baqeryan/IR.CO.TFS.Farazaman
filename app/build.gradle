@@ -8,6 +8,15 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+}
+def legacyClientSecret = localProperties.getProperty('farazaman.legacyClientSecret')
+        ?: System.getenv('FARAZAMAN_LEGACY_CLIENT_SECRET')
+        ?: ''
+
 android {
     namespace 'Ir.co.tfs.farazaman'
     compileSdk 34
@@ -17,6 +26,7 @@ android {
         minSdk 23
         targetSdk 34
         multiDexEnabled true
+        buildConfigField 'String', 'LEGACY_CLIENT_SECRET', '"' + legacyClientSecret.replace('\\', '\\\\').replace('"', '\\"') + '"'
 
         // Version code should be increased after each release
         versionCode 65
@@ -29,13 +39,15 @@ android {
         viewBinding true
         dataBinding true
         compose true
+        buildConfig true
     }
     composeOptions {
         kotlinCompilerExtensionVersion '1.5.10'
     }
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.findByName('release')
         }
@@ -44,9 +56,10 @@ android {
         }
     }
     
-    lintOptions {
-        abortOnError false
-        checkReleaseBuilds false
+    lint {
+        baseline = file('lint-baseline.xml')
+        abortOnError true
+        checkReleaseBuilds true
         disable 'MissingTranslation'
         disable 'ExtraTranslation'
         disable 'HardcodedText'

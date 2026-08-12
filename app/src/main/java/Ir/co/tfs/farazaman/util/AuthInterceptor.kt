@@ -1,12 +1,11 @@
 package Ir.co.tfs.farazaman.util
 
-import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
-import Ir.co.tfs.farazaman.auth.OidcAuthManager
 import Ir.co.tfs.farazaman.domain.repository.AuthRepository
 import Ir.co.tfs.farazaman.util.AuthStateManager
 import javax.inject.Inject
@@ -15,7 +14,6 @@ import javax.inject.Singleton
 @Singleton
 class AuthInterceptor @Inject constructor(
     private val tokenManager: TokenManager,
-    private val context: Context,
     private val authStateManager: AuthStateManager,
     private val authRepository: AuthRepository,
 ) : Interceptor {
@@ -53,18 +51,11 @@ class AuthInterceptor @Inject constructor(
         // Check if token is expired before making the request
         if (tokenManager.isTokenExpired() && tokenManager.hasRefreshToken()) {
             Log.d(TAG, "Token is expired, refreshing before request")
-            synchronized(this) {
-                // Double-check after acquiring lock
-                if (tokenManager.isTokenExpired() && tokenManager.hasRefreshToken()) {
-                    val refreshResult = runBlocking {
-                        refreshTokenSync()
-                    }
-                    if (!refreshResult) {
-                        Log.e(TAG, "Preemptive token refresh failed")
-                        tokenManager.clearTokens()
-                        authStateManager.notifyAuthStateChanged(false, AuthStateManager.REASON_REFRESH_FAILED)
-                    }
-                }
+            val refreshResult = refreshTokenBlocking(expectedToken = null, onlyIfExpired = true)
+            if (!refreshResult) {
+                Log.e(TAG, "Preemptive token refresh failed")
+                tokenManager.clearTokens()
+                authStateManager.notifyAuthStateChanged(false, AuthStateManager.REASON_REFRESH_FAILED)
             }
         }
 
@@ -84,48 +75,25 @@ class AuthInterceptor @Inject constructor(
             Log.w(TAG, "Auth header used: ${requestWithAuth.header(AUTHORIZATION_HEADER) != null}")
             Log.w(TAG, "Attempting token refresh...")
             
-            val errorBody = response.peekBody(1024).string()
-            if (errorBody.isNotEmpty()) {
-                Log.w(TAG, "401 error body: $errorBody")
-            }
-            
-            synchronized(this) {
-                // Double-check if token was already refreshed by another thread
-                val newToken = tokenManager.getAccessToken()
-                if (newToken != null && newToken != getTokenFromRequest(requestWithAuth)) {
-                    Log.d(TAG, "Token was already refreshed by another thread")
-                    response.close()
-                    val newRequest = addAuthHeader(originalRequest)
-                    return chain.proceed(newRequest)
-                }
+            val refreshResult = refreshTokenBlocking(
+                expectedToken = getTokenFromRequest(requestWithAuth),
+                onlyIfExpired = false,
+            )
 
-                // Attempt token refresh
-                val refreshResult = runBlocking {
-                    refreshTokenSync()
-                }
-
-                if (refreshResult) {
-                    Log.d(TAG, "Token refresh successful, retrying original request")
-                    response.close()
-                    val newRequest = addAuthHeader(originalRequest)
-                    Log.d(TAG, "Retrying with new auth header: ${newRequest.header(AUTHORIZATION_HEADER) != null}")
-                    val retryResponse = chain.proceed(newRequest)
-                    Log.d(TAG, "Retry response code: ${retryResponse.code}")
-                    if (retryResponse.code == 401) {
-                        Log.e(TAG, "Still getting 401 after token refresh - refresh token might be invalid")
-                        val retryErrorBody = retryResponse.peekBody(1024).string()
-                        Log.e(TAG, "Retry 401 error body: $retryErrorBody")
-                        tokenManager.clearTokens()
-                        authStateManager.notifyAuthStateChanged(false, AuthStateManager.REASON_REFRESH_FAILED)
-                    }
-                    return retryResponse
-                } else {
-                    Log.e(TAG, "Token refresh failed, clearing tokens")
+            if (refreshResult) {
+                Log.d(TAG, "Token refresh successful, retrying original request")
+                response.close()
+                val retryResponse = chain.proceed(addAuthHeader(originalRequest))
+                if (retryResponse.code == 401) {
+                    Log.e(TAG, "Still getting 401 after token refresh")
                     tokenManager.clearTokens()
                     authStateManager.notifyAuthStateChanged(false, AuthStateManager.REASON_REFRESH_FAILED)
-                    // You might want to redirect to login screen here
-                    // For now, just return the original 401 response
                 }
+                return retryResponse
+            } else {
+                Log.e(TAG, "Token refresh failed, clearing tokens")
+                tokenManager.clearTokens()
+                authStateManager.notifyAuthStateChanged(false, AuthStateManager.REASON_REFRESH_FAILED)
             }
         }
 
@@ -155,14 +123,22 @@ class AuthInterceptor @Inject constructor(
         return authHeader?.removePrefix("Bearer ")?.trim()
     }
 
-    private suspend fun refreshTokenSync(): Boolean {
+    private fun refreshTokenBlocking(expectedToken: String?, onlyIfExpired: Boolean): Boolean {
         return try {
-            tokenManager.withRefreshLock {
-                performTokenRefresh()
+            runBlocking {
+                withTimeout(NetworkTimeouts.TOKEN_REFRESH_TIMEOUT_MS) {
+                    tokenManager.withRefreshLock {
+                        val currentToken = tokenManager.getAccessToken()
+                        when {
+                            expectedToken != null && currentToken != null && currentToken != expectedToken -> true
+                            onlyIfExpired && !tokenManager.isTokenExpired() -> true
+                            else -> performTokenRefresh().let { true }
+                        }
+                    }
+                }
             }
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Token refresh failed: ${e.message}")
+        } catch (error: Exception) {
+            Log.e(TAG, "Token refresh failed: ${error.javaClass.simpleName}")
             false
         }
     }

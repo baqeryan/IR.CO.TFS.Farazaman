@@ -115,7 +115,7 @@ class TrackLogger : Activity() {
         val tagsToSave = HashSet<String>()
         val cursor = contentResolver.query(trackUri, null, null, null, null)
         cursor?.use {
-            val tagsIndex = it.getColumnIndex(TrackContentProvider.Schema.COL_TAGS)
+            val tagsIndex = it.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_TAGS)
             var previouslySavedTags: String? = null
             while (it.moveToNext()) {
                 if (it.getString(tagsIndex) != null) {

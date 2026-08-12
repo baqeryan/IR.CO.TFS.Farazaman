@@ -79,22 +79,22 @@ public class Track {
  
 		out.trackId = trackId;
 		out.cr = cr;
-		out.trackDate = tc.getLong(tc.getColumnIndex(TrackContentProvider.Schema.COL_START_DATE));
+		out.trackDate = tc.getLong(tc.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_START_DATE));
 		
-		out.name = tc.getString(tc.getColumnIndex(TrackContentProvider.Schema.COL_NAME));
-		out.description = tc.getString(tc.getColumnIndex(TrackContentProvider.Schema.COL_DESCRIPTION));
+		out.name = tc.getString(tc.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_NAME));
+		out.description = tc.getString(tc.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_DESCRIPTION));
 		
-		String tags = tc.getString(tc.getColumnIndex(TrackContentProvider.Schema.COL_TAGS));
+		String tags = tc.getString(tc.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_TAGS));
 		//TODO: use out.setTags(tags)
 		if (tags != null && ! "".equals(tags)) {
 			out.tags.addAll(Arrays.asList(tags.split(",")));
 		}
 		
-		out.visibility = OSMVisibility.valueOf(tc.getString(tc.getColumnIndex(TrackContentProvider.Schema.COL_OSM_VISIBILITY)));
+		out.visibility = OSMVisibility.valueOf(tc.getString(tc.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_OSM_VISIBILITY)));
 
-		out.tpCount = tc.getInt(tc.getColumnIndex(TrackContentProvider.Schema.COL_TRACKPOINT_COUNT));
+		out.tpCount = tc.getInt(tc.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_TRACKPOINT_COUNT));
 		
-		out.wpCount = tc.getInt(tc.getColumnIndex(TrackContentProvider.Schema.COL_WAYPOINT_COUNT));
+		out.wpCount = tc.getInt(tc.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_WAYPOINT_COUNT));
 		
 		if(withExtraInformation){
 			out.readExtraInformation();
@@ -107,17 +107,17 @@ public class Track {
 		if(!extraInformationRead){
 			Cursor startCursor = cr.query(TrackContentProvider.trackStartUri(trackId), null, null, null, null);
 			if(startCursor.moveToFirst()){
-				startDate = startCursor.getLong(startCursor.getColumnIndex(TrackContentProvider.Schema.COL_TIMESTAMP));
-				startLat = startCursor.getFloat(startCursor.getColumnIndex(TrackContentProvider.Schema.COL_LATITUDE));
-				startLong = startCursor.getFloat(startCursor.getColumnIndex(TrackContentProvider.Schema.COL_LONGITUDE));
+				startDate = startCursor.getLong(startCursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_TIMESTAMP));
+				startLat = startCursor.getFloat(startCursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LATITUDE));
+				startLong = startCursor.getFloat(startCursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LONGITUDE));
 			}
 			startCursor.close();
 			
 			Cursor endCursor = cr.query(TrackContentProvider.trackEndUri(trackId), null, null, null, null);
 			if(endCursor.moveToFirst()){
-				endDate = endCursor.getLong(endCursor.getColumnIndex(TrackContentProvider.Schema.COL_TIMESTAMP));
-				endLat = endCursor.getFloat(endCursor.getColumnIndex(TrackContentProvider.Schema.COL_LATITUDE));
-				endLong = endCursor.getFloat(endCursor.getColumnIndex(TrackContentProvider.Schema.COL_LONGITUDE));
+				endDate = endCursor.getLong(endCursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_TIMESTAMP));
+				endLat = endCursor.getFloat(endCursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LATITUDE));
+				endLong = endCursor.getFloat(endCursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LONGITUDE));
 			}
 			endCursor.close();
 			
