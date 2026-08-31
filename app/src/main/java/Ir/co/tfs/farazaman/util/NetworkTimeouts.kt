@@ -11,4 +11,8 @@ object NetworkTimeouts {
     const val UPLOAD_CONNECT_SECONDS = 20L
     const val UPLOAD_READ_SECONDS = 120L
     const val UPLOAD_WRITE_SECONDS = 120L
+    const val UPDATE_CONNECT_SECONDS = 5L
+    const val UPDATE_READ_SECONDS = 15L
+    const val UPDATE_WRITE_SECONDS = 15L
+    const val UPDATE_CHECK_CALL_SECONDS = 6L
 }

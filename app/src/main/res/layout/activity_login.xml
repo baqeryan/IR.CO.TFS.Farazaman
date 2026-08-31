@@ -78,6 +78,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layoutDirection="rtl"
                 android:orientation="vertical"
                 android:paddingStart="24dp"
                 android:paddingTop="28dp"
@@ -88,7 +89,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/iran_sans"
-                    android:gravity="end"
+                    android:gravity="start"
+                    android:textAlignment="viewStart"
                     android:text="@string/login_city_label"
                     android:textColor="@color/login_label"
                     android:textSize="14sp" />
@@ -101,7 +103,8 @@
                     android:background="@drawable/login_input_background"
                     android:clickable="true"
                     android:focusable="true"
-                    android:foreground="?attr/selectableItemBackground">
+                    android:foreground="?attr/selectableItemBackground"
+                    android:layoutDirection="rtl">
 
                     <ProgressBar
                         android:id="@+id/provinceProgressBar"
@@ -118,10 +121,11 @@
                         android:clickable="false"
                         android:focusable="false"
                         android:fontFamily="@font/iran_sans"
-                        android:gravity="center_vertical|end"
+                        android:gravity="center_vertical|start"
                         android:hint="@string/login_city_hint"
-                        android:paddingStart="44dp"
-                        android:paddingEnd="16dp"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="44dp"
+                        android:textAlignment="viewStart"
                         android:textColor="@color/login_label"
                         android:textColorHint="@color/text_secondary_dark"
                         android:textSize="15sp" />
@@ -129,8 +133,8 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:layout_gravity="center_vertical|start"
-                        android:layout_marginStart="12dp"
+                        android:layout_gravity="center_vertical|end"
+                        android:layout_marginEnd="12dp"
                         android:clickable="false"
                         android:contentDescription="@null"
                         android:focusable="false"
@@ -143,7 +147,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="20dp"
                     android:fontFamily="@font/iran_sans"
-                    android:gravity="end"
+                    android:gravity="start"
+                    android:textAlignment="viewStart"
                     android:text="@string/login_username_label"
                     android:textColor="@color/login_label"
                     android:textSize="14sp"
@@ -155,6 +160,7 @@
                     android:layout_height="52dp"
                     android:layout_marginTop="8dp"
                     android:background="@drawable/login_input_background"
+                    android:layoutDirection="rtl"
                     android:visibility="gone">
 
                     <com.google.android.material.textfield.TextInputEditText
@@ -163,19 +169,20 @@
                         android:layout_height="match_parent"
                         android:background="@android:color/transparent"
                         android:fontFamily="@font/iran_sans"
-                        android:gravity="center_vertical|end"
+                        android:gravity="center_vertical|start"
                         android:inputType="text"
                         android:maxLines="1"
-                        android:paddingStart="44dp"
-                        android:paddingEnd="16dp"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="44dp"
+                        android:textAlignment="viewStart"
                         android:textColor="@color/login_label"
                         android:textSize="15sp" />
 
                     <ImageView
                         android:layout_width="22dp"
                         android:layout_height="22dp"
-                        android:layout_gravity="center_vertical|start"
-                        android:layout_marginStart="14dp"
+                        android:layout_gravity="center_vertical|end"
+                        android:layout_marginEnd="14dp"
                         android:contentDescription="@null"
                         android:src="@drawable/ic_user" />
                 </FrameLayout>
@@ -186,7 +193,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="20dp"
                     android:fontFamily="@font/iran_sans"
-                    android:gravity="end"
+                    android:gravity="start"
+                    android:textAlignment="viewStart"
                     android:text="@string/login_password_label"
                     android:textColor="@color/login_label"
                     android:textSize="14sp"
@@ -198,6 +206,7 @@
                     android:layout_height="52dp"
                     android:layout_marginTop="8dp"
                     android:background="@drawable/login_input_background"
+                    android:layoutDirection="rtl"
                     android:visibility="gone">
 
                     <com.google.android.material.textfield.TextInputEditText
@@ -206,19 +215,20 @@
                         android:layout_height="match_parent"
                         android:background="@android:color/transparent"
                         android:fontFamily="@font/iran_sans"
-                        android:gravity="center_vertical|end"
+                        android:gravity="center_vertical|start"
                         android:inputType="textPassword"
                         android:maxLines="1"
-                        android:paddingStart="44dp"
-                        android:paddingEnd="16dp"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="44dp"
+                        android:textAlignment="viewStart"
                         android:textColor="@color/login_label"
                         android:textSize="15sp" />
 
                     <ImageView
                         android:layout_width="22dp"
                         android:layout_height="22dp"
-                        android:layout_gravity="center_vertical|start"
-                        android:layout_marginStart="14dp"
+                        android:layout_gravity="center_vertical|end"
+                        android:layout_marginEnd="14dp"
                         android:contentDescription="@null"
                         android:src="@drawable/ic_lock" />
                 </FrameLayout>

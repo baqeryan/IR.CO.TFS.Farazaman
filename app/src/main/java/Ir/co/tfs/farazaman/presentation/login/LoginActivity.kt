@@ -529,7 +529,13 @@ class LoginActivity : AppCompatActivity() {
     private fun openCitySelectionSheet() {
         val isLoading = binding.provinceProgressBar.visibility == View.VISIBLE
         CitySelectionBottomSheet.newInstance(provinceList, isLoading).apply {
-            onCitySelected = { selected -> onProvinceSelected(selected) }
+            onCitySelected = { selected ->
+                binding.root.post {
+                    if (!isFinishing && !isDestroyed) {
+                        onProvinceSelected(selected)
+                    }
+                }
+            }
         }.show(supportFragmentManager, "city_selection")
     }
 

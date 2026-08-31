@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/app_background"
+    android:background="@android:color/transparent"
     android:layoutDirection="rtl">
 
     <TextView
@@ -29,7 +29,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:clipToPadding="false"
-        app:layout_constraintBottom_toTopOf="@id/save"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/gps_warning">
@@ -39,7 +39,7 @@
             android:layout_height="wrap_content"
             android:layoutDirection="rtl"
             android:orientation="vertical"
-            android:paddingBottom="16dp">
+            android:paddingBottom="96dp">
 
             <include
                 android:id="@+id/violationGroupSelectorBlock"
@@ -175,7 +175,7 @@
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/image_picker"
                     style="@style/FaraZaman.Form.PrimaryButton"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/violation_pick_image_btn"
                     android:fontFamily="@font/iran_sans"
@@ -189,25 +189,12 @@
                     android:textSize="11sp"
                     app:backgroundTint="@null"
                     app:cornerRadius="0dp"
-                    app:icon="@drawable/ic_nav_schedule"
-                    app:iconGravity="textStart"
+                    app:icon="@drawable/ic_camera"
+                    app:iconGravity="textEnd"
                     app:iconPadding="4dp"
                     app:iconSize="18dp"
                     app:iconTint="@color/app_on_primary" />
 
-                <TextView
-                    android:id="@+id/txtImageFileName"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/iran_sans"
-                    android:gravity="start|center_vertical"
-                    android:paddingEnd="12dp"
-                    android:textAlignment="viewStart"
-                    android:textColor="@color/text_secondary_dark"
-                    android:textDirection="rtl"
-                    android:textSize="12sp"
-                    tools:text="IMG-301044" />
             </LinearLayout>
 
             <TextView
@@ -266,30 +253,27 @@
                     android:textColor="@color/intro_primary"
                     android:textSize="12sp"
                     app:icon="@drawable/ic_nav_schedule"
-                    app:iconGravity="textStart"
+                    app:iconGravity="textEnd"
                     app:iconTint="@color/intro_primary" />
             </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/save"
+                style="@style/FaraZaman.Form.PrimaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginEnd="16dp"
+                android:fontFamily="@font/iran_sans"
+                android:text="@string/violation_save"
+                android:textColor="@color/app_on_primary"
+                android:textSize="16sp"
+                app:backgroundTint="@color/app_primary"
+                app:cornerRadius="12dp" />
 
             <include layout="@layout/include_violation_form_hidden_fields" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/save"
-        style="@style/FaraZaman.Form.PrimaryButton"
-        android:layout_width="0dp"
-        android:layout_height="52dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="12dp"
-        android:fontFamily="@font/iran_sans"
-        android:text="@string/violation_save"
-        android:textColor="@color/app_on_primary"
-        android:textSize="16sp"
-        app:backgroundTint="@color/app_primary"
-        app:cornerRadius="12dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

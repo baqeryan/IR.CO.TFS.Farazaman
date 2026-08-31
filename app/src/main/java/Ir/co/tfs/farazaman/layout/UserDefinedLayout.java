@@ -63,7 +63,7 @@ public class UserDefinedLayout extends LinearLayout {
 		if (xmlLayout == null) {
 			// No user file, use default file
 			parser = getResources().getXml(R.xml.default_buttons_layout);
-			udlr = new UserDefinedLayoutReader(this, getContext(), activity, trackId, parser, new AppResourceIconResolver(getResources(), OSMTracker.class.getPackage().getName()));
+			udlr = new UserDefinedLayoutReader(this, getContext(), activity, trackId, parser, new AppResourceIconResolver(getResources(), OSMTracker.PACKAGE_NAME));
 		} else {
 			// User file specified, parse it
 			XmlPullParserFactory factory = XmlPullParserFactory.newInstance();

@@ -13,10 +13,12 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.databinding.FragmentSupervisorTodayBinding
 import Ir.co.tfs.farazaman.supervisor.bindSupervisorProfileButton
 import Ir.co.tfs.farazaman.data.repository.AddressLookupCoordinator
+import Ir.co.tfs.farazaman.domain.road.RoadWidthCategory
 import Ir.co.tfs.farazaman.util.AddressLocationHelper
 import Ir.co.tfs.farazaman.util.RoadQueryBuffer
 import dagger.hilt.android.AndroidEntryPoint
@@ -50,6 +52,9 @@ class SupervisorTodayFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.root.bindSupervisorProfileButton()
+        binding.btnActiveVisitShowOnMap.setOnClickListener {
+            (activity as? NewSupervisorActivity)?.controller?.openMissionMap()
+        }
         val tabTitles = listOf(
             getString(R.string.supervisor_tab_planning),
             getString(R.string.supervisor_tab_continuous),
@@ -117,15 +122,25 @@ class SupervisorTodayFragment : Fragment() {
                     !addressLookup.isCoolingDown()
                 ) {
                     try {
-                        val streetName = addressLookup.getRoadData(
+                        val roadData = addressLookup.getRoadData(
                             latitude = coordinates.first,
                             longitude = coordinates.second,
                             buffer = RoadQueryBuffer.BUFFER_DEFAULT,
-                        ).firstOrNull()?.name?.trim().orEmpty()
+                        ).firstOrNull()
+                        val streetName = roadData?.name?.trim().orEmpty()
+                        val streetSummary = if (roadData != null && streetName.isNotEmpty()) {
+                            getString(
+                                R.string.map_road_name_with_width,
+                                streetName,
+                                getString(RoadWidthCategory.fromFclass(roadData.fclass).labelResource()),
+                            )
+                        } else {
+                            streetName
+                        }
 
                         lastResolvedCoordinates = coordinates
-                        if (_binding != null && streetName.isNotEmpty() && host.controller.isTracking()) {
-                            binding.currentStreetName.text = streetName
+                        if (_binding != null && streetSummary.isNotEmpty() && host.controller.isTracking()) {
+                            binding.currentStreetName.text = streetSummary
                             binding.currentStreetName.visibility = View.VISIBLE
                         }
                     } catch (error: Exception) {
@@ -149,6 +164,13 @@ class SupervisorTodayFragment : Fragment() {
 
     private fun Int?.orZero(): Int = this ?: 0
 
+    private fun RoadWidthCategory.labelResource(): Int = when (this) {
+        RoadWidthCategory.UP_TO_15_METERS -> R.string.road_width_up_to_15
+        RoadWidthCategory.OVER_15_TO_25_METERS -> R.string.road_width_over_15_to_25
+        RoadWidthCategory.OVER_25_TO_45_METERS -> R.string.road_width_over_25_to_45
+        RoadWidthCategory.OVER_45_METERS -> R.string.road_width_over_45
+    }
+
     override fun onDestroyView() {
         streetLookupJob?.cancel()
         streetLookupJob = null
@@ -165,6 +187,7 @@ class SupervisorTodayFragment : Fragment() {
         val padV = resources.getDimensionPixelSize(R.dimen.supervisor_tab_padding_v)
         val tabGap = resources.getDimensionPixelSize(R.dimen.supervisor_tab_spacing)
         val halfGap = tabGap / 2
+        val tabTypeface = ResourcesCompat.getFont(requireContext(), R.font.iran_sans)
 
         for (i in 0 until binding.visitTabs.tabCount) {
             val tab = binding.visitTabs.getTabAt(i) ?: continue
@@ -184,7 +207,10 @@ class SupervisorTodayFragment : Fragment() {
                 setTextColor(if (selected) selectedColor else unselectedColor)
                 textSize = 12f
                 includeFontPadding = false
-                setTypeface(null, if (selected) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+                setTypeface(
+                    tabTypeface,
+                    if (selected) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL,
+                )
             }
         }
     }

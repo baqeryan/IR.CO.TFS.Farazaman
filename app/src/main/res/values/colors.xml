@@ -63,6 +63,7 @@
     <!-- Semantic application colors; overridden in values-night. -->
     <color name="app_background">#F6F8F7</color>
     <color name="app_surface">#FFFFFF</color>
+    <color name="supervisor_bottom_nav_blur_overlay">#BFFFFFFF</color>
     <color name="app_surface_variant">#E8F5F2</color>
     <color name="app_on_surface">#212121</color>
     <color name="app_on_surface_secondary">#757575</color>

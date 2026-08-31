@@ -29,7 +29,7 @@ public class TrackContentProvider extends ContentProvider {
 	/**
 	 * Authority for Uris
 	 */
-	public static final String AUTHORITY = OSMTracker.class.getPackage().getName() + ".provider";
+	public static final String AUTHORITY = OSMTracker.PACKAGE_NAME + ".provider";
 
 	/**
 	 * Uri for track

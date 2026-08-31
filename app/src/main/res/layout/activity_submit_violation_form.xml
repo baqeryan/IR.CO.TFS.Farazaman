@@ -118,13 +118,13 @@
 
                     <AutoCompleteTextView
                         android:id="@+id/organs"
-                        android:textSize="14sp"
-
                         android:layout_width="match_parent"
+
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/iran_sans"
                         android:inputType="none"
-                        android:maxLines="2" />
+                        android:maxLines="2"
+                        android:textSize="14sp" />
                 </com.google.android.material.textfield.TextInputLayout>
             </LinearLayout>
 
@@ -234,47 +234,11 @@
                 </com.google.android.material.textfield.TextInputLayout>
             </LinearLayout>
 
-            <LinearLayout
-                android:id="@+id/billCleaningItemGroupsLay"
-
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="4dp"
-
-                android:orientation="vertical">
-
-                <com.google.android.material.textview.MaterialTextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-
-                    android:text="فصل‌های فهرست بها" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense.ExposedDropdownMenu"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:paddingVertical="4dp"
-                    app:boxBackgroundMode="outline"
-                    app:boxStrokeColor="@color/app_primary"
-                    >
-
-                    <AutoCompleteTextView
-                        android:id="@+id/billCleaningItemGroups"
-                        android:layout_width="match_parent"
-                        android:textSize="14sp"
-
-                        android:layout_height="wrap_content"
-                        android:fontFamily="@font/iran_sans"
-                        android:inputType="none"
-                        android:maxLines="2" />
-                </com.google.android.material.textfield.TextInputLayout>
-            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/price_list_lay_lay"
 
-                android:layout_width="match_parent"
+                android:layout_width="385dp"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="4dp"
                 android:orientation="vertical">
@@ -293,21 +257,55 @@
                     android:layout_marginBottom="16dp"
                     android:paddingVertical="4dp"
                     app:boxBackgroundMode="outline"
-                    app:boxStrokeColor="@color/app_primary"
-                    >
+                    app:boxStrokeColor="@color/app_primary">
 
                     <AutoCompleteTextView
                         android:id="@+id/billOriginCleaningItems"
                         android:layout_width="match_parent"
-                        android:textSize="14sp"
-
                         android:layout_height="wrap_content"
+
                         android:fontFamily="@font/iran_sans"
                         android:inputType="none"
-                        android:maxLines="2" />
+                        android:maxLines="2"
+                        android:textSize="14sp" />
                 </com.google.android.material.textfield.TextInputLayout>
             </LinearLayout>
 
+            <LinearLayout
+                android:id="@+id/billCleaningItemGroupsLay"
+
+                android:layout_width="385dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="4dp"
+
+                android:orientation="vertical">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+
+                    android:text="فصل‌های فهرست بها" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense.ExposedDropdownMenu"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:paddingVertical="4dp"
+                    app:boxBackgroundMode="outline"
+                    app:boxStrokeColor="@color/app_primary">
+
+                    <AutoCompleteTextView
+                        android:id="@+id/billCleaningItemGroups"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+
+                        android:fontFamily="@font/iran_sans"
+                        android:inputType="none"
+                        android:maxLines="2"
+                        android:textSize="14sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -363,10 +361,10 @@
                             android:id="@+id/count"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:textSize="14sp"
                             android:fontFamily="@font/iran_sans"
                             android:inputType="number"
-                            android:maxLines="2" />
+                            android:maxLines="2"
+                            android:textSize="14sp" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
 

@@ -1,6 +1,7 @@
 package Ir.co.tfs.farazaman.presentation.login
 
 import android.os.Bundle
+import android.content.DialogInterface
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -19,6 +20,7 @@ import org.json.JSONObject
 class CitySelectionBottomSheet : BottomSheetDialogFragment() {
 
     var onCitySelected: ((LoginActivity.ProvinceInstance) -> Unit)? = null
+    private var pendingSelectedCity: LoginActivity.ProvinceInstance? = null
 
     companion object {
         private const val ARG_CITIES_JSON = "cities_json"
@@ -85,7 +87,7 @@ class CitySelectionBottomSheet : BottomSheetDialogFragment() {
                 emptyView.visibility = View.GONE
                 recyclerView.visibility = View.VISIBLE
                 recyclerView.adapter = CitySelectionAdapter(cities) { city ->
-                    onCitySelected?.invoke(city)
+                    pendingSelectedCity = city
                     dismiss()
                 }
                 applyRecyclerHeight(recyclerView, cities.size)
@@ -110,6 +112,13 @@ class CitySelectionBottomSheet : BottomSheetDialogFragment() {
             state = BottomSheetBehavior.STATE_EXPANDED
             skipCollapsed = true
         }
+    }
+
+    override fun onDismiss(dialog: DialogInterface) {
+        super.onDismiss(dialog)
+        val selectedCity = pendingSelectedCity ?: return
+        pendingSelectedCity = null
+        onCitySelected?.invoke(selectedCity)
     }
 
     private fun parseCities(json: String): List<LoginActivity.ProvinceInstance> {

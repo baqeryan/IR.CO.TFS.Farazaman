@@ -8,6 +8,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.button.MaterialButton
 import dagger.hilt.android.AndroidEntryPoint
 import Ir.co.tfs.farazaman.R
@@ -18,7 +19,6 @@ open class NewSubmitViolationFormActivity : SubmitViolationFormActivity() {
     private lateinit var imagesPreviewGrid: RecyclerView
     private lateinit var imagesPanel: View
     private lateinit var txtImagesCount: TextView
-    private lateinit var txtImageFileName: TextView
     private var gridAdapter: SelectedImagesAdapter? = null
 
     override fun layoutId(): Int = R.layout.activity_new_submit_violation_form
@@ -37,7 +37,6 @@ open class NewSubmitViolationFormActivity : SubmitViolationFormActivity() {
         imagesPreviewGrid.layoutDirection = View.LAYOUT_DIRECTION_RTL
         imagesPanel = findViewById(R.id.imagesPanel)
         txtImagesCount = findViewById(R.id.txtImagesCount)
-        txtImageFileName = findViewById(R.id.txtImageFileName)
 
         imagesPreviewGrid.layoutManager = GridLayoutManager(this, 3)
         if (shouldShowSummaryCard()) {
@@ -64,14 +63,12 @@ open class NewSubmitViolationFormActivity : SubmitViolationFormActivity() {
     override fun updateImageDisplay() {
         if (selectedImages.isEmpty()) {
             imagesPanel.visibility = View.GONE
-            txtImageFileName.text = ""
             gridAdapter = null
             imagesPreviewGrid.adapter = null
             return
         }
         imagesPanel.visibility = View.VISIBLE
         txtImagesCount.text = getString(R.string.violation_images_count, selectedImages.size)
-        txtImageFileName.text = selectedImages.lastOrNull()?.lastPathSegment ?: "image"
         gridAdapter = SelectedImagesAdapter(
             selectedImages.take(3),
             onImageClick = { },
@@ -144,6 +141,15 @@ open class NewSubmitViolationFormActivity : SubmitViolationFormActivity() {
             addDetailRow(card, label, value, showDivider = index < rows.lastIndex)
         }
         sheet.show()
+        sheet.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)?.let { bottomSheet ->
+            bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
+                height = (resources.displayMetrics.heightPixels * DETAILS_SHEET_HEIGHT_RATIO).toInt()
+            }
+            BottomSheetBehavior.from(bottomSheet).apply {
+                state = BottomSheetBehavior.STATE_EXPANDED
+                skipCollapsed = true
+            }
+        }
     }
 
     private fun addDetailRow(parent: LinearLayout, label: String, value: String, showDivider: Boolean) {
@@ -183,5 +189,9 @@ open class NewSubmitViolationFormActivity : SubmitViolationFormActivity() {
             sheet.dismiss()
         }
         sheet.show()
+    }
+
+    private companion object {
+        const val DETAILS_SHEET_HEIGHT_RATIO = 0.82f
     }
 }

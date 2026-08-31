@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:layoutDirection="rtl">
 
-    <org.osmdroid.views.MapView
+    <org.maplibre.android.maps.MapView
         android:id="@+id/displaytrackmap_osmView"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -141,6 +141,8 @@
             android:layout_marginTop="16dp"
             android:fontFamily="@font/iran_sans"
             android:gravity="center"
+            android:textAlignment="center"
+            android:textDirection="rtl"
             android:text="@string/map_street_name_label"
             android:textColor="@color/app_on_surface"
             android:textSize="16sp"
@@ -154,6 +156,8 @@
             android:fontFamily="@font/iran_sans"
             android:gravity="center"
             android:lineSpacingExtra="4dp"
+            android:textAlignment="center"
+            android:textDirection="rtl"
             android:textColor="@color/text_secondary_dark"
             android:textSize="14sp"
             tools:text="خیابان دیباجی جنوبی، کوچه مژگان" />

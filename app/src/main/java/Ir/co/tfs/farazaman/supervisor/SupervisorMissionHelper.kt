@@ -11,10 +11,7 @@ import Ir.co.tfs.farazaman.data.db.TrackContentProvider
 object SupervisorMissionHelper {
 
     fun hasExistingMission(context: Context): Boolean {
-        val trackId = resolveSupervisorTrackId(context)
-        if (trackId == SupervisorTrackController.TRACK_ID_NONE) return false
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-        return prefs.getString("mission_data_$trackId", null) != null
+        return resolveSupervisorTrackId(context) != SupervisorTrackController.TRACK_ID_NONE
     }
 
     fun launchSupervisor(context: Context) {
@@ -31,12 +28,19 @@ object SupervisorMissionHelper {
     }
 
     fun resolveSupervisorTrackId(context: Context): Long {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val activeId = DataHelper.getActiveTrackId(context.contentResolver, "supervisor")
-        if (activeId != SupervisorTrackController.TRACK_ID_NONE) return activeId
-        return findLatestSupervisorTrackId(context)
+        if (
+            activeId != SupervisorTrackController.TRACK_ID_NONE &&
+            prefs.getString("mission_data_$activeId", null) != null
+        ) {
+            return activeId
+        }
+        return findLatestSupervisorTrackIdWithMission(context)
     }
 
-    private fun findLatestSupervisorTrackId(context: Context): Long {
+    private fun findLatestSupervisorTrackIdWithMission(context: Context): Long {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val trackIdProjection = arrayOf(
             "${TrackContentProvider.Schema.TBL_TRACK}.${TrackContentProvider.Schema.COL_ID} as ${TrackContentProvider.Schema.COL_ID}",
         )
@@ -48,9 +52,13 @@ object SupervisorMissionHelper {
             "${TrackContentProvider.Schema.TBL_TRACK}.${TrackContentProvider.Schema.COL_START_DATE} DESC",
         ) ?: return SupervisorTrackController.TRACK_ID_NONE
         cursor.use {
-            if (it.moveToFirst()) {
-                val col = it.getColumnIndex(TrackContentProvider.Schema.COL_ID)
-                if (col >= 0) return it.getLong(col)
+            val col = it.getColumnIndex(TrackContentProvider.Schema.COL_ID)
+            if (col < 0) return SupervisorTrackController.TRACK_ID_NONE
+            while (it.moveToNext()) {
+                val trackId = it.getLong(col)
+                if (prefs.getString("mission_data_$trackId", null) != null) {
+                    return trackId
+                }
             }
         }
         return SupervisorTrackController.TRACK_ID_NONE

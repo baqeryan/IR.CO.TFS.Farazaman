@@ -2036,17 +2036,6 @@
     <issue
         id="DisableBaselineAlignment"
         message="Set `android:baselineAligned=&quot;false&quot;` on this element for better performance"
-        errorLine1="&lt;LinearLayout xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
-        errorLine2=" ~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/include_visit_warning_banner.xml"
-            line="2"
-            column="2"/>
-    </issue>
-
-    <issue
-        id="DisableBaselineAlignment"
-        message="Set `android:baselineAligned=&quot;false&quot;` on this element for better performance"
         errorLine1="    &lt;LinearLayout"
         errorLine2="     ~~~~~~~~~~~~">
         <location

@@ -205,7 +205,7 @@
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/image_picker"
                     style="@style/FaraZaman.Form.PrimaryButton"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/violation_pick_image_btn"
                     android:fontFamily="@font/iran_sans"
@@ -219,25 +219,12 @@
                     android:textSize="11sp"
                     app:backgroundTint="@null"
                     app:cornerRadius="0dp"
-                    app:icon="@drawable/ic_nav_schedule"
-                    app:iconGravity="textStart"
+                    app:icon="@drawable/ic_camera"
+                    app:iconGravity="textEnd"
                     app:iconPadding="4dp"
                     app:iconSize="18dp"
                     app:iconTint="@color/app_on_primary" />
 
-                <TextView
-                    android:id="@+id/txtImageFileName"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/iran_sans"
-                    android:gravity="start|center_vertical"
-                    android:paddingEnd="12dp"
-                    android:textAlignment="viewStart"
-                    android:textColor="@color/text_secondary_dark"
-                    android:textDirection="rtl"
-                    android:textSize="12sp"
-                    tools:text="IMG-301044" />
             </LinearLayout>
 
             <TextView
@@ -296,7 +283,7 @@
                     android:textColor="@color/intro_primary"
                     android:textSize="12sp"
                     app:icon="@drawable/ic_nav_schedule"
-                    app:iconGravity="textStart"
+                    app:iconGravity="textEnd"
                     app:iconTint="@color/intro_primary" />
             </LinearLayout>
 

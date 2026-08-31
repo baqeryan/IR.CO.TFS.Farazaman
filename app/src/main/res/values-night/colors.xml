@@ -2,6 +2,7 @@
 <resources>
     <color name="app_background">#101413</color>
     <color name="app_surface">#191C1B</color>
+    <color name="supervisor_bottom_nav_blur_overlay">#BF191C1B</color>
     <color name="app_surface_variant">#24312E</color>
     <color name="app_on_surface">#E1E3E1</color>
     <color name="app_on_surface_secondary">#BFC9C6</color>

@@ -1,11 +1,15 @@
 package Ir.co.tfs.farazaman.activity
 
+import android.Manifest
 import android.content.ContentUris
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.database.ContentObserver
-import android.graphics.Color
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -19,6 +23,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.activity.viewModels
 import androidx.lifecycle.Lifecycle
@@ -35,22 +40,19 @@ import Ir.co.tfs.farazaman.util.AddressLocationHelper
 import Ir.co.tfs.farazaman.data.db.TrackContentProvider
 import Ir.co.tfs.farazaman.layout.GpsStatusRecordDisplay
 import Ir.co.tfs.farazaman.listener.SensorListener
-import Ir.co.tfs.farazaman.overlay.WayPointsOverlay
+import Ir.co.tfs.farazaman.map.BaranMapStyle
+import Ir.co.tfs.farazaman.map.MapLibreOverlayController
 import Ir.co.tfs.farazaman.service.gps.GPSLogger
 import Ir.co.tfs.farazaman.service.gps.GPSLoggerServiceConnectionDisplay
 import Ir.co.tfs.farazaman.util.GpsAccuracyHelper
 import Ir.co.tfs.farazaman.service.remote.ApiService
 import com.google.gson.Gson
-import org.osmdroid.api.IMapController
-import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.BoundingBox
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.CustomZoomButtonsController
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Polyline
-import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
-import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
+import org.maplibre.android.MapLibre
+import org.maplibre.android.camera.CameraPosition
+import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapView
+import org.maplibre.android.maps.Style
 import javax.inject.Inject
 import coil.ImageLoader
 import coil.request.ImageRequest
@@ -76,14 +78,20 @@ class DisplayTrackMap : AppCompatActivity() {
         private const val ROAD_INFO_UPDATE_INTERVAL_MS = 1_000L
     }
 
-    private lateinit var osmView: MapView
-    private lateinit var osmViewController: IMapController
-    private lateinit var myLocationOverlay: MyLocationNewOverlay
-    private lateinit var polyline: Polyline
-    private lateinit var wayPointsOverlay: WayPointsOverlay
+    private lateinit var mapView: MapView
+    private var mapLibreMap: MapLibreMap? = null
+    private var mapOverlays: MapLibreOverlayController? = null
+    private lateinit var locationManager: LocationManager
+    private var currentMapLocation: LatLng? = null
+    private var receivingMapLocationUpdates = false
+    private var followUserLocation = true
+    private val pendingFencePolygons = mutableListOf<List<LatLng>>()
+    private var pendingFenceCamera: List<LatLng>? = null
+    private var displayedWaypoints: List<LatLng> = emptyList()
     private lateinit var prefs: SharedPreferences
     private var currentTrackId: Long = 0
     private var zoomedToTrackAlready = false
+    private var centeredOnOrganFence = false
     private var isPlaybackMode = false
     private var disableGpsService = false
     private lateinit var trackpointContentObserver: ContentObserver
@@ -108,7 +116,7 @@ class DisplayTrackMap : AppCompatActivity() {
     private var pathUpdateJob: Job? = null
     private var pathUpdatePending = false
     private var lastLoadedTrackPointId = 0L
-    private val displayedTrackPoints = mutableListOf<GeoPoint>()
+    private val displayedTrackPoints = mutableListOf<LatLng>()
     private var layersExpanded = false
     private var cachedLayers: List<Ir.co.tfs.farazaman.presentation.viewmodel.SpeedDialLayerItem> = emptyList()
 
@@ -117,8 +125,8 @@ class DisplayTrackMap : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        MapLibre.getInstance(this)
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        Configuration.getInstance().load(this, prefs)
         setContentView(R.layout.displaytrackmap)
         supportActionBar?.hide()
 
@@ -134,9 +142,7 @@ class DisplayTrackMap : AppCompatActivity() {
         // Check if we have zone encryption for zone display
         val zoneEncryption = intent.getStringExtra("zone_encryption")
         Log.d(TAG, "Zone encryption from intent: $zoneEncryption")
-        if (zoneEncryption != null && zoneEncryption.isNotEmpty()) {
-            fetchAndDisplayZone(zoneEncryption)
-        } else {
+        if (zoneEncryption.isNullOrEmpty()) {
             Log.w(TAG, "No zone encryption provided in intent")
         }
 
@@ -166,7 +172,10 @@ class DisplayTrackMap : AppCompatActivity() {
         })
 
         initializeViews()
-        initializeMap()
+        initializeMap(savedInstanceState)
+        if (!zoneEncryption.isNullOrEmpty()) {
+            fetchAndDisplayZone(zoneEncryption)
+        }
         setupSubmitButton()
         initializeRoadInfoUpdater()
 
@@ -285,7 +294,7 @@ class DisplayTrackMap : AppCompatActivity() {
                 }
 
                 button.setOnClickListener {
-                    val location = myLocationOverlay.myLocation
+                    val location = currentMapLocation
                     if (location != null) {
                         saveWaypointToTrack(
                             trackId = currentTrackId,
@@ -372,15 +381,47 @@ class DisplayTrackMap : AppCompatActivity() {
     fun getGpsLogger(): GPSLogger? = gpsLogger
     fun getCurrentTrackId(): Long = currentTrackId
 
-    private fun initializeMap() {
-        osmView = findViewById(R.id.displaytrackmap_osmView)
-        osmView.setTileSource(TileSourceFactory.MAPNIK)
-        osmView.setMultiTouchControls(true)
-        osmView.zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
-        osmView.keepScreenOn = prefs.getBoolean(OSMTracker.Preferences.KEY_UI_DISPLAY_KEEP_ON, true)
-        osmViewController = osmView.controller
-        osmViewController.setZoom(16.0)
-        createOverlays()
+    private fun initializeMap(savedInstanceState: Bundle?) {
+        locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+        mapView = findViewById(R.id.displaytrackmap_osmView)
+        mapView.keepScreenOn = prefs.getBoolean(OSMTracker.Preferences.KEY_UI_DISPLAY_KEEP_ON, true)
+        mapView.onCreate(savedInstanceState)
+        mapView.getMapAsync { map ->
+            mapLibreMap = map
+            map.uiSettings.isCompassEnabled = false
+            map.uiSettings.isLogoEnabled = false
+            map.cameraPosition = CameraPosition.Builder()
+                .target(LatLng(32.0, 53.0))
+                .zoom(4.0)
+                .build()
+            map.addOnCameraMoveStartedListener { reason ->
+                if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
+                    followUserLocation = false
+                }
+            }
+            lifecycleScope.launch {
+                try {
+                    val styleJson = BaranMapStyle.load(this@DisplayTrackMap)
+                    map.setStyle(Style.Builder().fromJson(styleJson)) { style ->
+                        mapOverlays = MapLibreOverlayController(map, style).also { overlays ->
+                            overlays.updateRoute(displayedTrackPoints)
+                            overlays.updateWaypoints(displayedWaypoints)
+                            overlays.updateCurrentLocation(currentMapLocation)
+                            pendingFencePolygons.forEach(overlays::addFence)
+                            pendingFenceCamera?.let(overlays::fit)
+                        }
+                        pendingFencePolygons.clear()
+                        pendingFenceCamera = null
+                        displayStoredOrganFence()
+                        refreshWaypoints()
+                        zoomToTrackOnce()
+                    }
+                } catch (error: Exception) {
+                    Log.e(TAG, "Unable to initialize Baran MapLibre style", error)
+                    Toast.makeText(this@DisplayTrackMap, "خطا در بارگذاری نقشه", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
         setupMapButtons()
         trackpointContentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
             override fun onChange(selfChange: Boolean) {
@@ -393,16 +434,16 @@ class DisplayTrackMap : AppCompatActivity() {
         val myLocationButton = findViewById<View>(R.id.displaytrackmap_imgZoomCenter)
         myLocationButton.setOnClickListener {
             if (!isPlaybackMode) {
-                myLocationOverlay.myLocation?.let {
-                    osmViewController.animateTo(it)
-                    osmViewController.setZoom(18.0)
+                currentMapLocation?.let {
+                    followUserLocation = true
+                    mapOverlays?.center(it)
                 } ?: Toast.makeText(this, "در حال یافتن موقعیت مکانی...", Toast.LENGTH_SHORT).show()
             }
         }
         if (isPlaybackMode) myLocationButton.visibility = View.GONE
 
-        findViewById<ImageButton>(R.id.btnZoomIn).setOnClickListener { osmViewController.zoomIn() }
-        findViewById<ImageButton>(R.id.btnZoomOut).setOnClickListener { osmViewController.zoomOut() }
+        findViewById<ImageButton>(R.id.btnZoomIn).setOnClickListener { mapOverlays?.zoomIn() }
+        findViewById<ImageButton>(R.id.btnZoomOut).setOnClickListener { mapOverlays?.zoomOut() }
 
         btnLayersToggle.setOnClickListener {
             if (cachedLayers.isEmpty()) {
@@ -416,7 +457,7 @@ class DisplayTrackMap : AppCompatActivity() {
     private fun initializeRoadInfoUpdater() {
         roadInfoRunnable = Runnable {
             if (!isPlaybackMode) {
-                val loc = myLocationOverlay.myLocation
+                val loc = currentMapLocation
                 if (loc != null) {
                     val coordinates = loc.latitude to loc.longitude
                     if (AddressLocationHelper.shouldUpdateAddress(lastRoadInfoCoordinates, coordinates)) {
@@ -451,54 +492,75 @@ class DisplayTrackMap : AppCompatActivity() {
 
     private fun roadQueryBuffer(): Int = GpsAccuracyHelper.resolveBuffer(this, currentTrackId)
 
-    private fun createOverlays() {
-        polyline = Polyline().apply {
-            outlinePaint.color = Color.BLUE
-            outlinePaint.strokeWidth = 8.0f
+    private val mapLocationListener = object : LocationListener {
+        override fun onLocationChanged(location: Location) {
+            val point = LatLng(location.latitude, location.longitude)
+            currentMapLocation = point
+            mapOverlays?.updateCurrentLocation(point)
+            if (followUserLocation && !isPlaybackMode) mapOverlays?.center(point)
         }
-        osmView.overlayManager.add(polyline)
-        myLocationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(this), osmView).apply {
-            enableMyLocation()
-            enableFollowLocation()
-            // Enable location overlay for both live mode and full tracking mode
-            isEnabled = !isPlaybackMode
-        }
-        osmView.overlays.add(myLocationOverlay)
-        wayPointsOverlay = WayPointsOverlay(this, currentTrackId)
-        osmView.overlays.add(wayPointsOverlay)
+
+        override fun onProviderEnabled(provider: String) = Unit
+        override fun onProviderDisabled(provider: String) = Unit
+        @Deprecated("Deprecated in Android")
+        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
+    }
+
+    private fun startMapLocationUpdates() {
+        if (isPlaybackMode || receivingMapLocationUpdates) return
+        val fine = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+        val coarse = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (fine != PackageManager.PERMISSION_GRANTED && coarse != PackageManager.PERMISSION_GRANTED) return
+        runCatching {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1_000L, 0f, mapLocationListener)
+            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1_000L, 0f, mapLocationListener)
+            receivingMapLocationUpdates = true
+        }.onFailure { Log.w(TAG, "Unable to start map location updates", it) }
+    }
+
+    private fun stopMapLocationUpdates() {
+        if (!receivingMapLocationUpdates) return
+        runCatching { locationManager.removeUpdates(mapLocationListener) }
+            .onFailure { Log.w(TAG, "Unable to stop map location updates", it) }
+        receivingMapLocationUpdates = false
+    }
+
+    override fun onStart() {
+        super.onStart()
+        mapView.onStart()
     }
 
     override fun onResume() {
         super.onResume()
-        osmView.onResume()
+        mapView.onResume()
         
         if (isPlaybackMode) {
             // Playback mode - show track only, no GPS
             findViewById<View>(R.id.gpsStatus).visibility = View.GONE
-            myLocationOverlay.disableMyLocation()
         } else if (disableGpsService) {
             // Live mode without GPS tracking - show current location but don't start tracking service
             findViewById<GpsStatusRecordDisplay>(R.id.gpsStatus).requestLocationUpdates(true)
-            myLocationOverlay.enableMyLocation()
+            startMapLocationUpdates()
             // Don't start GPS service or bind to it
         } else {
             // Full tracking mode - start GPS service and tracking
             findViewById<GpsStatusRecordDisplay>(R.id.gpsStatus).requestLocationUpdates(true)
-            myLocationOverlay.enableMyLocation()
+            startMapLocationUpdates()
             startService(gpsLoggerServiceIntent)
             gpsLoggerServiceIntent?.let { bindService(it, gpsLoggerConnection, 0) }
             sensorListener?.register(this)
         }
         
         contentResolver.registerContentObserver(TrackContentProvider.trackPointsUri(currentTrackId), true, trackpointContentObserver)
-        zoomedToTrackAlready = false
+        zoomedToTrackAlready = centeredOnOrganFence
         pathChanged(reset = true)
-        wayPointsOverlay.refresh()
+        refreshWaypoints()
     }
 
     override fun onPause() {
         super.onPause()
-        osmView.onPause()
+        mapView.onPause()
+        stopMapLocationUpdates()
         roadInfoUpdateHandler.removeCallbacks(roadInfoRunnable)
         pathUpdateJob?.cancel()
         pathUpdateJob = null
@@ -509,11 +571,9 @@ class DisplayTrackMap : AppCompatActivity() {
             // Playback mode - nothing to clean up
         } else if (disableGpsService) {
             // Live mode without GPS tracking - just disable location updates
-            myLocationOverlay.disableMyLocation()
             findViewById<GpsStatusRecordDisplay>(R.id.gpsStatus).requestLocationUpdates(false)
         } else {
             // Full tracking mode - clean up GPS service
-            myLocationOverlay.disableMyLocation()
             try {
                 if (gpsLogger != null) unbindService(gpsLoggerConnection)
             } catch (e: IllegalArgumentException) {
@@ -531,7 +591,7 @@ class DisplayTrackMap : AppCompatActivity() {
             pathUpdateJob = null
             lastLoadedTrackPointId = 0L
             displayedTrackPoints.clear()
-            polyline.setPoints(emptyList())
+            mapOverlays?.updateRoute(emptyList())
         }
 
         pathUpdatePending = true
@@ -545,13 +605,32 @@ class DisplayTrackMap : AppCompatActivity() {
                     lastLoadedTrackPointId = newPoints.last().id
                     newPoints.forEach { loadedPoint ->
                         displayedTrackPoints += loadedPoint.point
-                        polyline.addPoint(loadedPoint.point)
                     }
-                    osmView.invalidate()
+                    mapOverlays?.updateRoute(displayedTrackPoints)
                     zoomToTrackOnce()
                 }
             } while (pathUpdatePending)
         }
+    }
+
+    override fun onStop() {
+        mapView.onStop()
+        super.onStop()
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        mapView.onLowMemory()
+    }
+
+    override fun onDestroy() {
+        mapView.onDestroy()
+        super.onDestroy()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        mapView.onSaveInstanceState(outState)
     }
 
     private fun loadTrackPointsAfter(afterId: Long): List<LoadedTrackPoint> {
@@ -576,7 +655,7 @@ class DisplayTrackMap : AppCompatActivity() {
             while (cursor.moveToNext()) {
                 result += LoadedTrackPoint(
                     id = cursor.getLong(idColumn),
-                    point = GeoPoint(cursor.getDouble(latColumn), cursor.getDouble(lonColumn)),
+                    point = LatLng(cursor.getDouble(latColumn), cursor.getDouble(lonColumn)),
                 )
             }
         }
@@ -585,21 +664,13 @@ class DisplayTrackMap : AppCompatActivity() {
 
     private fun zoomToTrackOnce() {
         if (zoomedToTrackAlready || displayedTrackPoints.isEmpty()) return
-        if (displayedTrackPoints.size == 1) {
-            osmViewController.animateTo(displayedTrackPoints.first())
-            osmViewController.setZoom(18.0)
-            zoomedToTrackAlready = true
-            return
-        }
-
-        val boundingBox = BoundingBox.fromGeoPointsSafe(displayedTrackPoints)
-        osmView.post {
-            osmView.zoomToBoundingBox(boundingBox, true, 50)
-            zoomedToTrackAlready = true
-        }
+        val overlays = mapOverlays ?: return
+        if (displayedTrackPoints.size == 1) overlays.center(displayedTrackPoints.first())
+        else overlays.fit(displayedTrackPoints, paddingPx = 50)
+        zoomedToTrackAlready = true
     }
 
-    private data class LoadedTrackPoint(val id: Long, val point: GeoPoint)
+    private data class LoadedTrackPoint(val id: Long, val point: LatLng)
 
     private fun setupSubmitButton() {
         val submitButton = findViewById<Button>(R.id.submit_violation)
@@ -612,7 +683,7 @@ class DisplayTrackMap : AppCompatActivity() {
                 android.util.Log.d("DisplayTrackMap", "currentTrackId = $currentTrackId")
                 
                 // دریافت موقعیت مکانی فعلی از لایه نقشه
-                val currentLocation: GeoPoint? = myLocationOverlay.myLocation
+                val currentLocation = currentMapLocation
                 android.util.Log.d("DisplayTrackMap", "currentLocation = $currentLocation")
 
                 if (currentLocation != null) {
@@ -722,7 +793,7 @@ class DisplayTrackMap : AppCompatActivity() {
         val uri = contentResolver.insert(Ir.co.tfs.farazaman.data.db.TrackContentProvider.waypointsUri(trackId), values)
         if (uri != null) {
             Toast.makeText(this, "نقطه ثبت شد", Toast.LENGTH_SHORT).show()
-            wayPointsOverlay.refresh()
+            refreshWaypoints()
         } else {
             Toast.makeText(this, "خطا در ثبت نقطه", Toast.LENGTH_SHORT).show()
         }
@@ -817,7 +888,58 @@ class DisplayTrackMap : AppCompatActivity() {
         }
     }
 
-    private fun displayPolygonOnMap(wkt: String): Boolean {
+    private fun displayStoredOrganFence() {
+        val missionDataJson = prefs.getString("mission_data_$currentTrackId", null) ?: return
+        try {
+            val wkt = org.json.JSONObject(missionDataJson)
+                .optString("organFenceWkt")
+                .trim()
+            if (wkt.isNotEmpty()) {
+                centeredOnOrganFence = displayPolygonOnMap(wkt, zoomToPolygon = true)
+                if (centeredOnOrganFence) {
+                    followUserLocation = false
+                    zoomedToTrackAlready = true
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Unable to display stored organ fence for trackId=$currentTrackId", e)
+        }
+    }
+
+    private fun refreshWaypoints() {
+        lifecycleScope.launch {
+            val points = withContext(Dispatchers.IO) {
+                val result = mutableListOf<LatLng>()
+                contentResolver.query(
+                    TrackContentProvider.waypointsUri(currentTrackId),
+                    arrayOf(
+                        TrackContentProvider.Schema.COL_LATITUDE,
+                        TrackContentProvider.Schema.COL_LONGITUDE,
+                    ),
+                    null,
+                    null,
+                    "${TrackContentProvider.Schema.COL_TIMESTAMP} asc",
+                )?.use { cursor ->
+                    val latitudeColumn = cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LATITUDE)
+                    val longitudeColumn = cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LONGITUDE)
+                    while (cursor.moveToNext()) {
+                        result += LatLng(
+                            cursor.getDouble(latitudeColumn),
+                            cursor.getDouble(longitudeColumn),
+                        )
+                    }
+                }
+                result
+            }
+            displayedWaypoints = points
+            mapOverlays?.updateWaypoints(points)
+        }
+    }
+
+    private fun displayPolygonOnMap(
+        wkt: String,
+        zoomToPolygon: Boolean = true,
+    ): Boolean {
         try {
             Log.d(TAG, "Displaying polygon with WKT: $wkt")
             
@@ -832,7 +954,7 @@ class DisplayTrackMap : AppCompatActivity() {
                         val lon = parts[0].toDouble()
                         val lat = parts[1].toDouble()
                         Log.d(TAG, "Parsed point: lat=$lat, lon=$lon")
-                        org.osmdroid.util.GeoPoint(lat, lon)
+                        LatLng(lat, lon)
                     } else {
                         Log.w(TAG, "Invalid coordinate format: $coord")
                         null
@@ -842,20 +964,14 @@ class DisplayTrackMap : AppCompatActivity() {
                 Log.d(TAG, "Parsed ${points.size} valid points")
                 
                 if (points.isNotEmpty()) {
-                    // Create polygon overlay
-                    val polygon = org.osmdroid.views.overlay.Polygon()
-                    polygon.setPoints(points)
-                    polygon.fillColor = android.graphics.Color.argb(50, 0, 255, 0) // Semi-transparent green
-                    polygon.strokeColor = android.graphics.Color.GREEN
-                    polygon.strokeWidth = 3f
-                    
-                    // Add to map
-                    osmView.overlays.add(polygon)
-                    osmView.invalidate()
-                    
-                    // Zoom to polygon bounds
-                    val bounds = org.osmdroid.util.BoundingBox.fromGeoPoints(points)
-                    osmView.zoomToBoundingBox(bounds, true, 100)
+                    val overlays = mapOverlays
+                    if (overlays == null) {
+                        pendingFencePolygons += points
+                        if (zoomToPolygon) pendingFenceCamera = points
+                    } else {
+                        overlays.addFence(points)
+                        if (zoomToPolygon) overlays.fit(points)
+                    }
                     
                     Log.d(TAG, "Polygon successfully displayed on map")
                     return true

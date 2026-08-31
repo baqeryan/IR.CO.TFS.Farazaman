@@ -113,7 +113,7 @@
                     android:textColor="@color/daily_plan_status_blue"
                     android:textSize="15sp"
                     android:textStyle="bold"
-                    app:drawableStartCompat="@android:drawable/ic_dialog_info" />
+                    app:drawableEndCompat="@android:drawable/ic_dialog_info" />
 
                 <TextView
                     android:layout_width="match_parent"
@@ -159,11 +159,11 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:fontFamily="@font/iran_sans"
-                    android:gravity="center_vertical|end"
+                    android:gravity="center_vertical|start"
                     android:hint="@string/mission_select_organ_hint"
-                    android:paddingStart="44dp"
-                    android:paddingEnd="16dp"
-                    android:textAlignment="viewEnd"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="44dp"
+                    android:textAlignment="viewStart"
                     android:textColor="@color/login_label"
                     android:textColorHint="@color/text_secondary_dark"
                     android:textSize="15sp" />
@@ -171,8 +171,8 @@
                 <ImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:layout_gravity="center_vertical|start"
-                    android:layout_marginStart="12dp"
+                    android:layout_gravity="center_vertical|end"
+                    android:layout_marginEnd="12dp"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_chevron_down" />
             </FrameLayout>
@@ -211,11 +211,11 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:fontFamily="@font/iran_sans"
-                    android:gravity="center_vertical|end"
+                    android:gravity="center_vertical|start"
                     android:hint="@string/mission_select_contract_hint"
-                    android:paddingStart="44dp"
-                    android:paddingEnd="16dp"
-                    android:textAlignment="viewEnd"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="44dp"
+                    android:textAlignment="viewStart"
                     android:textColor="@color/login_label"
                     android:textColorHint="@color/text_secondary_dark"
                     android:textSize="15sp" />
@@ -223,8 +223,8 @@
                 <ImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:layout_gravity="center_vertical|start"
-                    android:layout_marginStart="12dp"
+                    android:layout_gravity="center_vertical|end"
+                    android:layout_marginEnd="12dp"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_chevron_down" />
             </FrameLayout>

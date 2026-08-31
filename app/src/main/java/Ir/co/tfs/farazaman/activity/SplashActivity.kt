@@ -2,18 +2,27 @@ package Ir.co.tfs.farazaman.activity
 
 import android.content.Intent
 import android.os.Bundle
-import android.provider.Settings
-import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import Ir.co.tfs.farazaman.presentation.compose.AppUpdateUi
 import Ir.co.tfs.farazaman.presentation.compose.FaraZamanTheme
 import Ir.co.tfs.farazaman.presentation.compose.SplashScreen
 import Ir.co.tfs.farazaman.presentation.compose.SplashUiState
 import dagger.hilt.android.AndroidEntryPoint
 import Ir.co.tfs.farazaman.presentation.login.LoginActivity
 import Ir.co.tfs.farazaman.util.TokenManager
-import kotlinx.coroutines.delay
+import Ir.co.tfs.farazaman.presentation.viewmodel.SplashUpdateState
+import Ir.co.tfs.farazaman.presentation.viewmodel.SplashViewModel
+import Ir.co.tfs.farazaman.update.AppUpdateInstaller
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -22,34 +31,53 @@ class SplashActivity : AppCompatActivity() {
     @Inject
     lateinit var tokenManager: TokenManager
 
+    @Inject
+    lateinit var updateInstaller: AppUpdateInstaller
+
+    private val splashViewModel: SplashViewModel by viewModels()
+    private var navigationStarted = false
+
+    private val installPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        splashViewModel.onInstallPermissionResult()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         setContent {
             FaraZamanTheme {
-                LaunchedEffect(Unit) {
-                    delay(1_200)
-                    if (!isFinishing) {
+                val updateState by splashViewModel.updateState.collectAsState()
+                LaunchedEffect(updateState) {
+                    if (updateState == SplashUpdateState.Continue && !isFinishing) {
                         navigateToNextScreen()
                     }
                 }
-                SplashScreen(
-                    state = SplashUiState(slogan = "تحولی نوین در شهر"),
-                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    SplashScreen(
+                        state = SplashUiState(slogan = "تحولی نوین در شهر"),
+                    )
+                    AppUpdateUi(
+                        state = updateState,
+                        onDownload = splashViewModel::downloadUpdate,
+                        onInstall = splashViewModel::installUpdate,
+                        onOpenInstallSettings = {
+                            installPermissionLauncher.launch(
+                                updateInstaller.createInstallPermissionIntent(),
+                            )
+                        },
+                        onRetry = splashViewModel::retry,
+                        onLater = splashViewModel::continueWithoutUpdate,
+                    )
+                }
             }
         }
     }
 
     private fun navigateToNextScreen() {
-        // First, check if Developer Options is enabled
-//        if (isDeveloperOptionsEnabled()) {
-//            // Developer Options is enabled, show warning screen
-//            val intent = Intent(this, DeveloperOptionsWarningActivity::class.java)
-//            startActivity(intent)
-//            finish()
-//            return
-//        }
-
+        if (navigationStarted) return
+        navigationStarted = true
         // Use TokenManager to check authentication status
         val intent: Intent
 
@@ -69,21 +97,5 @@ class SplashActivity : AppCompatActivity() {
 
         startActivity(intent)
         finish() // Clear this activity from memory
-    }
-
-    /**
-     * Check if Developer Options is enabled on the device
-     */
-    private fun isDeveloperOptionsEnabled(): Boolean {
-        return try {
-            Settings.Secure.getInt(
-                contentResolver,
-                Settings.Global.DEVELOPMENT_SETTINGS_ENABLED,
-                0
-            ) != 0
-        } catch (e: Exception) {
-            // If we can't determine, assume it's disabled
-            false
-        }
     }
 }

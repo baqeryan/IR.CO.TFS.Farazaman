@@ -14,6 +14,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="com.sec.android.provider.badge.permission.WRITE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -69,6 +70,7 @@
         <activity
             android:name=".activity.DeveloperOptionsWarningActivity"
             android:exported="false"
+            android:launchMode="singleTask"
             android:theme="@style/AppTheme" />
 
         <uses-library
@@ -179,6 +181,10 @@
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
         </receiver>
+
+        <receiver
+            android:name=".update.AppUpdateInstallReceiver"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

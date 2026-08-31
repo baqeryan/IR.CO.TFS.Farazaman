@@ -2,7 +2,6 @@ package Ir.co.tfs.farazaman.supervisor
 
 import android.view.View
 import android.widget.ImageButton
-import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import Ir.co.tfs.farazaman.R
 
@@ -11,7 +10,6 @@ enum class SupervisorNavTab { HOME, TODAY, HISTORY }
 object SupervisorBottomNavHelper {
 
     fun bind(
-        activity: AppCompatActivity,
         root: View,
         initialTab: SupervisorNavTab,
         onTabSelected: (SupervisorNavTab) -> Unit,

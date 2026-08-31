@@ -25,7 +25,7 @@
 			android:layout_height="wrap_content"
 			android:layout_weight="1"
 			android:text="{timestamp}"
-			android:gravity="end" />
+			android:gravity="start" />
 	</TableRow>
 
 	<TableRow

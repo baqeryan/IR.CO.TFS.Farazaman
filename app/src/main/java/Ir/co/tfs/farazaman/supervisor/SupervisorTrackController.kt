@@ -61,11 +61,7 @@ class SupervisorTrackController(
     private var loadingDialog: LoadingDialog? = null
 
     fun loadState() {
-        currentTrackId = findLatestSupervisorTrackId()
-        val activeId = DataHelper.getActiveTrackId(activity.contentResolver, "supervisor")
-        if (activeId != TRACK_ID_NONE) {
-            currentTrackId = activeId
-        }
+        currentTrackId = SupervisorMissionHelper.resolveSupervisorTrackId(activity)
     }
 
     fun hasMission(): Boolean = currentTrackId != TRACK_ID_NONE &&
@@ -326,26 +322,6 @@ class SupervisorTrackController(
         DataHelper(activity).stopTracking(trackId)
         loadingDialog = LoadingDialog.show(activity, "در حال آپلود...")
         UploadTask(trackId).execute()
-    }
-
-    private fun findLatestSupervisorTrackId(): Long {
-        val trackIdProjection = arrayOf(
-            "${TrackContentProvider.Schema.TBL_TRACK}.${TrackContentProvider.Schema.COL_ID} as ${TrackContentProvider.Schema.COL_ID}",
-        )
-        val cursor = activity.contentResolver.query(
-            TrackContentProvider.CONTENT_URI_TRACK,
-            trackIdProjection,
-            "${TrackContentProvider.Schema.TBL_TRACK}.${TrackContentProvider.Schema.COL_ROLE} = ?",
-            arrayOf("supervisor"),
-            "${TrackContentProvider.Schema.TBL_TRACK}.${TrackContentProvider.Schema.COL_START_DATE} DESC",
-        ) ?: return TRACK_ID_NONE
-        cursor.use {
-            if (it.moveToFirst()) {
-                val col = it.getColumnIndex(TrackContentProvider.Schema.COL_ID)
-                if (col >= 0) return it.getLong(col)
-            }
-        }
-        return TRACK_ID_NONE
     }
 
     private fun checkLocationPermissions(): Boolean {

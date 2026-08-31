@@ -2,8 +2,10 @@
 -keepattributes Signature,InnerClasses,EnclosingMethod,Exceptions
 -keepattributes RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations,AnnotationDefault
 
-# Gson reflects over API DTO fields. Keep field names while unused DTOs may still be removed.
--keepclassmembers,allowobfuscation class Ir.co.tfs.farazaman.data.model.** {
+# Gson reflects over API DTO fields. Some legacy DTOs do not annotate every field with
+# @SerializedName, so their Java field names are part of the wire format. Keep those members and
+# their names while still allowing R8 to optimize the containing classes.
+-keepclassmembers,allowoptimization class Ir.co.tfs.farazaman.data.model.** {
     <fields>;
 }
 
@@ -16,6 +18,11 @@
 # R8 full mode otherwise treats Continuation as non-instantiable and removes the generic
 # Continuation<? super Response<T>> signature that Retrofit uses for suspend methods.
 -keep class kotlin.coroutines.Continuation { *; }
+
+# A suspend Retrofit method encodes Response<T> inside Continuation's generic signature.
+# In R8 full mode the Response type must remain instantiated, otherwise Retrofit sees a raw
+# Response in Release and fails before creating the HTTP request.
+-keep,allowoptimization,allowshrinking,allowobfuscation class retrofit2.Response
 
 # Keep the response type reached only through Retrofit method signatures.
 -if interface ** { @retrofit2.http.* public *** *(...); }

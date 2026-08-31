@@ -75,7 +75,6 @@ class CommitmentsViolationFormFragment : Fragment() {
     private lateinit var imagesPanel: View
     private lateinit var imagesPreviewGrid: RecyclerView
     private lateinit var txtImagesCount: TextView
-    private lateinit var txtImageFileName: TextView
 
     private var violationGroupSelector: SelectorFieldViews? = null
     private var defectSelector: SelectorFieldViews? = null
@@ -218,7 +217,6 @@ class CommitmentsViolationFormFragment : Fragment() {
         imagesPanel = view.findViewById(R.id.imagesPanel)
         imagesPreviewGrid = view.findViewById(R.id.images_preview_grid)
         txtImagesCount = view.findViewById(R.id.txtImagesCount)
-        txtImageFileName = view.findViewById(R.id.txtImageFileName)
         imagesPreviewGrid.layoutManager = GridLayoutManager(requireContext(), 3)
         view.findViewById<View>(R.id.hiddenFormFields)?.visibility = View.GONE
 
@@ -562,14 +560,12 @@ class CommitmentsViolationFormFragment : Fragment() {
     private fun updateImageDisplay() {
         if (selectedImages.isEmpty()) {
             imagesPanel.visibility = View.GONE
-            txtImageFileName.text = ""
             gridAdapter = null
             imagesPreviewGrid.adapter = null
             return
         }
         imagesPanel.visibility = View.VISIBLE
         txtImagesCount.text = getString(R.string.violation_images_count, selectedImages.size)
-        txtImageFileName.text = selectedImages.lastOrNull()?.lastPathSegment ?: "image"
         gridAdapter = SelectedImagesAdapter(
             selectedImages.take(3),
             onImageClick = { },
@@ -769,13 +765,12 @@ class CommitmentsViolationFormFragment : Fragment() {
         val hasPoints = hasTrackPoints(currentTrackId)
         if (hasPoints) {
             gpsWarningTextView.visibility = View.GONE
-        } else {
+        } else if (isTrackActive(currentTrackId)) {
             gpsWarningTextView.visibility = View.VISIBLE
-            gpsWarningTextView.text = if (isTrackActive(currentTrackId)) {
-                "⚠️ منتظر دریافت موقعیت GPS... لطفاً کمی صبر کنید"
-            } else {
-                "⚠️ برای ثبت تخلف، ابتدا باید ردیابی GPS را شروع کنید"
-            }
+            gpsWarningTextView.text = "⚠️ منتظر دریافت موقعیت GPS... لطفاً کمی صبر کنید"
+        } else {
+            // The parent tab shows the shared visit warning banner in this state.
+            gpsWarningTextView.visibility = View.GONE
         }
     }
 

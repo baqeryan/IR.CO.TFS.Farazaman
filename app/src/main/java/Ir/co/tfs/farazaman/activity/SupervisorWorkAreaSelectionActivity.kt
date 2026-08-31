@@ -2,6 +2,7 @@ package Ir.co.tfs.farazaman.activity
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -23,6 +24,10 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class SupervisorWorkAreaSelectionActivity : AppCompatActivity() {
+
+    private companion object {
+        const val TAG = "SupervisorWorkArea"
+    }
 
     @Inject lateinit var formDataApiService: FormDataApiService
 
@@ -84,6 +89,7 @@ class SupervisorWorkAreaSelectionActivity : AppCompatActivity() {
                 organOptions = options
                 setOrganLoading(false)
             } catch (e: Exception) {
+                Log.e(TAG, "Unable to load employer list: ${e.javaClass.name}: ${e.message}", e)
                 setOrganLoading(false)
                 organOptions = emptyList()
                 if (e is SupervisorMissionSetup.MissionSetupException) {
@@ -114,6 +120,7 @@ class SupervisorWorkAreaSelectionActivity : AppCompatActivity() {
                     ).show()
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "Unable to load contract list: ${e.javaClass.name}: ${e.message}", e)
                 setContractLoading(false)
                 contractOptions = emptyList()
                 if (e is SupervisorMissionSetup.MissionSetupException) {
@@ -156,6 +163,7 @@ class SupervisorWorkAreaSelectionActivity : AppCompatActivity() {
                 ).show()
                 navigateToHome()
             } catch (e: Exception) {
+                Log.e(TAG, "Unable to create supervisor mission: ${e.javaClass.name}: ${e.message}", e)
                 loadingDialog?.dismiss()
                 loadingDialog = null
                 confirmButton.isEnabled = true

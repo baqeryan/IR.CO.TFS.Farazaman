@@ -16,10 +16,6 @@ import com.google.android.material.button.MaterialButton
 import saman.zamani.persiandate.PersianDate
 import Ir.co.tfs.farazaman.R
 import android.widget.Toast
-import ir.hamsaa.persiandatepicker.PersianDatePickerDialog
-import ir.hamsaa.persiandatepicker.api.PersianPickerDate
-import ir.hamsaa.persiandatepicker.api.PersianPickerListener
-import ir.hamsaa.persiandatepicker.util.PersianCalendarUtils
 import Ir.co.tfs.farazaman.layout.URLValidatorTask.TAG
 import Ir.co.tfs.farazaman.util.LoadingDialog
 import okhttp3.*
@@ -131,7 +127,10 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
             sendCreateMissionRequest(organId, contractId, submitButton)
         }
 
-        dialog?.setOnShowListener { fetchOrgans() }
+        // Start after all views are bound. Registering this through dialog?.setOnShowListener is
+        // lifecycle-sensitive: in a minified Release build the dialog can already be shown (or
+        // still be null) here, leaving the loading UI active without ever issuing the request.
+        fetchOrgans()
     }
 
     override fun onStart() {

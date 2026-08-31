@@ -9,7 +9,6 @@ import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
-import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ImageButton
@@ -136,11 +135,9 @@ class OidcLoginBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun clearWebSession(onComplete: () -> Unit) {
-        WebStorage.getInstance().deleteAllData()
         CookieManager.getInstance().apply {
             setAcceptCookie(true)
             removeAllCookies { _ ->
-                flush()
                 onComplete()
             }
         }

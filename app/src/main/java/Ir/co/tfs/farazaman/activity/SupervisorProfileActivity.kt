@@ -11,7 +11,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.databinding.ActivitySupervisorProfileBinding
-import Ir.co.tfs.farazaman.presentation.login.LoginModeHelper
 import Ir.co.tfs.farazaman.service.remote.RolesService
 import Ir.co.tfs.farazaman.util.AuthHelper
 import Ir.co.tfs.farazaman.util.RolesManager
@@ -113,15 +112,7 @@ class SupervisorProfileActivity : AppCompatActivity() {
     }
 
     private fun performLogout() {
-        userManager.clearUserInfo()
-        rolesManager.clearUserRoles()
-        PreferenceManager.getDefaultSharedPreferences(this).edit()
-            .remove("BASE_URL")
-            .remove("CACHED_PROVINCES_JSON")
-            .apply()
-        LoginModeHelper.clearLoginConfig(PreferenceManager.getDefaultSharedPreferences(this))
         authHelper.logout(this)
-        finish()
     }
 
     companion object {

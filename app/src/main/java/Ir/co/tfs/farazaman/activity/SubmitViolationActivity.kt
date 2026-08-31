@@ -21,37 +21,37 @@ import androidx.activity.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import Ir.co.tfs.farazaman.OSMTracker
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.data.model.RoadData
 import Ir.co.tfs.farazaman.presentation.viewmodel.SubmitViolationViewModel
 import Ir.co.tfs.farazaman.util.AddressLocationHelper
-import org.osmdroid.api.IMapController
-import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.CustomZoomButtonsController
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
-import org.osmdroid.views.overlay.Polyline
+import Ir.co.tfs.farazaman.map.BaranMapStyle
+import Ir.co.tfs.farazaman.map.MapLibreOverlayController
+import org.maplibre.android.MapLibre
+import org.maplibre.android.camera.CameraPosition
+import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapView
+import org.maplibre.android.maps.Style
 import javax.inject.Inject
 import Ir.co.tfs.farazaman.data.db.TrackContentProvider
-import android.database.Cursor
-import android.graphics.Color
 
 @AndroidEntryPoint
 class SubmitViolationActivity : AppCompatActivity() {
     private lateinit var locationManager: LocationManager
     private lateinit var prefs: SharedPreferences
-    private lateinit var osmView: MapView
-    private lateinit var osmViewController: IMapController
-    private var userLocationMarker: Marker? = null
+    private lateinit var mapView: MapView
+    private var mapLibreMap: MapLibreMap? = null
+    private var mapOverlays: MapLibreOverlayController? = null
     private var centerToGpsPos = true
-    private var currentPosition = GeoPoint(35.7627, 51.3353)
+    private var currentPosition = LatLng(35.7627, 51.3353)
     private var zoomedToTrackAlready = false
     private var trackId: Long = -1
-    private var trackPolyline: Polyline? = null
+    private var displayedTrackPoints: List<LatLng> = emptyList()
     private var lastRoadAddressCoordinates: Pair<Double, Double>? = null
     private var receivingLocationUpdates = false
 
@@ -65,9 +65,9 @@ class SubmitViolationActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "SubmitViolationActivity"
         private const val DEFAULT_ZOOM = 16
-        private const val CURRENT_SCROLL_X = "currentScrollX"
         private const val CURRENT_CENTER_TO_GPS_POS = "currentCenterToGpsPos"
-        private const val CURRENT_SCROLL_Y = "currentScrollY"
+        private const val CURRENT_LATITUDE = "currentLatitude"
+        private const val CURRENT_LONGITUDE = "currentLongitude"
         private const val CENTER_DEFAULT_ZOOM_LEVEL = 18.0
         private const val CURRENT_ZOOM = "currentZoom"
         private const val CURRENT_ZOOMED_TO_TRACK = "currentZoomedToTrack"
@@ -79,6 +79,7 @@ class SubmitViolationActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        MapLibre.getInstance(this)
         setContentView(R.layout.activity_submit_violation)
 
         trackId = intent.getLongExtra(EXTRA_TRACK_ID, -1)
@@ -138,37 +139,59 @@ class SubmitViolationActivity : AppCompatActivity() {
     }
 
     private fun initializeMap(savedInstanceState: Bundle?) {
-        Configuration.getInstance().load(this, prefs)
-        osmView = findViewById(R.id.map_view)
-        osmView.apply {
-            setMultiTouchControls(true)
-            getZoomController().setVisibility(CustomZoomButtonsController.Visibility.NEVER)
-            setKeepScreenOn(
-                prefs.getBoolean(
-                    OSMTracker.Preferences.KEY_UI_DISPLAY_KEEP_ON,
-                    OSMTracker.Preferences.VAL_UI_DISPLAY_KEEP_ON
+        mapView = findViewById(R.id.map_view)
+        mapView.keepScreenOn = prefs.getBoolean(
+            OSMTracker.Preferences.KEY_UI_DISPLAY_KEEP_ON,
+            OSMTracker.Preferences.VAL_UI_DISPLAY_KEEP_ON,
+        )
+        mapView.onCreate(savedInstanceState)
+        centerToGpsPos = savedInstanceState?.getBoolean(
+            CURRENT_CENTER_TO_GPS_POS,
+            centerToGpsPos,
+        ) ?: centerToGpsPos
+        zoomedToTrackAlready = savedInstanceState?.getBoolean(
+            CURRENT_ZOOMED_TO_TRACK,
+            zoomedToTrackAlready,
+        ) ?: zoomedToTrackAlready
+
+        mapView.getMapAsync { map ->
+            mapLibreMap = map
+            map.uiSettings.isCompassEnabled = false
+            map.uiSettings.isLogoEnabled = false
+            val target = if (savedInstanceState != null) {
+                LatLng(
+                    savedInstanceState.getDouble(CURRENT_LATITUDE, currentPosition.latitude),
+                    savedInstanceState.getDouble(CURRENT_LONGITUDE, currentPosition.longitude),
                 )
-            )
-        }
-
-        osmViewController = osmView.controller
-
-        if (savedInstanceState != null) {
-            osmViewController.setZoom(savedInstanceState.getInt(CURRENT_ZOOM, DEFAULT_ZOOM))
-            osmView.scrollTo(
-                savedInstanceState.getInt(CURRENT_SCROLL_X, 0),
-                savedInstanceState.getInt(CURRENT_SCROLL_Y, 0)
-            )
-            centerToGpsPos = savedInstanceState.getBoolean(CURRENT_CENTER_TO_GPS_POS, centerToGpsPos)
-            zoomedToTrackAlready = savedInstanceState.getBoolean(CURRENT_ZOOMED_TO_TRACK, zoomedToTrackAlready)
-        } else {
-            getPreferences(MODE_PRIVATE).getInt(LAST_ZOOM, DEFAULT_ZOOM).let {
-                osmViewController.setZoom(it)
+            } else {
+                currentPosition
+            }
+            val zoom = savedInstanceState?.getDouble(CURRENT_ZOOM, DEFAULT_ZOOM.toDouble())
+                ?: getPreferences(MODE_PRIVATE).getInt(LAST_ZOOM, DEFAULT_ZOOM).toDouble()
+            map.cameraPosition = CameraPosition.Builder().target(target).zoom(zoom).build()
+            map.addOnCameraMoveStartedListener { reason ->
+                if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
+                    centerToGpsPos = false
+                }
+            }
+            lifecycleScope.launch {
+                try {
+                    val styleJson = BaranMapStyle.load(this@SubmitViolationActivity)
+                    map.setStyle(Style.Builder().fromJson(styleJson)) { style ->
+                        mapOverlays = MapLibreOverlayController(map, style).also { overlays ->
+                            overlays.updateRoute(displayedTrackPoints)
+                            overlays.updateCurrentLocation(currentPosition)
+                        }
+                        if (displayedTrackPoints.isNotEmpty() && !zoomedToTrackAlready) {
+                            mapOverlays?.fit(displayedTrackPoints)
+                            zoomedToTrackAlready = true
+                        }
+                    }
+                } catch (error: Exception) {
+                    Log.e(TAG, "Unable to initialize Baran MapLibre style", error)
+                }
             }
         }
-
-        selectTileSource()
-        setTileDpiScaling()
     }
 
     private fun setupSubmitButton() {
@@ -179,16 +202,14 @@ class SubmitViolationActivity : AppCompatActivity() {
 
     private fun setupZoomControls() {
         findViewById<View>(R.id.displaytrackmap_imgZoomIn).setOnClickListener {
-            osmViewController.zoomIn()
+            mapOverlays?.zoomIn()
         }
         findViewById<View>(R.id.displaytrackmap_imgZoomOut).setOnClickListener {
-            osmViewController.zoomOut()
+            mapOverlays?.zoomOut()
         }
         findViewById<View>(R.id.displaytrackmap_imgZoomCenter).setOnClickListener {
             centerToGpsPos = true
-            currentPosition?.let { position ->
-                osmViewController.animateTo(position, CENTER_DEFAULT_ZOOM_LEVEL, ANIMATION_DURATION_MS)
-            }
+            mapOverlays?.center(currentPosition, CENTER_DEFAULT_ZOOM_LEVEL, ANIMATION_DURATION_MS.toInt())
         }
     }
 
@@ -217,29 +238,21 @@ class SubmitViolationActivity : AppCompatActivity() {
 
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
-            currentPosition = GeoPoint(location.latitude, location.longitude)
-            
-            if (userLocationMarker == null) {
-                userLocationMarker = Marker(osmView).apply {
-                    position = currentPosition
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    title = "موقعیت فعلی"
-                }
-                osmView.overlays.add(userLocationMarker)
-            } else {
-                userLocationMarker?.position = currentPosition
-            }
+            currentPosition = LatLng(location.latitude, location.longitude)
+            mapOverlays?.updateCurrentLocation(currentPosition)
 
             if (centerToGpsPos) {
-                osmViewController.animateTo(currentPosition, CENTER_DEFAULT_ZOOM_LEVEL, ANIMATION_DURATION_MS)
+                mapOverlays?.center(
+                    currentPosition,
+                    CENTER_DEFAULT_ZOOM_LEVEL,
+                    ANIMATION_DURATION_MS.toInt(),
+                )
             }
 
             val coordinates = location.latitude to location.longitude
             if (AddressLocationHelper.shouldUpdateAddress(lastRoadAddressCoordinates, coordinates)) {
                 fetchRoadData(location.latitude, location.longitude, location.accuracy, coordinates)
             }
-
-            osmView.invalidate()
         }
 
         override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
@@ -326,34 +339,49 @@ class SubmitViolationActivity : AppCompatActivity() {
         }
     }
 
-    private fun selectTileSource() {
-        val mapTile = prefs.getString(
-            OSMTracker.Preferences.KEY_UI_MAP_TILE,
-            OSMTracker.Preferences.VAL_UI_MAP_TILE_MAPNIK
-        )
-        Log.e("TileMapName active", mapTile ?: "")
-        osmView.setTileSource(TileSourceFactory.DEFAULT_TILE_SOURCE)
-    }
-
-    private fun setTileDpiScaling() {
-        osmView.setTilesScaledToDpi(true)
+    override fun onStart() {
+        super.onStart()
+        mapView.onStart()
     }
 
     override fun onPause() {
         stopGettingLocation()
-        osmView.onPause()
+        mapView.onPause()
         super.onPause()
+    }
+
+    override fun onStop() {
+        mapView.onStop()
+        super.onStop()
     }
 
     override fun onDestroy() {
         stopGettingLocation()
+        mapView.onDestroy()
         super.onDestroy()
     }
 
     override fun onResume() {
         super.onResume()
-        osmView.onResume()
+        mapView.onResume()
         if (hasLocationPermission()) startGettingLocation()
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        mapView.onLowMemory()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        mapLibreMap?.cameraPosition?.let { camera ->
+            outState.putDouble(CURRENT_LATITUDE, camera.target?.latitude ?: currentPosition.latitude)
+            outState.putDouble(CURRENT_LONGITUDE, camera.target?.longitude ?: currentPosition.longitude)
+            outState.putDouble(CURRENT_ZOOM, camera.zoom)
+        }
+        outState.putBoolean(CURRENT_CENTER_TO_GPS_POS, centerToGpsPos)
+        outState.putBoolean(CURRENT_ZOOMED_TO_TRACK, zoomedToTrackAlready)
+        super.onSaveInstanceState(outState)
+        mapView.onSaveInstanceState(outState)
     }
 
     private fun stopGettingLocation() {
@@ -368,35 +396,35 @@ class SubmitViolationActivity : AppCompatActivity() {
     }
 
     private fun displayTrackPoints() {
-        val cursor = contentResolver.query(
-            TrackContentProvider.trackPointsUri(trackId),
-            null,
-            null,
-            null,
-            null
-        )
-
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val points = mutableListOf<GeoPoint>()
-                do {
-                    val lat = it.getDouble(it.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LATITUDE))
-                    val lon = it.getDouble(it.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LONGITUDE))
-                    points.add(GeoPoint(lat, lon))
-                } while (it.moveToNext())
-
-                if (points.isNotEmpty()) {
-                    trackPolyline = Polyline(osmView).apply {
-                        outlinePaint.color = Color.RED
-                        outlinePaint.strokeWidth = 5f
-                        setPoints(points)
+        lifecycleScope.launch {
+            val points = withContext(Dispatchers.IO) {
+                val result = mutableListOf<LatLng>()
+                contentResolver.query(
+                    TrackContentProvider.trackPointsUri(trackId),
+                    arrayOf(
+                        TrackContentProvider.Schema.COL_LATITUDE,
+                        TrackContentProvider.Schema.COL_LONGITUDE,
+                    ),
+                    null,
+                    null,
+                    null,
+                )?.use { cursor ->
+                    val latitudeColumn = cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LATITUDE)
+                    val longitudeColumn = cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_LONGITUDE)
+                    while (cursor.moveToNext()) {
+                        result += LatLng(
+                            cursor.getDouble(latitudeColumn),
+                            cursor.getDouble(longitudeColumn),
+                        )
                     }
-                    osmView.overlays.add(trackPolyline)
-                    osmView.invalidate()
-
-                    // Center map on first point
-                    osmViewController.animateTo(points.first(), CENTER_DEFAULT_ZOOM_LEVEL, ANIMATION_DURATION_MS)
                 }
+                result
+            }
+            displayedTrackPoints = points
+            mapOverlays?.updateRoute(points)
+            if (points.isNotEmpty() && !zoomedToTrackAlready) {
+                mapOverlays?.fit(points)
+                zoomedToTrackAlready = mapOverlays != null
             }
         }
     }

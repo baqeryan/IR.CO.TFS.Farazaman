@@ -20,7 +20,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/iran_sans"
-            android:gravity="end"
+            android:gravity="start"
             android:textColor="@color/text_secondary_dark"
             android:textSize="14sp"
             tools:text="تاریخ" />
@@ -32,8 +32,8 @@
             android:layout_marginStart="12dp"
             android:layout_weight="1"
             android:fontFamily="@font/iran_sans"
-            android:gravity="end"
-            android:textAlignment="viewEnd"
+            android:gravity="start"
+            android:textAlignment="viewStart"
             android:textColor="@color/login_label"
             android:textSize="14sp"
             tools:text="۱۴۰۴/۰۷/۱۴" />

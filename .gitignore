@@ -20,10 +20,13 @@ app/src/test/assets/gpx/output-test.gpx
 
 *.hprof
 
-# Signing keys - never commit
+# Ignore ad-hoc keys; the permanent project Release identity is explicitly included.
 key/
 *.jks
 *.keystore
+!signing/
+!signing/farazaman-release.jks
+!signing/release-signing.properties
 README_PROBE.md
 allfiles.txt
 key/

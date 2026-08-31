@@ -1,5 +1,6 @@
 package Ir.co.tfs.farazaman.activity
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -19,6 +20,8 @@ class MissionItemSelectionBottomSheet : BottomSheetDialogFragment() {
     var onItemSelected: ((MissionSelectionOption) -> Unit)? = null
 
     companion object {
+        private const val SHEET_HEIGHT_RATIO = 0.90f
+
         fun newInstance(
             title: String,
             items: List<MissionSelectionOption>,
@@ -52,10 +55,14 @@ class MissionItemSelectionBottomSheet : BottomSheetDialogFragment() {
         val dialog = dialog as? BottomSheetDialog ?: return
         val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             ?: return
-        bottomSheet.layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+        bottomSheet.setBackgroundColor(Color.TRANSPARENT)
+        bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
+            height = (resources.displayMetrics.heightPixels * SHEET_HEIGHT_RATIO).toInt()
+        }
         BottomSheetBehavior.from(bottomSheet).apply {
             state = BottomSheetBehavior.STATE_EXPANDED
             skipCollapsed = true
         }
     }
+
 }

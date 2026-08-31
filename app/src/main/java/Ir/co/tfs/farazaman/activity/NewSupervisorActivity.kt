@@ -2,7 +2,9 @@ package Ir.co.tfs.farazaman.activity
 
 import android.os.Bundle
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.data.db.TrackContentProvider
@@ -66,7 +68,6 @@ class NewSupervisorActivity : AppCompatActivity(), SupervisorMissionHost {
         }
 
         SupervisorBottomNavHelper.bind(
-            activity = this,
             root = binding.supervisorBottomNav.root,
             initialTab = SupervisorNavTab.HOME,
             onTabSelected = { tab -> switchTab(tab) },
@@ -118,6 +119,15 @@ class NewSupervisorActivity : AppCompatActivity(), SupervisorMissionHost {
 
     fun navigateToTab(tab: SupervisorNavTab) {
         switchTab(tab)
+    }
+
+    fun showSnackbarAboveNavigation(
+        @StringRes messageRes: Int,
+        duration: Int = Snackbar.LENGTH_LONG,
+    ) {
+        Snackbar.make(binding.root, messageRes, duration)
+            .setAnchorView(binding.supervisorBottomNav.root)
+            .show()
     }
 
     fun navigateToTodayTab(visitTab: SupervisorVisitTab) {

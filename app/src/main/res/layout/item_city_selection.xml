@@ -7,6 +7,7 @@
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
+    android:layoutDirection="rtl"
     app:cardBackgroundColor="@color/app_surface"
     app:cardCornerRadius="12dp"
     app:cardElevation="3dp"
@@ -18,11 +19,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:fontFamily="@font/iran_sans"
-        android:gravity="end"
+        android:gravity="start"
         android:paddingStart="20dp"
         android:paddingTop="16dp"
         android:paddingEnd="20dp"
         android:paddingBottom="16dp"
+        android:textAlignment="viewStart"
         android:textColor="@color/login_label"
         android:textSize="16sp" />
 

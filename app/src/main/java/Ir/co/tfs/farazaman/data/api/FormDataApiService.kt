@@ -3,8 +3,11 @@ package Ir.co.tfs.farazaman.data.api
 import Ir.co.tfs.farazaman.data.model.FormDataApiRequest
 import Ir.co.tfs.farazaman.data.model.FormDataResponse
 import Ir.co.tfs.farazaman.data.model.MissionIndexResponse
+import Ir.co.tfs.farazaman.data.model.OrganFenceRequest
+import Ir.co.tfs.farazaman.data.model.OrganFenceResponse
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.Headers
 import retrofit2.http.POST
 import retrofit2.http.Path
 
@@ -46,4 +49,10 @@ interface FormDataApiService {
     suspend fun getMissionIndex(
         @Body request: Any
     ): Response<MissionIndexResponse>
+
+    @Headers("Accept: application/octet-stream")
+    @POST("api/GisLayersDataFenceOrgan/Details")
+    suspend fun getOrganFence(
+        @Body request: OrganFenceRequest
+    ): Response<OrganFenceResponse>
 } 

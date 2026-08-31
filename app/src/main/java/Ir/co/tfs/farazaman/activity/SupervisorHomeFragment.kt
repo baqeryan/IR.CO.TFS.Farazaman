@@ -26,9 +26,8 @@ import androidx.fragment.app.Fragment
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
-import com.google.android.material.snackbar.Snackbar
-
 import Ir.co.tfs.farazaman.R
+import Ir.co.tfs.farazaman.R.string.supervisor_tracking_started
 
 import Ir.co.tfs.farazaman.databinding.FragmentSupervisorHomeBinding
 
@@ -175,7 +174,7 @@ class SupervisorHomeFragment : Fragment() {
 
             .setMessage(R.string.supervisor_change_contract_message)
 
-            .setPositiveButton(android.R.string.ok) { _, _ ->
+            .setPositiveButton(R.string.supervisor_change_contract_confirm) { _, _ ->
 
                 controller.deleteMission()
 
@@ -185,7 +184,7 @@ class SupervisorHomeFragment : Fragment() {
 
             }
 
-            .setNegativeButton(android.R.string.cancel, null)
+            .setNegativeButton(R.string.supervisor_change_contract_cancel, null)
 
             .show()
 
@@ -241,7 +240,7 @@ class SupervisorHomeFragment : Fragment() {
 
         val tracking = controller.isTracking()
         if (lastKnownTracking != null && tracking && lastKnownTracking == false) {
-            Snackbar.make(binding.root, R.string.supervisor_tracking_started, Snackbar.LENGTH_LONG).show()
+            activity.showSnackbarAboveNavigation(supervisor_tracking_started)
         }
         lastKnownTracking = tracking
         wasTracking = tracking

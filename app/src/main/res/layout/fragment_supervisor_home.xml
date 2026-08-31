@@ -267,7 +267,9 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:background="@drawable/supervisor_home_active_banner"
+                            android:baselineAligned="false"
                             android:gravity="center_vertical"
+                            android:layoutDirection="rtl"
                             android:orientation="horizontal"
                             android:paddingStart="12dp"
                             android:paddingTop="10dp"
@@ -276,14 +278,50 @@
                             android:visibility="gone"
                             tools:visibility="gone">
 
+                            <ImageView
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:layout_marginEnd="6dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_my_location"
+                                app:tint="@color/intro_primary" />
+
                             <TextView
-                                android:layout_width="wrap_content"
+                                android:layout_width="0dp"
                                 android:layout_height="wrap_content"
+                                android:layout_weight="1"
                                 android:fontFamily="@font/iran_sans"
+                                android:gravity="start"
                                 android:text="@string/supervisor_home_active_visit"
+                                android:textAlignment="viewStart"
                                 android:textColor="@color/intro_primary"
                                 android:textSize="13sp"
                                 android:textStyle="bold" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnShowOnMap"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="36dp"
+                                android:layout_marginStart="8dp"
+                                android:fontFamily="@font/iran_sans"
+                                android:insetTop="0dp"
+                                android:insetBottom="0dp"
+                                android:minHeight="0dp"
+                                android:minWidth="0dp"
+                                android:paddingStart="12dp"
+                                android:paddingEnd="12dp"
+                                android:text="@string/daily_plan_show_on_map"
+                                android:textColor="@color/intro_primary"
+                                android:textSize="11sp"
+                                app:cornerRadius="18dp"
+                                app:icon="@drawable/ic_location"
+                                app:iconGravity="textEnd"
+                                app:iconPadding="4dp"
+                                app:iconSize="16dp"
+                                app:iconTint="@color/intro_primary"
+                                app:strokeColor="@color/intro_primary"
+                                app:strokeWidth="1dp" />
                         </LinearLayout>
 
                         <TextView
@@ -310,25 +348,6 @@
                             android:textColor="@color/text_secondary_dark"
                             android:textSize="13sp" />
 
-                        <TextView
-                            android:id="@+id/btnShowOnMap"
-                            android:layout_width="match_parent"
-                            android:layout_height="48dp"
-                            android:layout_marginTop="20dp"
-                            android:background="@drawable/supervisor_home_map_btn"
-                            android:clickable="true"
-                            android:drawablePadding="8dp"
-                            android:focusable="true"
-                            android:fontFamily="@font/iran_sans"
-                            android:foreground="?attr/selectableItemBackground"
-                            android:gravity="center"
-                            android:text="@string/daily_plan_show_on_map"
-                            android:textColor="@color/intro_primary"
-                            android:textSize="15sp"
-                            android:textStyle="bold"
-                            app:drawableStartCompat="@drawable/ic_location"
-                            app:drawableTint="@color/intro_primary" />
-
                         <FrameLayout
                             android:id="@+id/missionButtonContainer"
                             android:layout_width="match_parent"
@@ -347,6 +366,7 @@
                                 android:fontFamily="@font/iran_sans"
                                 android:gravity="center"
                                 android:text="@string/supervisor_start_visit"
+                                android:textAlignment="center"
                                 android:textColor="@color/intro_primary"
                                 android:textSize="16sp"
                                 android:textStyle="bold" />

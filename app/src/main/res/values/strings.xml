@@ -536,7 +536,7 @@
     <string name="supervisor_home_change_contract">تغییر</string>
     <string name="supervisor_home_contract_detail">%1$s - %2$s</string>
     <string name="supervisor_home_warning_start_visit">برای ثبت تخلف، ابتدا بازدید را شروع کنید</string>
-    <string name="supervisor_home_active_visit">((•)) بازدید فعال</string>
+    <string name="supervisor_home_active_visit">بازدید فعال</string>
     <string name="supervisor_home_visit_not_started">بازدید امروز هنوز شروع نشده</string>
     <string name="supervisor_home_visit_in_progress">بازدید در حال انجام است</string>
     <string name="supervisor_home_visit_desc">با شروع بازدید، مسیر GPS شما ثبت می‌شود و می‌توانید تخلفات را گزارش دهید.</string>
@@ -547,6 +547,8 @@
     <string name="supervisor_tracking_started">ردیابی برای ماموریت شروع شد</string>
     <string name="supervisor_change_contract_blocked">ابتدا بازدید را متوقف کنید</string>
     <string name="supervisor_change_contract_message">برای تغییر محدوده کاری، برنامه فعلی حذف می‌شود. ادامه می‌دهید؟</string>
+    <string name="supervisor_change_contract_confirm">تأیید</string>
+    <string name="supervisor_change_contract_cancel">انصراف</string>
     <string name="supervisor_tab_planning">برنامه‌ریزی</string>
     <string name="supervisor_tab_continuous">مستمر</string>
     <string name="supervisor_tab_commitments">عمومی</string>
@@ -626,7 +628,7 @@
     <string name="violation_description_label">توضیحات</string>
     <string name="violation_address_label">نشانی محل</string>
     <string name="violation_images_label">تصاویر تخلف</string>
-    <string name="violation_pick_images">انتخاب تصاویر تخلف</string>
+    <string name="violation_pick_images">گرفتن تصویر با دوربین</string>
     <string name="violation_max_file_size">Max. File Size: ۳۰MB</string>
     <string name="violation_images_count">%1$d تصویر بارگذاری شده</string>
     <string name="violation_show_all_images">نمایش همه فایل ها</string>
@@ -664,4 +666,17 @@
     <string name="driver_start_tracking">شروع ثبت مسیر</string>
     <string name="driver_stop_tracking">توقف ثبت مسیر</string>
     <string name="driver_info_message">با فشردن دکمه، ثبت مسیر شما آغاز می‌شود</string>
+    <!-- In-app update -->
+    <string name="app_update_checking">در حال بررسی نسخه جدید…</string>
+    <string name="app_update_title">نسخه جدید %1$s</string>
+    <string name="app_update_download">دریافت بروزرسانی</string>
+    <string name="app_update_install">نصب نسخه جدید</string>
+    <string name="app_update_open_settings">رفتن به تنظیمات</string>
+    <string name="app_update_retry">تلاش مجدد</string>
+    <string name="app_update_later">بعداً</string>
+    <string name="app_update_default_notes">نسخه جدید فرا زمان آماده دریافت است.</string>
+    <string name="app_update_downloading">در حال دریافت نسخه جدید: %1$d٪</string>
+    <string name="app_update_ready">فایل بروزرسانی با موفقیت دریافت و اعتبارسنجی شد. برای ادامه، نصب را تأیید کنید.</string>
+    <string name="app_update_permission_explanation">برای نصب نسخه جدید لازم است اجازه نصب برنامه از فرا زمان را در تنظیمات Android فعال کنید.</string>
+    <string name="app_update_installing">در انتظار تأیید نصب Android…</string>
 </resources>

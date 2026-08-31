@@ -38,10 +38,6 @@ import Ir.co.tfs.farazaman.supervisor.SupervisorViolationHistoryStore
 import Ir.co.tfs.farazaman.util.AddressLocationHelper
 import Ir.co.tfs.farazaman.util.GpsAccuracyHelper
 import dagger.hilt.android.AndroidEntryPoint
-import ir.hamsaa.persiandatepicker.PersianDatePickerDialog
-import ir.hamsaa.persiandatepicker.api.PersianPickerDate
-import ir.hamsaa.persiandatepicker.api.PersianPickerListener
-import ir.hamsaa.persiandatepicker.util.PersianCalendarUtils
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.data.db.TrackContentProvider
 import Ir.co.tfs.farazaman.data.db.DatabaseHelper

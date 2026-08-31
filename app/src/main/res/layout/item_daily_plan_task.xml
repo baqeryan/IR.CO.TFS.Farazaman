@@ -99,6 +99,7 @@
                 android:fontFamily="@font/iran_sans"
                 android:gravity="center"
                 android:text="@string/daily_plan_show_on_map"
+                android:textAlignment="center"
                 android:textColor="@color/login_label"
                 android:textSize="13sp" />
 
@@ -120,6 +121,7 @@
                 android:fontFamily="@font/iran_sans"
                 android:gravity="center"
                 android:text="@string/daily_plan_register_violation"
+                android:textAlignment="center"
                 android:textColor="@color/login_label"
                 android:textSize="13sp" />
         </LinearLayout>

@@ -111,10 +111,10 @@ public class OSMTracker {
 	};
 	
 	/**
-	 * The full Package name of OSMTracker returned by calling
-	 * OSMTracker.class.getPackage().getName()
+	 * Stable application id used by ContentProvider authorities, intent actions and resources.
+	 * Never derive this from a class package because R8 changes class names in Release builds.
 	 */
-	public final static String PACKAGE_NAME = OSMTracker.class.getPackage().getName();
+	public final static String PACKAGE_NAME = BuildConfig.APPLICATION_ID;
 
 	/**
 	 * Intent for tracking a waypoint

@@ -11,6 +11,8 @@ import Ir.co.tfs.farazaman.data.db.TrackContentProvider
 import Ir.co.tfs.farazaman.data.model.FormDataApiRequest
 import Ir.co.tfs.farazaman.data.model.FormDataRequest
 import Ir.co.tfs.farazaman.data.model.MissionIndexResponse
+import Ir.co.tfs.farazaman.data.model.OrganFenceRequest
+import Ir.co.tfs.farazaman.data.model.OrganFenceRequestData
 import android.preference.PreferenceManager
 import org.json.JSONArray
 import org.json.JSONObject
@@ -86,8 +88,47 @@ object SupervisorMissionSetup {
             visitDate = today,
             organTitle = organTitle,
             contractTitle = contractTitle,
-        )
+        ).toMutableMap()
+        loadOrganFence(service, organId)?.let { fence ->
+            missionData["organFenceWkt"] = fence.wkt
+            missionData["organFenceName"] = fence.name
+        }
         return persistMission(context, missionData)
+    }
+
+    private suspend fun loadOrganFence(
+        service: FormDataApiService,
+        organId: Int,
+    ): OrganFence? {
+        return try {
+            val response = service.getOrganFence(
+                OrganFenceRequest(OrganFenceRequestData(organIds = listOf(organId))),
+            )
+            if (!response.isSuccessful) {
+                Log.w(TAG, "Organ fence request failed with code=${response.code()}")
+                null
+            } else {
+                val dataModel = response.body()?.dataModel
+                val layer = dataModel?.gisLayersData
+                val wkt = layer?.wellKnownTextData?.wellKnownText
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+                if (wkt == null) {
+                    Log.w(TAG, "Organ fence response did not contain WKT for organId=$organId")
+                    null
+                } else {
+                    OrganFence(
+                        wkt = wkt,
+                        name = layer.name ?: dataModel.name.orEmpty(),
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            // The fence is an auxiliary map layer; a temporary failure must not duplicate
+            // or block a mission that was already created successfully on the server.
+            Log.w(TAG, "Unable to load organ fence for organId=$organId", e)
+            null
+        }
     }
 
     private fun createFormDataRequest(
@@ -234,4 +275,9 @@ object SupervisorMissionSetup {
     }
 
     class MissionSetupException(message: String) : Exception(message)
+
+    private data class OrganFence(
+        val wkt: String,
+        val name: String,
+    )
 }

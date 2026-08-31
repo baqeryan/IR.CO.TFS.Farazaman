@@ -138,20 +138,11 @@ class TodayVisitTabFragment : Fragment() {
 
 
         val warningBanner = view.findViewById<View>(R.id.visitWarningBanner)
-        val isListTab = tabType == "planning" || tabType == "system"
-        if (isListTab) {
-            val tracking = (activity as? NewSupervisorActivity)?.controller?.isTracking() == true
-            warningBanner.visibility = if (tracking) View.GONE else View.VISIBLE
-            warningBanner.findViewById<View>(R.id.btnStartVisit)?.setOnClickListener {
-                (activity as? NewSupervisorActivity)?.controller?.startMission()
-            }
-            warningBanner.findViewById<View>(R.id.btnShowOnMap)?.setOnClickListener {
-                (activity as? NewSupervisorActivity)?.controller?.openMissionMap()
-            }
-        } else {
-            warningBanner.visibility = View.GONE
+        val tracking = (activity as? NewSupervisorActivity)?.controller?.isTracking() == true
+        warningBanner.visibility = if (tracking) View.GONE else View.VISIBLE
+        warningBanner.findViewById<View>(R.id.btnStartVisit)?.setOnClickListener {
+            (activity as? NewSupervisorActivity)?.controller?.startMission()
         }
-
         if (tabType == "commitments") {
             recycler.visibility = View.GONE
             emptyText.visibility = View.GONE

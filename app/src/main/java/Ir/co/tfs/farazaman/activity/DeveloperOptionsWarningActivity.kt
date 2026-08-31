@@ -1,13 +1,14 @@
 package Ir.co.tfs.farazaman.activity
 
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import Ir.co.tfs.farazaman.R
+import Ir.co.tfs.farazaman.security.DeveloperOptionsGuard
 
 /**
  * Activity that displays a warning when Developer Options is enabled
@@ -23,6 +24,13 @@ class DeveloperOptionsWarningActivity : AppCompatActivity() {
         val messageText = findViewById<TextView>(R.id.warning_message)
         val settingsButton = findViewById<Button>(R.id.btn_open_settings)
         val recheckButton = findViewById<Button>(R.id.btn_recheck)
+
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() = Unit
+            },
+        )
 
         titleText.text = "هشدار امنیتی"
         messageText.text = "برای استفاده از این برنامه، لطفاً گزینه‌های توسعه‌دهنده (Developer Options) را خاموش کنید.\n\nفعال بودن این گزینه می‌تواند امنیت اطلاعات شما را به خطر بیندازد."
@@ -41,10 +49,8 @@ class DeveloperOptionsWarningActivity : AppCompatActivity() {
 
         recheckButton.setOnClickListener {
             // Recheck if Developer Options is still enabled
-            if (!isDeveloperOptionsEnabled()) {
-                // Developer Options is now disabled, navigate to splash
-                val intent = Intent(this, SplashActivity::class.java)
-                startActivity(intent)
+            if (!DeveloperOptionsGuard.shouldBlockCurrentBuild(this)) {
+                // Developer Options is now disabled; reveal the activity that was previously open.
                 finish()
             } else {
                 // Still enabled, show a toast or update message
@@ -53,25 +59,10 @@ class DeveloperOptionsWarningActivity : AppCompatActivity() {
         }
     }
 
-    @SuppressLint("MissingSuperCall")
-    override fun onBackPressed() {
-        // Prevent back button press - user must disable Developer Options
-        // Do nothing
-    }
-
-    /**
-     * Check if Developer Options is enabled on the device
-     */
-    private fun isDeveloperOptionsEnabled(): Boolean {
-        return try {
-            Settings.Secure.getInt(
-                contentResolver,
-                Settings.Global.DEVELOPMENT_SETTINGS_ENABLED,
-                0
-            ) != 0
-        } catch (e: Exception) {
-            // If we can't determine, assume it's disabled
-            false
+    override fun onResume() {
+        super.onResume()
+        if (!DeveloperOptionsGuard.shouldBlockCurrentBuild(this)) {
+            finish()
         }
     }
 }

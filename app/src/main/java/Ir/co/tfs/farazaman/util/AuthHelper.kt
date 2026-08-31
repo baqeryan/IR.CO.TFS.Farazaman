@@ -20,13 +20,19 @@ class AuthHelper @Inject constructor(
      * Perform logout operation and redirect to login screen
      */
     fun logout(context: Context) {
-        // Clear all tokens
+        // Clear tokens first so no request can reuse the session while file caches are removed.
         authRepository.logout()
-        
-        // Redirect to login screen
-        val intent = Intent(context, LoginActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        context.startActivity(intent)
+
+        val applicationContext = context.applicationContext
+        LogoutCacheCleaner.clearAndThen(
+            applicationContext,
+            Runnable {
+                val intent = Intent(applicationContext, LoginActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                }
+                applicationContext.startActivity(intent)
+            },
+        )
     }
     
     /**

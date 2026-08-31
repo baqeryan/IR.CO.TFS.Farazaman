@@ -6,6 +6,7 @@ import java.io.FilenameFilter;
 import Ir.co.tfs.farazaman.OSMTracker;
 import Ir.co.tfs.farazaman.R;
 import Ir.co.tfs.farazaman.presentation.login.LoginActivity;
+import Ir.co.tfs.farazaman.util.LogoutCacheCleaner;
 
 import android.Manifest;
 import android.app.AlertDialog;
@@ -427,33 +428,11 @@ public class Preferences extends PreferenceActivity {
 	 * Perform logout: clear all tokens and app data, navigate to login screen
 	 */
 	private void performLogout() {
-		// Clear all authentication tokens (TokenManager uses the same keys as the original system)
-		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		Editor editor = prefs.edit();
-		
-		// Clear authentication tokens (same keys used by TokenManager)
-		editor.remove("ACCESS_TOKEN");
-		editor.remove("REFRESH_TOKEN");
-		editor.remove("TOKEN_TYPE");
-		editor.remove("TOKEN_EXPIRES_AT");
-		
-		// Clear BASE_URL to reset to default and clear cached provinces
-		editor.remove("BASE_URL");
-		editor.remove("CACHED_PROVINCES_JSON");
-		
-		// Clear any other app-specific data if needed
-		// You can add more keys here for other user data that should be cleared on logout
-		
-		// Apply changes
-		editor.apply();
-		
-		// Navigate to login screen
-		Intent intent = new Intent(this, LoginActivity.class);
-		intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-		startActivity(intent);
-		
-		// Finish this activity
-		finish();
+		LogoutCacheCleaner.clearAndThen(this, () -> {
+			Intent intent = new Intent(getApplicationContext(), LoginActivity.class);
+			intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+			getApplicationContext().startActivity(intent);
+		});
 	}
 	
 }
