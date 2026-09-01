@@ -1,0 +1,42 @@
+--------- beginning of main
+08-15 01:14:07.504 17283 17436 D AuthInterceptor: === INTERCEPTING REQUEST ===
+08-15 01:14:07.504 17283 17436 D AuthInterceptor: URL: https://khadamat-babol.tfs.co.ir/api/AccountUser/Roles
+08-15 01:14:07.504 17283 17436 D AuthInterceptor: Method: GET
+08-15 01:14:07.504 17283 17436 D AuthInterceptor: Token expired: false
+08-15 01:14:07.513 17283 17436 D AuthInterceptor: Has refresh token: true
+08-15 01:14:07.513 17283 17436 D AuthInterceptor: Token expires at: 1786747161464
+08-15 01:14:07.513 17283 17436 D AuthInterceptor: Current time: 1786743847513
+08-15 01:14:07.513 17283 17436 D AuthInterceptor: Time remaining: 3313951ms (3313s)
+08-15 01:14:07.513 17283 17436 D AuthInterceptor: Time since login: 30255277642ms
+08-15 01:14:07.528 17283 17436 D AuthInterceptor: Making request with auth header: true
+08-15 01:14:07.810 17283 17436 D AuthInterceptor: Received response code: 200
+08-15 01:14:30.778 17283 17436 D AuthInterceptor: === INTERCEPTING REQUEST ===
+08-15 01:14:30.778 17283 17436 D AuthInterceptor: URL: https://khadamat-babol.tfs.co.ir/api/AccountUser/Info
+08-15 01:14:30.778 17283 17436 D AuthInterceptor: Method: GET
+08-15 01:14:30.778 17283 17436 D AuthInterceptor: Token expired: false
+08-15 01:14:30.780 17283 17436 D AuthInterceptor: Has refresh token: true
+08-15 01:14:30.780 17283 17436 D AuthInterceptor: Token expires at: 1786747469603
+08-15 01:14:30.780 17283 17436 D AuthInterceptor: Current time: 1786743870780
+08-15 01:14:30.780 17283 17436 D AuthInterceptor: Time remaining: 3598823ms (3598s)
+08-15 01:14:30.780 17283 17436 D AuthInterceptor: Time since login: 30255300909ms
+08-15 01:14:30.806 17283 17436 D AuthInterceptor: Making request with auth header: true
+08-15 01:14:30.973 17283 17436 D AuthInterceptor: Received response code: 200
+08-15 01:14:30.993 17283 17436 D AuthInterceptor: === INTERCEPTING REQUEST ===
+08-15 01:14:30.995 17283 17436 D AuthInterceptor: URL: https://khadamat-babol.tfs.co.ir/api/AccountUser/Roles
+08-15 01:14:31.002 17283 17436 D AuthInterceptor: Method: GET
+08-15 01:14:31.002 17283 17436 D AuthInterceptor: Token expired: false
+08-15 01:14:31.014 17283 17436 D AuthInterceptor: Has refresh token: true
+08-15 01:14:31.014 17283 17436 D AuthInterceptor: Token expires at: 1786747469603
+08-15 01:14:31.014 17283 17436 D AuthInterceptor: Current time: 1786743871014
+08-15 01:14:31.014 17283 17436 D AuthInterceptor: Time remaining: 3598589ms (3598s)
+08-15 01:14:31.014 17283 17436 D AuthInterceptor: Time since login: 30255301143ms
+08-15 01:14:31.023 17283 17436 D AuthInterceptor: Making request with auth header: true
+08-15 01:14:31.149 17283 17436 D AuthInterceptor: Received response code: 200
+08-15 01:14:33.638 17283 17283 D NetworkModule: === provideRetrofit called ===
+08-15 01:14:33.638 17283 17283 D NetworkModule: Reading base URL from preferences: https://khadamat-babol.tfs.co.ir
+08-15 01:14:33.638 17283 17283 D NetworkModule: Current timestamp: 1786743873638
+08-15 01:14:33.638 17283 17283 D NetworkModule: Thread: main
+08-15 01:14:33.638 17283 17283 D NetworkModule: Forcing new Retrofit creation for base URL: https://khadamat-babol.tfs.co.ir
+08-15 01:14:33.639 17283 17283 D NetworkModule: Retrofit created with base URL: https://khadamat-babol.tfs.co.ir/
+08-15 01:14:33.639 17283 17283 D NetworkModule: Retrofit instance hash: 112406666
+08-15 01:14:33.639 17283 17283 D NetworkModule: === End provideRetrofit ===
