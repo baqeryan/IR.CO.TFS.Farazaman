@@ -33,7 +33,7 @@ class AppUpdateRepositoryTest {
 
         val first = runCatching { repository.download(update(), {}) }
         assertTrue(first.isFailure)
-        assertFalse(File(temporaryFolder.root, "app_updates/farazaman-66.apk.part").exists())
+        assertFalse(File(temporaryFolder.root, "app_updates/farazaman-66.part.apk").exists())
 
         val second = repository.download(update(), {})
         assertTrue(second.isFile)
@@ -46,6 +46,7 @@ class AppUpdateRepositoryTest {
         val validator = object : ApkFileValidator {
             override fun validate(file: File, expected: AppUpdateInfo) {
                 require(file.length() > 0)
+                require(file.name.endsWith(".apk"))
             }
         }
         return AppUpdateRepository(service, validator, context)

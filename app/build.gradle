@@ -36,6 +36,16 @@ def releaseKeyPassword = releaseSigningValue('keyPassword', 'FARAZAMAN_SIGNING_K
 def hasReleaseSigning = [releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword]
         .every { it != null && !it.isBlank() }
 
+def releaseVersionCode = 112
+def releaseVersionName = new Date().format('yyyy.MM.dd')
+def releaseDownloadUrl = providers.gradleProperty('releaseDownloadUrl')
+        .getOrElse('https://drive.tfs.co.ir/Files/farazaman.apk')
+def releaseMandatory = providers.gradleProperty('releaseMandatory')
+        .map { it.toBoolean() }
+        .getOrElse(false)
+def releaseNotes = providers.gradleProperty('releaseNotes')
+        .getOrElse('بهبود فرایند بروزرسانی برنامه')
+
 android {
     namespace 'Ir.co.tfs.farazaman'
     compileSdk 34
@@ -48,8 +58,12 @@ android {
         buildConfigField 'String', 'LEGACY_CLIENT_SECRET', '"' + legacyClientSecret.replace('\\', '\\\\').replace('"', '\\"') + '"'
 
         // Version code should be increased after each release
-        versionCode 65
-        versionName new Date().format('yyyy.MM.dd')
+        versionCode releaseVersionCode
+        versionName releaseVersionName
+
+        // The application UI is Persian/English. Drop translations bundled by legacy code
+        // and third-party libraries for locales that the application does not support.
+        resourceConfigurations += ['fa', 'fa-rIR', 'en', 'en-rGB']
 
         testApplicationId "Ir.co.tfs.farazaman.test"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -87,6 +101,14 @@ android {
         }
         debug {
             versionNameSuffix "-dev"
+        }
+    }
+
+    applicationVariants.configureEach { variant ->
+        if (variant.buildType.name == 'release') {
+            variant.outputs.configureEach {
+                outputFileName = 'farazaman.apk'
+            }
         }
     }
     
@@ -127,6 +149,42 @@ android {
         }
         animationsDisabled = true
     }
+}
+
+def generateReleaseMetadata = tasks.register('generateReleaseMetadata') {
+    group = 'build'
+    description = 'Generates farazaman.json beside the release APK.'
+
+    def metadataFile = layout.buildDirectory.file('outputs/apk/release/farazaman.json')
+    inputs.file(layout.buildDirectory.file('outputs/apk/release/farazaman.apk'))
+    inputs.property('versionCode', releaseVersionCode)
+    inputs.property('versionName', releaseVersionName)
+    inputs.property('downloadUrl', releaseDownloadUrl)
+    inputs.property('mandatory', releaseMandatory)
+    inputs.property('releaseNotes', releaseNotes)
+    outputs.file(metadataFile)
+
+    doLast {
+        def publishedAt = new Date().format("yyyy-MM-dd'T'HH:mm:ssXXX", TimeZone.getTimeZone('UTC'))
+        def metadata = [
+                versionCode: releaseVersionCode,
+                versionName: releaseVersionName,
+                downloadUrl: releaseDownloadUrl,
+                mandatory: releaseMandatory,
+                releaseNotes: releaseNotes,
+                publishedAt: publishedAt,
+        ]
+        def output = metadataFile.get().asFile
+        output.parentFile.mkdirs()
+        def jsonGenerator = new groovy.json.JsonGenerator.Options()
+                .disableUnicodeEscaping()
+                .build()
+        output.setText(jsonGenerator.toJson(metadata) + System.lineSeparator(), 'UTF-8')
+    }
+}
+
+tasks.matching { it.name == 'assembleRelease' }.configureEach {
+    finalizedBy(generateReleaseMetadata)
 }
 
 dependencies {

@@ -53,7 +53,10 @@ class AppUpdateRepository @Inject constructor(
     ): File {
         val updateDirectory = File(context.cacheDir, UPDATE_DIRECTORY).apply { mkdirs() }
         cleanupDownloads(updateDirectory)
-        val partial = File(updateDirectory, "farazaman-${info.versionCode}.apk.part")
+        // PackageManager rejects archive paths that do not end in .apk on some Android
+        // versions. Keep the candidate distinguishable as partial while preserving the
+        // APK extension required by getPackageArchiveInfo().
+        val partial = File(updateDirectory, "farazaman-${info.versionCode}.part.apk")
         val completed = File(updateDirectory, "farazaman-${info.versionCode}.apk")
 
         return try {

@@ -36,10 +36,12 @@ class SplashActivity : AppCompatActivity() {
 
     private val splashViewModel: SplashViewModel by viewModels()
     private var navigationStarted = false
+    private var installPermissionRequestInFlight = false
 
     private val installPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) {
+        installPermissionRequestInFlight = false
         splashViewModel.onInstallPermissionResult()
     }
 
@@ -54,6 +56,13 @@ class SplashActivity : AppCompatActivity() {
                         navigateToNextScreen()
                     }
                 }
+                LaunchedEffect(updateState) {
+                    if (updateState is SplashUpdateState.InstallPermissionRequired &&
+                        !installPermissionRequestInFlight && !isFinishing
+                    ) {
+                        openInstallPermissionSettings()
+                    }
+                }
                 Box(modifier = Modifier.fillMaxSize()) {
                     SplashScreen(
                         state = SplashUiState(slogan = "تحولی نوین در شهر"),
@@ -63,9 +72,7 @@ class SplashActivity : AppCompatActivity() {
                         onDownload = splashViewModel::downloadUpdate,
                         onInstall = splashViewModel::installUpdate,
                         onOpenInstallSettings = {
-                            installPermissionLauncher.launch(
-                                updateInstaller.createInstallPermissionIntent(),
-                            )
+                            openInstallPermissionSettings()
                         },
                         onRetry = splashViewModel::retry,
                         onLater = splashViewModel::continueWithoutUpdate,
@@ -73,6 +80,12 @@ class SplashActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun openInstallPermissionSettings() {
+        if (installPermissionRequestInFlight) return
+        installPermissionRequestInFlight = true
+        installPermissionLauncher.launch(updateInstaller.createInstallPermissionIntent())
     }
 
     private fun navigateToNextScreen() {

@@ -3,6 +3,8 @@ package Ir.co.tfs.farazaman.presentation.viewmodel
 import Ir.co.tfs.farazaman.data.model.AppUpdateInfo
 import Ir.co.tfs.farazaman.data.repository.AppUpdateRepository
 import Ir.co.tfs.farazaman.data.repository.UpdateCheckResult
+import Ir.co.tfs.farazaman.data.update.ApkValidationException
+import Ir.co.tfs.farazaman.data.update.ApkValidationFailure
 import Ir.co.tfs.farazaman.data.update.InstalledVersionProvider
 import Ir.co.tfs.farazaman.update.AppUpdateInstallStatus
 import Ir.co.tfs.farazaman.update.AppUpdateInstallStatusBus
@@ -13,6 +15,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
+import java.io.IOException
 import javax.inject.Inject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,7 +73,7 @@ class SplashViewModel @Inject constructor(
                 Log.e(TAG, "APK download or validation failed", e)
                 mutableUpdateState.value = SplashUpdateState.Error(
                     info = info,
-                    message = "دریافت یا اعتبارسنجی نسخه جدید ناموفق بود.",
+                    message = downloadFailureMessage(e),
                     retryAction = UpdateRetryAction.DOWNLOAD,
                 )
             }
@@ -158,6 +161,29 @@ class SplashViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    private fun downloadFailureMessage(error: Exception): String {
+        if (error is ApkValidationException) {
+            return when (error.failure) {
+                ApkValidationFailure.EMPTY_FILE -> "فایل بروزرسانی خالی دریافت شد. دوباره تلاش کنید."
+                ApkValidationFailure.INVALID_ARCHIVE ->
+                    "فایل دریافت‌شده APK معتبر نیست یا کامل دانلود نشده است."
+                ApkValidationFailure.PACKAGE_MISMATCH ->
+                    "فایل بروزرسانی متعلق به برنامه فرازمان نیست."
+                ApkValidationFailure.VERSION_MISMATCH ->
+                    "نسخه فایل دانلودشده با اطلاعات نسخه روی سرور مطابقت ندارد."
+                ApkValidationFailure.SIGNATURE_UNAVAILABLE ->
+                    "اندروید نتوانست امضای امنیتی فایل بروزرسانی را بخواند."
+                ApkValidationFailure.SIGNATURE_MISMATCH ->
+                    "امضای نسخه جدید با برنامه نصب‌شده یکسان نیست و امکان بروزرسانی مستقیم وجود ندارد."
+            }
+        }
+        return if (error is IOException) {
+            "دریافت فایل بروزرسانی ناموفق بود. اتصال اینترنت را بررسی و دوباره تلاش کنید."
+        } else {
+            "آماده‌سازی نسخه جدید ناموفق بود. دوباره تلاش کنید."
         }
     }
 

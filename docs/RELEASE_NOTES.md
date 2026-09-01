@@ -13,6 +13,21 @@ This file records build-type differences and confirmed Release-specific constrai
 | Compose previews | `app/src/debug/java/` | Excluded |
 | Signing | Standard Android debug signing | Permanent FaraZaman Release keystore |
 
+Packaged locale resources are restricted to Persian and English (including `fa-IR` and
+`en-GB` variants) through `defaultConfig.resourceConfigurations`. Unqualified/default
+resources remain available as Android requires.
+
+Downloaded update candidates use the suffix `.part.apk`, not `.apk.part`, because Android's
+`PackageManager.getPackageArchiveInfo()` rejects archive paths without a final `.apk` suffix on
+some OS versions. Versions built before this fix require one manual update before in-app updates
+can work reliably.
+
+APK signature validation requests both modern signing-certificate data and the deprecated
+signature field as an Android 9/10 compatibility fallback. It accepts the same current signer or
+a valid forward certificate-rotation history. A signature mismatch is reported separately from
+download, archive, package-name, and version-code failures; a differently signed installed app
+cannot be upgraded in place and must be migrated manually without discarding unsynced field data.
+
 There are no product flavors. Both build types use the same application ID, manifest, runtime municipality registry, selected `BASE_URL`, API interfaces, and authentication architecture.
 
 ## BuildConfig and secrets
@@ -30,7 +45,7 @@ There are no product flavors. Both build types use the same application ID, mani
 - The selected municipality is saved at runtime in default SharedPreferences as `BASE_URL`; OIDC client ID, scope, and login mode are saved with it.
 - Retrofit is provided from `di/NetworkModule.kt`; legacy upload URLs must go through `util/SelectedServerUrl.kt` or equivalent selected-base logic.
 - When reproducing a server issue, clear app data or verify the stored city and `BASE_URL`; an upgraded Debug installation may retain different session/city state.
-- In-app update discovery is identical in Debug and Release and uses the fixed HTTPS endpoint in `data/update/AppUpdateConfig.kt`, not the selected municipality `BASE_URL`. Its dedicated OkHttp client sends no bearer token. The APK URL must be HTTPS on `ftp.tfs.co.ir`.
+- In-app update discovery is identical in Debug and Release and uses the fixed HTTPS endpoint in `data/update/AppUpdateConfig.kt`, not the selected municipality `BASE_URL`. Its dedicated OkHttp client sends no bearer token. The APK URL must be HTTPS on `drive.tfs.co.ir` or the legacy `ftp.tfs.co.ir` host.
 - Release update smoke tests must use an APK signed with the same permanent Release certificate. Debug and Release certificates intentionally differ, so one cannot update the other in place. Android O+ also requires the user to grant this app unknown-source install access.
 
 ## Authentication behavior
@@ -111,7 +126,15 @@ track ID 1 through the correct provider authority, and navigated to `NewSupervis
 - Credentials and keystore path: `signing/release-signing.properties`. They are intentionally versioned with the private repository at the repository owner's explicit request.
 - `app/build.gradle` can alternatively read `signing.*` Gradle properties or `FARAZAMAN_SIGNING_*` environment variables.
 - Certificate SHA-256: `48:4C:C5:50:23:86:DD:A3:EF:6E:CF:BB:80:D1:AE:F8:08:A2:BD:10:99:1C:B0:9B:73:5A:B2:9E:63:CF:08:77`; validity ends 2053-12-30.
-- `assembleRelease` writes the signed artifact to `app/build/outputs/apk/release/app-release.apk`. Never regenerate this identity casually; back up the entire `signing/` directory outside Git as well.
+- `assembleRelease` writes the signed artifact to `app/build/outputs/apk/release/farazaman.apk`. Never regenerate this identity casually; back up the entire `signing/` directory outside Git as well.
+
+## Release artifacts
+
+- `:app:assembleRelease` writes `farazaman.apk` and a matching `farazaman.json` to
+  `app/build/outputs/apk/release/`.
+- Release metadata defaults to the production Drive URL and a non-mandatory update.
+- Override metadata when needed with `-PreleaseMandatory=true`,
+  `-PreleaseNotes="..."`, or `-PreleaseDownloadUrl="https://..."`.
 
 ## Release-only investigation checklist
 
