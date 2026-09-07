@@ -44,3 +44,21 @@
 -keep class Ir.co.tfs.farazaman.util.SecureTokenStorage { *; }
 -keep class Ir.co.tfs.farazaman.util.AndroidKeyStoreCipher { *; }
 -keep class net.openid.appauth.** { *; }
+
+# SignalR/Gson constructs realtime payloads reflectively in minified Release builds.
+# SignalR resolves collection payloads from anonymous TypeReference subclasses at runtime.
+# R8 must keep both the subclass and its generic signature; otherwise Release crashes with
+# "TypeReference must be instantiated with a type parameter" during app lifecycle callbacks.
+-keep class com.microsoft.signalr.TypeReference { *; }
+-keep class ** extends com.microsoft.signalr.TypeReference { *; }
+-keep class Ir.co.tfs.farazaman.realtime.MobileSupervisorHubClient$* { *; }
+
+# Apply the same protection to Gson TypeToken subclasses used by current or future features.
+-keep class com.google.gson.reflect.TypeToken { *; }
+-keep class ** extends com.google.gson.reflect.TypeToken { *; }
+
+-keep class Ir.co.tfs.farazaman.realtime.MobileChatMessage { *; }
+-keep class Ir.co.tfs.farazaman.realtime.LocationRequest { *; }
+-keep class Ir.co.tfs.farazaman.realtime.LocationResponse { *; }
+-keep class Ir.co.tfs.farazaman.realtime.LocationRejected { *; }
+-keep class Ir.co.tfs.farazaman.realtime.OnlineMobileUser { *; }

@@ -59,7 +59,7 @@ public class OSMTracker {
 		public final static boolean VAL_GPS_CHECKSTARTUP = true;
 		public final static boolean VAL_GPS_IGNORE_CLOCK = false;
 		public final static String VAL_GPS_LOGGING_INTERVAL = "3";
-		public final static String VAL_GPS_LOGGING_MIN_DISTANCE = "8";
+		public final static String VAL_GPS_LOGGING_MIN_DISTANCE = "5";
 		public final static boolean VAL_USE_BAROMETER = false;
 		
 		public final static String VAL_OUTPUT_FILENAME_NAME = "name";

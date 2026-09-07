@@ -4,10 +4,14 @@ Start here instead of recursively searching source. Fully qualified paths are re
 
 ## Application entry and lifecycle
 
+- Firebase notifications: `app/google-services.json`; Google Services plugin and Messaging dependency in Gradle; `notification/FarazamanFirebaseMessagingService.kt`, `FirebaseDeviceTokenRegistrar.kt`, `FirebaseNotificationInboxStore.kt`, and `NotificationPermissionHelper.kt`. Server unread synchronization/badges are in `NotificationUnreadCountStore.kt` and `NotificationBadgeBinder.kt`. Firebase BoM 33.5.1 is pinned for Kotlin 1.9.22.
+- Foreground supervisor realtime: `realtime/MobileSupervisorHubClient.kt` and `MobileSupervisorModels.kt`; application lifecycle ownership is in `MyApplication.kt`, and explicit logout stops the connection through `util/AuthHelper.kt`.
+
 - Application: `app/src/main/java/Ir/co/tfs/farazaman/MyApplication.kt` — Hilt, Persian locale, RTL, system dark mode, developer-options enforcement.
 - Manifest: `app/src/main/AndroidManifest.xml` — launcher, Activities, GPS service, providers, permissions, OIDC redirects.
 - Launcher UI: `app/src/main/java/Ir/co/tfs/farazaman/activity/SplashActivity.kt`.
 - Compose screen/theme: `app/src/main/java/Ir/co/tfs/farazaman/presentation/compose/SplashScreen.kt`, `FaraZamanTheme.kt`.
+- Shared day/night button system: `app/src/main/res/values/styles.xml` (`FaraZaman.Button.*`), `app/src/main/res/color/button_*.xml`, and the semantic palettes in `values/colors.xml` / `values-night/colors.xml`; Compose mirrors these pairs in `presentation/compose/FaraZamanTheme.kt`.
 - Startup/update state and session routing: `presentation/viewmodel/SplashViewModel.kt`; `SplashActivity.kt` observes it, presents update UI, then routes to login or role selection.
 - In-app update UI: `presentation/compose/AppUpdateUi.kt`.
 - Update repository/policy: `data/repository/AppUpdateRepository.kt`, `domain/update/AppUpdatePolicy.kt`.
@@ -33,11 +37,31 @@ Start here instead of recursively searching source. Fully qualified paths are re
 
 ## Role selection and profile
 
-- Entry/UI: `activity/RoleSelectionActivity.kt` + `presentation/compose/RoleSelectionScreen.kt`.
+- Entry/UI: `activity/RoleSelectionActivity.kt` + `presentation/compose/RoleSelectionScreen.kt`; its Compose header mirrors the work-area shell and observes the shared unread-notification count for the bell badge.
 - State/domain choice: `RoleSelectionUiState`, `RoleOption` in `RoleSelectionScreen.kt`; stored role interpretation in `util/RolesManager.kt`.
+- Role response: `data/model/UserRoles.kt` models both legacy `roles` and confirmed `actorRoles`; Contractor is the `Contractor` actor-role key with label `پیمانکار`.
 - Supervisor profile: `activity/SupervisorProfileActivity.kt`, layout `activity_supervisor_profile.xml`.
 - Routing helper: `supervisor/SupervisorMissionHelper.kt`.
 - Debug previews: `app/src/debug/java/Ir/co/tfs/farazaman/presentation/compose/RoleSelectionScreenPreviews.kt`.
+
+## Contractor violation correction (partial; API contract pending)
+
+- Entry/routing: `presentation/login/LoginActivity.kt` (Contractor-only) and `activity/RoleSelectionActivity.kt` (multi-role).
+- List shell: `activity/ContractorViolationsActivity.kt`; layout `res/layout/activity_contractor_violations.xml`.
+- Card/form UI shells: `res/layout/item_contractor_violation.xml`, `activity_contractor_correction.xml`, `bottom_sheet_violation_image_preview.xml`.
+- Read-only map: `activity/ContractorViolationLocationActivity.kt`; layout `activity_contractor_violation_location.xml`; shared map code `map/BaranMapStyle.kt`, `map/MapLibreOverlayController.kt`.
+- Camera: `activity/ViolationImageCaptureCoordinator.kt`; current shared consumers are `SubmitViolationFormActivity.kt` and `CommitmentsViolationFormFragment.kt`.
+- Location: `domain/location/LocationFixPolicy.kt`, `util/LocationAcquisitionCoordinator.kt`, `util/GpsAccuracyHelper.kt`.
+- Draft validation independent of transport: `domain/validation/ContractorCorrectionValidator.kt`.
+- Tests: `util/RolesManagerContractorTest.kt`, `domain/location/LocationFixPolicyTest.kt`, `util/LocationAcquisitionCoordinatorTest.kt`, `domain/validation/ContractorCorrectionValidatorTest.kt` under `app/src/test/java/Ir/co/tfs/farazaman/`.
+- API/repository/ViewModels/DTOs: `Unknown / not confirmed`. Do not add methods to `ViolationApiService`, multipart field names, or request models until both contracts in `specs/002-contractor-violation-correction/contracts/contractor-violation-contract.md` are supplied.
+
+## Contractor operations (UI foundation; service contracts pending)
+
+- Role routing: `activity/RoleSelectionActivity.kt` opens `ContractorWorkAreaSelectionActivity.kt` before Contractor operations.
+- Operations shell: `activity/ContractorOperationsActivity.kt`; action form: `ContractorActionActivity.kt`; layouts are `activity_contractor_work_area_selection.xml`, `activity_contractor_operations.xml`, and `activity_contractor_action.xml`.
+- Safe integration seam and local selected-context holder: `contractor/ContractorGateway.kt`, `ContractorWorkContextStore.kt`; draft validation: `ContractorDraftValidator.kt`.
+- Corrections reuse `ContractorViolationsActivity.kt` and its existing correction/map layouts. No endpoint or DTO is implemented until the catalog in `specs/003-contractor-operations/contracts/contractor-gateway.md` is supplied.
 
 ## Driver mission
 
@@ -75,7 +99,20 @@ Start here instead of recursively searching source. Fully qualified paths are re
 - Models: `data/model/FormDataResponse.kt`, `MissionIndexResponse.kt`.
 - DI/base URL/auth: `di/NetworkModule.kt`, `util/AuthInterceptor.kt`.
 - Local result: mission JSON under `mission_data_<trackId>` in default preferences; associated track in ContentProvider.
+- Day rollover: `SupervisorMissionDayPolicy.kt` detects a stale `visitDate`; `SupervisorMissionSetup.refreshMissionForDateIfNeeded()` repeats the existing Create/Index daily-plan flow for the new date while retaining the same unuploaded GPS track. `NewSupervisorActivity` checks on resume and periodically while visible, and violation entry/submission paths reject stale mission dates.
 - First files to inspect when this list fails: `NewMissionBottomSheetFragment.kt`, `FormDataApiService.kt`, `FormDataResponse.kt`, `NetworkModule.kt`, `AuthInterceptor.kt`.
+
+## Supervisor actions and notifications
+
+- Bell destination: `activity/ActionsNotificationsActivity.kt`; layout `activity_actions_notifications.xml`; declared once in `app/src/main/AndroidManifest.xml` and opened by `NewSupervisorActivity`.
+- Tabs: `activity/UserActionsFragment.kt` and `FirebaseNotificationsFragment.kt`; notification rows are rendered by `FirebaseNotificationAdapter.kt`. Server contract/model/repository/state are `service/remote/AppNotificationApi.kt`, `data/model/AppNotificationModels.kt`, `data/repository/AppNotificationRepository.kt`, and `presentation/viewmodel/NotificationsViewModel.kt`.
+- Feed UI: `activity/UserActionAdapter.kt`, `item_user_action.xml`, `item_user_action_operation.xml`, and `fragment_user_actions.xml`.
+- State/pagination: `presentation/viewmodel/ActionsViewModel.kt`; generic local models, persistence, availability policy, and repository are under `supervisor/actions/`.
+- Event producers: `SupervisorMissionSetup.kt`, `NewMissionBottomSheetFragment.kt`, `SupervisorTrackController.kt`, and `SupervisorViolationHistoryStore.kt`.
+- GPX retention/download: `supervisor/actions/SupervisorActionGpxFiles.kt` preserves a successful mission GPX under app-internal files; `ActionsNotificationsActivity` uses the system document destination picker and streams the file to the user-selected location, so no GPX viewer app is required.
+- No unified server activity endpoint/DTO is known. The current feed is bounded, per-user local history and imports only trustworthy locally available mission/violation records.
+- Policy tests: `app/src/test/java/Ir/co/tfs/farazaman/supervisor/actions/UserActionFeedPolicyTest.kt`.
+- Mission day-rollover policy tests: `app/src/test/java/Ir/co/tfs/farazaman/supervisor/SupervisorMissionDayPolicyTest.kt`.
 
 ## Today visit and daily plan
 
@@ -96,7 +133,9 @@ Start here instead of recursively searching source. Fully qualified paths are re
 - Validation: `domain/validation/ViolationFormValidator.kt`.
 - Form repository/API: `data/repository/FormDataRepository.kt`, `data/api/FormDataApiService.kt` (`POST api/BillOriginViEvent/FormData`).
 - Submit API: `service/remote/ViolationApiService.kt` (`multipart POST api/BillOriginViEvent/Create`).
-- Models: `data/model/FormDataResponse.kt`, `ViolationModel.kt`.
+- Models/location payload: `data/model/FormDataResponse.kt`, `ViolationModel.kt`,
+  `ViolationGeoLocationMapper.kt`; the mapper converts the latest persisted `TrackPoint` into the
+  violation GeoJSON/WKT/track payload without fabricated sensor values.
 - Images: `activity/SelectedImagesAdapter.kt`; `FileProvider` configuration in manifest and `res/xml/filepaths.xml`.
 - Local waypoint save: `FormDataViewModel.saveViolationAsWaypoint()` -> `TrackContentProvider`.
 - Supervisor local history: `supervisor/SupervisorViolationHistoryStore.kt`.

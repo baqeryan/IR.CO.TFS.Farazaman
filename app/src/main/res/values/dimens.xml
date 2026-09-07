@@ -4,4 +4,7 @@
     <dimen name="supervisor_tab_padding_h">18dp</dimen>
     <dimen name="supervisor_tab_padding_v">10dp</dimen>
     <dimen name="city_selection_item_height">72dp</dimen>
+    <dimen name="action_filter_chip_height">38dp</dimen>
+    <dimen name="action_filter_chip_radius">19dp</dimen>
+    <dimen name="action_filter_chip_stroke">1dp</dimen>
 </resources>

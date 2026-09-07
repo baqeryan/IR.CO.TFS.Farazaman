@@ -31,7 +31,7 @@
             android:padding="15dp"
             android:scaleType="centerInside"
             android:src="@drawable/ic_nav_history"
-            app:tint="@color/intro_primary" />
+            app:tint="@color/app_primary" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/navHistoryPill"
@@ -46,17 +46,17 @@
             android:paddingStart="18dp"
             android:paddingEnd="20dp"
             android:text="@string/supervisor_nav_history"
-            android:textColor="@color/white"
+            android:textColor="@color/button_primary_content"
             android:textSize="13sp"
             android:visibility="gone"
-            app:backgroundTint="@color/intro_primary_fill"
+            app:backgroundTint="@color/button_primary_container"
             app:cornerRadius="28dp"
             app:elevation="0dp"
             app:icon="@drawable/ic_nav_history"
-            app:iconGravity="textEnd"
+            app:iconGravity="textStart"
             app:iconPadding="8dp"
             app:iconSize="22dp"
-            app:iconTint="@color/white"
+            app:iconTint="@color/button_primary_content"
             app:strokeWidth="0dp" />
     </FrameLayout>
 
@@ -80,8 +80,8 @@
             android:contentDescription="@string/supervisor_nav_today"
             android:padding="15dp"
             android:scaleType="centerInside"
-            android:src="@drawable/ic_nav_schedule"
-            app:tint="@color/intro_primary" />
+            android:src="@drawable/ic_daily_tasks"
+            app:tint="@color/app_primary" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/navTodayPill"
@@ -96,17 +96,17 @@
             android:paddingStart="18dp"
             android:paddingEnd="18dp"
             android:text="@string/supervisor_nav_today"
-            android:textColor="@color/white"
+            android:textColor="@color/button_primary_content"
             android:textSize="13sp"
             android:visibility="gone"
-            app:backgroundTint="@color/intro_primary_fill"
+            app:backgroundTint="@color/button_primary_container"
             app:cornerRadius="28dp"
             app:elevation="0dp"
-            app:icon="@drawable/ic_nav_schedule"
-            app:iconGravity="textEnd"
+            app:icon="@drawable/ic_daily_tasks"
+            app:iconGravity="textStart"
             app:iconPadding="8dp"
             app:iconSize="22dp"
-            app:iconTint="@color/white"
+            app:iconTint="@color/button_primary_content"
             app:strokeWidth="0dp" />
     </FrameLayout>
 
@@ -128,7 +128,7 @@
             android:padding="15dp"
             android:scaleType="centerInside"
             android:src="@drawable/ic_nav_home"
-            app:tint="@color/intro_primary" />
+            app:tint="@color/app_primary" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/navHomePill"
@@ -143,16 +143,16 @@
             android:paddingStart="20dp"
             android:paddingEnd="22dp"
             android:text="@string/supervisor_nav_home"
-            android:textColor="@color/white"
+            android:textColor="@color/button_primary_content"
             android:textSize="13sp"
-            app:backgroundTint="@color/intro_primary_fill"
+            app:backgroundTint="@color/button_primary_container"
             app:cornerRadius="28dp"
             app:elevation="0dp"
             app:icon="@drawable/ic_nav_home"
-            app:iconGravity="textEnd"
+            app:iconGravity="textStart"
             app:iconPadding="8dp"
             app:iconSize="22dp"
-            app:iconTint="@color/white"
+            app:iconTint="@color/button_primary_content"
             app:strokeWidth="0dp" />
     </FrameLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

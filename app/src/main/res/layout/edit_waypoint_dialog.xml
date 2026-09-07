@@ -10,8 +10,9 @@
             android:layout_height="wrap_content"
             android:gravity="center">
 
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/edit_waypoint_button_preview"
+                    style="@style/FaraZaman.Button.Outlined"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/edit_waypoint_bt_preview"
@@ -46,18 +47,18 @@
                     android:gravity="center"
                     android:layout_marginTop="8dp">
 
-                        <Button
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/edit_waypoint_button_update"
-                            style="?android:attr/borderlessButtonStyle"
+                            style="@style/FaraZaman.Button.Primary"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_marginEnd="8dp"
                             android:layout_weight="1"
                             android:text="@string/edit_waypoint_bt_save" />
 
-                        <Button
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/edit_waypoint_button_delete"
-                            style="?android:attr/borderlessButtonStyle"
+                            style="@style/FaraZaman.Button.TextError"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -66,8 +67,9 @@
 
 
                 <!-- Cancel Button -->
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/edit_waypoint_button_cancel"
+                    style="@style/FaraZaman.Button.Text"
                     android:layout_width="160dp"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"

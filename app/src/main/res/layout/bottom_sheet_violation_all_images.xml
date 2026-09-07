@@ -57,12 +57,11 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnDeleteAllImages"
+        style="@style/FaraZaman.Button.Error"
         android:layout_width="match_parent"
         android:layout_height="52dp"
         android:layout_marginTop="16dp"
         android:fontFamily="@font/iran_sans"
         android:text="@string/violation_delete_all_images"
-        android:textColor="@color/white"
-        app:backgroundTint="@color/app_error"
         app:cornerRadius="12dp" />
 </LinearLayout>

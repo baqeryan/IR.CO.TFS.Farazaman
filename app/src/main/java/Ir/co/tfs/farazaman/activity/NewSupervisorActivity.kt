@@ -1,21 +1,36 @@
 package Ir.co.tfs.farazaman.activity
 
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 import Ir.co.tfs.farazaman.R
+import Ir.co.tfs.farazaman.data.api.FormDataApiService
 import Ir.co.tfs.farazaman.data.db.TrackContentProvider
 import Ir.co.tfs.farazaman.databinding.ActivityNewSupervisorBinding
 import Ir.co.tfs.farazaman.supervisor.SupervisorBottomNavHelper
 import Ir.co.tfs.farazaman.supervisor.SupervisorMissionHelper
 import Ir.co.tfs.farazaman.supervisor.SupervisorMissionHost
+import Ir.co.tfs.farazaman.supervisor.SupervisorMissionSetup
 import Ir.co.tfs.farazaman.supervisor.SupervisorNavTab
 import Ir.co.tfs.farazaman.supervisor.SupervisorVisitTab
 import Ir.co.tfs.farazaman.supervisor.SupervisorTrackController
+import Ir.co.tfs.farazaman.supervisor.TodayVisitMissionActions
 import okhttp3.OkHttpClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -23,6 +38,7 @@ class NewSupervisorActivity : AppCompatActivity(), SupervisorMissionHost {
 
     @Inject lateinit var okHttpClient: OkHttpClient
     @Inject lateinit var userManager: Ir.co.tfs.farazaman.util.UserManager
+    @Inject lateinit var formDataApiService: FormDataApiService
 
     lateinit var controller: SupervisorTrackController
         private set
@@ -33,6 +49,28 @@ class NewSupervisorActivity : AppCompatActivity(), SupervisorMissionHost {
     private var homeFragment: SupervisorHomeFragment? = null
     private var todayFragment: SupervisorTodayFragment? = null
     private var historyFragment: SupervisorHistoryFragment? = null
+    private var dayRegistrationJob: Job? = null
+    private var dayWatcherJob: Job? = null
+    private val actionsWaitingForToday = mutableListOf<() -> Unit>()
+
+    private val actionsNotificationsLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
+        val trackId = result.data?.getLongExtra(
+            ActionsNotificationsActivity.EXTRA_RESUME_TRACK_ID,
+            SupervisorTrackController.TRACK_ID_NONE,
+        ) ?: SupervisorTrackController.TRACK_ID_NONE
+        controller.loadState()
+        if (
+            trackId != SupervisorTrackController.TRACK_ID_NONE &&
+            controller.currentTrackId == trackId &&
+            controller.hasMission() &&
+            !controller.isTracking()
+        ) {
+            controller.startMission()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,6 +118,14 @@ class NewSupervisorActivity : AppCompatActivity(), SupervisorMissionHost {
         controller.loadState()
         syncTrackIdToIntent()
         homeFragment?.refreshUi()
+        ensureCurrentDayMission()
+        startDayWatcher()
+    }
+
+    override fun onPause() {
+        dayWatcherJob?.cancel()
+        dayWatcherJob = null
+        super.onPause()
     }
 
     override fun onMissionUpdated() {
@@ -106,7 +152,75 @@ class NewSupervisorActivity : AppCompatActivity(), SupervisorMissionHost {
             Toast.makeText(this, "ابتدا برنامه را دریافت کنید", Toast.LENGTH_SHORT).show()
             return
         }
-        controller.openViolationForm()
+        ensureCurrentDayMission { controller.openViolationForm() }
+    }
+
+    fun openDailyPlanViolation(trackId: Long, sectionType: String, itemTitle: String) {
+        if (isMissionRegisteredForToday(trackId)) {
+            TodayVisitMissionActions.openViolation(this, trackId, sectionType, itemTitle)
+        } else {
+            ensureCurrentDayMission()
+            Toast.makeText(
+                this,
+                R.string.mission_day_registration_blocks_violation,
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+    }
+
+    fun isMissionRegisteredForToday(trackId: Long): Boolean =
+        SupervisorMissionSetup.isMissionRegisteredForDate(this, trackId)
+
+    fun ensureCurrentDayMission(onReady: (() -> Unit)? = null) {
+        controller.loadState()
+        val trackId = controller.currentTrackId
+        if (trackId == SupervisorTrackController.TRACK_ID_NONE) {
+            onReady?.invoke()
+            return
+        }
+        if (SupervisorMissionSetup.isMissionRegisteredForDate(this, trackId)) {
+            onReady?.invoke()
+            return
+        }
+
+        onReady?.let(actionsWaitingForToday::add)
+        if (dayRegistrationJob?.isActive == true) return
+
+        showSnackbarAboveNavigation(R.string.mission_day_registration_loading)
+        dayRegistrationJob = lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    SupervisorMissionSetup.refreshMissionForDateIfNeeded(
+                        context = applicationContext,
+                        service = formDataApiService,
+                        trackId = trackId,
+                    )
+                }
+                onMissionUpdated()
+                showSnackbarAboveNavigation(R.string.mission_day_registration_success)
+                val pending = actionsWaitingForToday.toList()
+                actionsWaitingForToday.clear()
+                pending.forEach { it.invoke() }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                actionsWaitingForToday.clear()
+                Log.e(TAG_DAY_REGISTRATION, "Unable to register mission for the current day", error)
+                showSnackbarAboveNavigation(R.string.mission_day_registration_failed)
+            } finally {
+                dayRegistrationJob = null
+            }
+        }
+    }
+
+    private fun startDayWatcher() {
+        if (dayWatcherJob?.isActive == true) return
+        dayWatcherJob = lifecycleScope.launch {
+            while (isActive) {
+                delay(DAY_CHECK_INTERVAL_MS)
+                ensureCurrentDayMission()
+            }
+        }
     }
 
     fun syncTrackIdToIntent() {
@@ -119,6 +233,10 @@ class NewSupervisorActivity : AppCompatActivity(), SupervisorMissionHost {
 
     fun navigateToTab(tab: SupervisorNavTab) {
         switchTab(tab)
+    }
+
+    fun openActionsNotifications() {
+        actionsNotificationsLauncher.launch(Intent(this, ActionsNotificationsActivity::class.java))
     }
 
     fun showSnackbarAboveNavigation(
@@ -179,6 +297,8 @@ class NewSupervisorActivity : AppCompatActivity(), SupervisorMissionHost {
     }
 
     companion object {
+        private const val TAG_DAY_REGISTRATION = "SupervisorDayRegistration"
+        private const val DAY_CHECK_INTERVAL_MS = 5 * 60 * 1_000L
         private const val TAG_HOME = "supervisor_home"
         private const val TAG_TODAY = "supervisor_today"
         private const val TAG_HISTORY = "supervisor_history"

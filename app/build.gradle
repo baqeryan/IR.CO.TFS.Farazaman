@@ -6,6 +6,7 @@ plugins {
     id 'dagger.hilt.android.plugin'
     id 'androidx.navigation.safeargs.kotlin'
     id 'org.jetbrains.kotlin.android'
+    id 'com.google.gms.google-services'
 }
 
 def localProperties = new Properties()
@@ -36,7 +37,7 @@ def releaseKeyPassword = releaseSigningValue('keyPassword', 'FARAZAMAN_SIGNING_K
 def hasReleaseSigning = [releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword]
         .every { it != null && !it.isBlank() }
 
-def releaseVersionCode = 112
+def releaseVersionCode = 115
 def releaseVersionName = new Date().format('yyyy.MM.dd')
 def releaseDownloadUrl = providers.gradleProperty('releaseDownloadUrl')
         .getOrElse('https://drive.tfs.co.ir/Files/farazaman.apk')
@@ -44,7 +45,7 @@ def releaseMandatory = providers.gradleProperty('releaseMandatory')
         .map { it.toBoolean() }
         .getOrElse(false)
 def releaseNotes = providers.gradleProperty('releaseNotes')
-        .getOrElse('بهبود فرایند بروزرسانی برنامه')
+        .getOrElse('بهبود سامانه اعلان‌ها، ارتباط برخط، مدیریت نقش‌ها و رابط کاربری')
 
 android {
     namespace 'Ir.co.tfs.farazaman'
@@ -188,6 +189,13 @@ tasks.matching { it.name == 'assembleRelease' }.configureEach {
 }
 
 dependencies {
+    // Firebase BoM 34.x pulls Kotlin 2.2 metadata, while this app currently uses Kotlin 1.9.22.
+    implementation platform('com.google.firebase:firebase-bom:33.5.1')
+    implementation 'com.google.firebase:firebase-messaging'
+
+    // Foreground-only realtime channel. FCM remains active in every app state.
+    implementation 'com.microsoft.signalr:signalr:9.0.10'
+
     // Native vector map renderer. PMTiles support is used by the Baran self-hosted map source.
     implementation 'org.maplibre.gl:android-sdk:11.8.0'
     // OAuth / OIDC

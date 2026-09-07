@@ -52,6 +52,7 @@
     <!-- Open Settings Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_open_settings"
+        style="@style/FaraZaman.Button.Primary"
         android:layout_width="0dp"
         android:layout_height="60dp"
         android:layout_marginTop="48dp"
@@ -74,7 +75,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/btn_open_settings"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+        style="@style/FaraZaman.Button.Outlined" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
 

@@ -185,7 +185,7 @@
                     android:paddingStart="12dp"
                     android:paddingEnd="12dp"
                     android:text="@string/violation_pick_images"
-                    android:textColor="@color/app_on_primary"
+                    android:textColor="@color/button_primary_content"
                     android:textSize="11sp"
                     app:backgroundTint="@null"
                     app:cornerRadius="0dp"
@@ -193,7 +193,7 @@
                     app:iconGravity="textEnd"
                     app:iconPadding="4dp"
                     app:iconSize="18dp"
-                    app:iconTint="@color/app_on_primary" />
+                    app:iconTint="@color/button_primary_content" />
 
             </LinearLayout>
 
@@ -243,18 +243,18 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnShowAllImages"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    style="@style/FaraZaman.Button.Text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center_horizontal"
                     android:layout_marginTop="4dp"
                     android:fontFamily="@font/iran_sans"
                     android:text="@string/violation_show_all_images"
-                    android:textColor="@color/intro_primary"
+                    android:textColor="@color/button_secondary_content"
                     android:textSize="12sp"
                     app:icon="@drawable/ic_nav_schedule"
                     app:iconGravity="textEnd"
-                    app:iconTint="@color/intro_primary" />
+                    app:iconTint="@color/button_secondary_content" />
             </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
@@ -267,9 +267,9 @@
                 android:layout_marginEnd="16dp"
                 android:fontFamily="@font/iran_sans"
                 android:text="@string/violation_save"
-                android:textColor="@color/app_on_primary"
+                android:textColor="@color/button_primary_content"
                 android:textSize="16sp"
-                app:backgroundTint="@color/app_primary"
+                app:backgroundTint="@color/button_primary_container"
                 app:cornerRadius="12dp" />
 
             <include layout="@layout/include_violation_form_hidden_fields" />

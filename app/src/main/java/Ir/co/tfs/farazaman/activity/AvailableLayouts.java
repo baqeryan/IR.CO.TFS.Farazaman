@@ -8,7 +8,6 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
-import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
@@ -25,6 +24,8 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.core.content.ContextCompat;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -152,7 +153,8 @@ public class AvailableLayouts extends Activity {
             layoutButton.setHeight(150);
             layoutButton.setText(CustomLayoutsUtils.convertFileName(option));
             layoutButton.setTextSize(16f);
-            layoutButton.setTextColor(Color.WHITE);
+            layoutButton.setTextColor(ContextCompat.getColorStateList(this, R.color.button_primary_content));
+            layoutButton.setBackgroundTintList(ContextCompat.getColorStateList(this, R.color.button_primary_container));
             layoutButton.setSingleLine(false);
             LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             layoutParams.setMargins(50, 10, 50, 10);

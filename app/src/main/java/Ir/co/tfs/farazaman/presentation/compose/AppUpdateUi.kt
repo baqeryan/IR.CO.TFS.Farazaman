@@ -22,14 +22,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
+sealed interface AppUpdateEvent {
+    data object Download : AppUpdateEvent
+    data object Install : AppUpdateEvent
+    data object OpenInstallSettings : AppUpdateEvent
+    data object Retry : AppUpdateEvent
+    data object Later : AppUpdateEvent
+}
+
 @Composable
 fun AppUpdateUi(
     state: SplashUpdateState,
-    onDownload: () -> Unit,
-    onInstall: () -> Unit,
-    onOpenInstallSettings: () -> Unit,
-    onRetry: () -> Unit,
-    onLater: () -> Unit,
+    onEvent: (AppUpdateEvent) -> Unit,
 ) {
     when (state) {
         SplashUpdateState.Checking -> CheckingUpdateIndicator()
@@ -37,38 +41,38 @@ fun AppUpdateUi(
         is SplashUpdateState.Available -> UpdateDialog(
             state = state,
             confirmText = stringResource(R.string.app_update_download),
-            onConfirm = onDownload,
-            onLater = onLater,
+            onConfirm = { onEvent(AppUpdateEvent.Download) },
+            onLater = { onEvent(AppUpdateEvent.Later) },
         )
         is SplashUpdateState.Downloading -> UpdateDialog(
             state = state,
             confirmText = null,
-            onConfirm = onDownload,
-            onLater = onLater,
+            onConfirm = { onEvent(AppUpdateEvent.Download) },
+            onLater = { onEvent(AppUpdateEvent.Later) },
         )
         is SplashUpdateState.ReadyToInstall -> UpdateDialog(
             state = state,
             confirmText = stringResource(R.string.app_update_install),
-            onConfirm = onInstall,
-            onLater = onLater,
+            onConfirm = { onEvent(AppUpdateEvent.Install) },
+            onLater = { onEvent(AppUpdateEvent.Later) },
         )
         is SplashUpdateState.InstallPermissionRequired -> UpdateDialog(
             state = state,
             confirmText = stringResource(R.string.app_update_open_settings),
-            onConfirm = onOpenInstallSettings,
-            onLater = onLater,
+            onConfirm = { onEvent(AppUpdateEvent.OpenInstallSettings) },
+            onLater = { onEvent(AppUpdateEvent.Later) },
         )
         is SplashUpdateState.Installing -> UpdateDialog(
             state = state,
             confirmText = null,
-            onConfirm = onInstall,
-            onLater = onLater,
+            onConfirm = { onEvent(AppUpdateEvent.Install) },
+            onLater = { onEvent(AppUpdateEvent.Later) },
         )
         is SplashUpdateState.Error -> UpdateDialog(
             state = state,
             confirmText = stringResource(R.string.app_update_retry),
-            onConfirm = onRetry,
-            onLater = onLater,
+            onConfirm = { onEvent(AppUpdateEvent.Retry) },
+            onLater = { onEvent(AppUpdateEvent.Later) },
         )
     }
 }

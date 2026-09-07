@@ -25,7 +25,8 @@
         android:background="@drawable/intro_skip_button_bg"
         android:contentDescription="@string/supervisor_notifications"
         android:padding="10dp"
-        android:src="@drawable/bell"
+        android:src="@drawable/ic_notifications"
+        app:tint="@color/app_primary"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -78,7 +79,7 @@
         android:src="@drawable/ic_user"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:tint="@color/intro_primary" />
+        app:tint="@color/app_primary" />
 
     <View
         android:id="@+id/contentPanel"
@@ -162,7 +163,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnActiveVisitShowOnMap"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/FaraZaman.Button.Outlined"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:layout_marginStart="8dp"
@@ -174,15 +175,12 @@
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
             android:text="@string/daily_plan_show_on_map"
-            android:textColor="@color/intro_primary"
             android:textSize="11sp"
             app:cornerRadius="18dp"
             app:icon="@drawable/ic_location"
             app:iconGravity="textEnd"
             app:iconPadding="4dp"
             app:iconSize="16dp"
-            app:iconTint="@color/intro_primary"
-            app:strokeColor="@color/intro_primary"
             app:strokeWidth="1dp" />
     </LinearLayout>
 

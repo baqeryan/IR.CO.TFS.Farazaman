@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import Ir.co.tfs.farazaman.OSMTracker
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.presentation.viewmodel.DisplayTrackMapViewModel
@@ -64,6 +65,7 @@ import java.io.FileOutputStream
 import android.content.ContentValues
 import Ir.co.tfs.farazaman.data.model.GisLayerIndexResponse
 import Ir.co.tfs.farazaman.domain.road.RoadWidthCategory
+import Ir.co.tfs.farazaman.supervisor.SupervisorMissionSetup
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 
 @AndroidEntryPoint
@@ -290,7 +292,7 @@ class DisplayTrackMap : AppCompatActivity() {
                     button.setImageDrawable(iconDrawable)
                 } else {
                     button.setImageResource(R.drawable.ic_fab_add_track)
-                    button.setColorFilter(resources.getColor(R.color.supervisor_header_green, theme))
+                    button.setColorFilter(resources.getColor(R.color.app_primary, theme))
                 }
 
                 button.setOnClickListener {
@@ -687,8 +689,9 @@ class DisplayTrackMap : AppCompatActivity() {
                 android.util.Log.d("DisplayTrackMap", "currentLocation = $currentLocation")
 
                 if (currentLocation != null) {
-                    // Fetch address from RoadService for the current location
-                    fetchAddressForViolation(currentLocation.latitude, currentLocation.longitude) { address ->
+                    val openViolationForm = {
+                        // Fetch address from RoadService for the current location
+                        fetchAddressForViolation(currentLocation.latitude, currentLocation.longitude) { address ->
                         android.util.Log.d("DisplayTrackMap", "Address fetched: $address")
                         
                         // Get mission data from SharedPreferences for this track
@@ -744,7 +747,45 @@ class DisplayTrackMap : AppCompatActivity() {
                         android.util.Log.d("DisplayTrackMap", "from_submit_violation_card: ${intent.getBooleanExtra("from_submit_violation_card", false)}")
                         android.util.Log.d("DisplayTrackMap", "Starting SubmitViolationFormActivity...")
                         
-                        startActivity(intent)
+                            startActivity(intent)
+                        }
+                    }
+                    if (
+                        isFromNewSupervisor &&
+                        !SupervisorMissionSetup.isMissionRegisteredForDate(this, currentTrackId)
+                    ) {
+                        submitButton.isEnabled = false
+                        Toast.makeText(this, R.string.mission_day_registration_loading, Toast.LENGTH_LONG).show()
+                        lifecycleScope.launch {
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    SupervisorMissionSetup.refreshMissionForDateIfNeeded(
+                                        context = applicationContext,
+                                        service = formDataApiService,
+                                        trackId = currentTrackId,
+                                    )
+                                }
+                                Toast.makeText(
+                                    this@DisplayTrackMap,
+                                    R.string.mission_day_registration_success,
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                                openViolationForm()
+                            } catch (cancellation: CancellationException) {
+                                throw cancellation
+                            } catch (error: Exception) {
+                                Log.e(TAG, "Unable to register current-day mission before violation", error)
+                                Toast.makeText(
+                                    this@DisplayTrackMap,
+                                    R.string.mission_day_registration_failed,
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                            } finally {
+                                submitButton.isEnabled = true
+                            }
+                        }
+                    } else {
+                        openViolationForm()
                     }
                 } else {
                     Toast.makeText(this, "موقعیت مکانی هنوز یافت نشده است.", Toast.LENGTH_SHORT).show()

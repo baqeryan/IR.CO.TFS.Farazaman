@@ -261,6 +261,7 @@ class LoginActivity : AppCompatActivity() {
                         decideNextActivity()
                     } else {
                         Log.e("LoginActivity", "User roles response body is null")
+                        rolesManager.clearUserRoles()
                         loadingDialog?.dismiss()
                         loadingDialog = null
                         Toast.makeText(this@LoginActivity, "خطا در دریافت نقش‌های کاربر", Toast.LENGTH_SHORT).show()
@@ -301,12 +302,17 @@ class LoginActivity : AppCompatActivity() {
         Log.d("LoginActivity", "=== User Access Check ===")
         Log.d("LoginActivity", "Has Driver Access: ${userAccess.hasDriverAccess}")
         Log.d("LoginActivity", "Has Supervisor Access: ${userAccess.hasSupervisorAccess}")
+        Log.d("LoginActivity", "Has Contractor Access: ${userAccess.hasContractorAccess}")
         Log.d("LoginActivity", "Is Super Admin: ${userAccess.isSuperAdmin}")
         
         when {
             userAccess.canAccessOnlySupervisor() && !userAccess.isSuperAdmin -> {
                 Log.d("LoginActivity", "User has only supervisor access, navigating to supervisor flow")
                 SupervisorMissionHelper.launchSupervisor(this)
+            }
+            userAccess.canAccessOnlyContractor() -> {
+                Log.d("LoginActivity", "User has only contractor access, navigating to contractor flow")
+                startActivity(Intent(this, Ir.co.tfs.farazaman.activity.ContractorWorkAreaSelectionActivity::class.java))
             }
             else -> {
                 val intent = when {
@@ -318,8 +324,8 @@ class LoginActivity : AppCompatActivity() {
                         Log.d("LoginActivity", "User has only driver access, navigating to DriverActivity")
                         Intent(this, Ir.co.tfs.farazaman.activity.DriverActivity::class.java)
                     }
-                    userAccess.canAccessBoth() -> {
-                        Log.d("LoginActivity", "User has both accesses, navigating to RoleSelectionActivity")
+                    userAccess.hasMultipleSelectableRoles() -> {
+                        Log.d("LoginActivity", "User has multiple accesses, navigating to RoleSelectionActivity")
                         Intent(this, Ir.co.tfs.farazaman.activity.RoleSelectionActivity::class.java)
                     }
                     else -> {

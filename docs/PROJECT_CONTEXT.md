@@ -2,7 +2,7 @@
 
 ## Purpose and domain
 
-FaraZaman is an Android client for municipal field work. A user selects a municipality/server, authenticates, receives roles, and enters either a driver or municipal-contract-supervisor flow. Core concepts are municipality/instance, user role, work area/zone, mission, track, track point, waypoint, employer (`organ`), contract, daily cleaning item, violation, road/address, and GPX/ZIP upload.
+FaraZaman is an Android client for municipal field work. A user selects a municipality/server, authenticates, receives roles, and enters a driver, municipal-contract-supervisor, or Contractor entry flow. Core concepts are municipality/instance, user role, work area/zone, mission, track, track point, waypoint, employer (`organ`), contract, daily cleaning item, violation, road/address, and GPX/ZIP upload.
 
 ## Module and architecture
 
@@ -46,7 +46,8 @@ FaraZaman is an Android client for municipal field work. A user selects a munici
 - Password grant tries selected-server endpoints `token` and `api/token`. Its legacy client secret is injected into `BuildConfig.LEGACY_CLIENT_SECRET` from local/environment configuration.
 - `util/TokenManager.kt` owns token expiry, authorization headers, and refresh serialization. A valid session requires an access token; refresh tokens are optional in some successful responses.
 - `util/SecureTokenStorage.kt` stores token strings encrypted in default preferences using AES/GCM from `util/AndroidKeyStoreCipher.kt`; it migrates old plaintext preference values on read. Expiry time stays in preferences.
-- After login, `LoginActivity.kt` fetches `/api/AccountUser/Info` and `/api/AccountUser/Roles`; `UserManager.kt` and `RolesManager.kt` persist profile/role metadata in default preferences.
+- After login, `LoginActivity.kt` fetches `/api/AccountUser/Info` and `/api/AccountUser/Roles`; `UserManager.kt` and `RolesManager.kt` persist profile/role metadata in default preferences. A successful Roles response with no role data is authoritative: stale or fallback roles are not used, and role selection renders a dedicated no-access screen with a full logout action.
+- `data/model/UserRoles.kt` preserves the legacy `roles` dictionary and also models `actorRoles`. Contractor authorization normally comes from the confirmed `Contractor` key in `actorRoles` (display value `پیمانکار`); `superAdministrator` is the deliberate exception and receives all app-supported roles. Super-admin recognition checks normalized keys/values from the actual Roles response; `defaultRoleName` cannot grant access when that response has no data.
 - `presentation/base/BaseActivity.kt` listens to `AuthStateManager` broadcasts and redirects after invalid authentication. Explicit logout uses `util/LogoutCacheCleaner.kt` to clear encrypted/legacy auth state, profile/role and mission caches, selected-server/OIDC state, WebView data, and cache directories while preserving the track database and persistent user files.
 
 ## Persistence
@@ -57,23 +58,41 @@ FaraZaman is an Android client for municipal field work. A user selects a munici
 - Model/adapter classes for this database are under `data/db/model/` and `data/db/`.
 - `data/db/room/AppDatabase.kt`, `dao/UserDao.kt`, and `model/UserEntity.kt` are inactive scaffolding; Room is not configured as the production database.
 - Mission payloads are currently stored as JSON in default preferences using keys such as `mission_data_<trackId>`. Supervisor violation history is JSON in preferences via `supervisor/SupervisorViolationHistoryStore.kt`.
+- An unuploaded supervisor mission keeps its GPS track across calendar days. While the supervisor host is visible, a changed local day causes the existing daily-plan Create/Index requests to run again with today's `visitdate`; the refreshed plan replaces `mission_data_<trackId>` on the same track, and stale-date violation entry/submission is blocked until this succeeds.
+- Supervisor user actions are stored as a bounded, per-user JSON feed by `supervisor/actions/UserActionStore.kt`. This is a local integration seam because no unified server activity-feed contract is currently known.
 - User info and role maps are also preference-backed. `android:allowBackup="false"` is set.
 
 ## UI and navigation
 
 - UI is mostly XML/ViewBinding/DataBinding under `app/src/main/res/layout/` and `activity/`.
-- Compose is enabled and used by `SplashActivity`/`presentation/compose/SplashScreen.kt` and `RoleSelectionActivity`/`RoleSelectionScreen.kt`, wrapped in `FaraZamanTheme`.
-- Compose previews intentionally live in `app/src/debug/java/.../presentation/compose/` and are excluded from Release.
+- Compose is enabled and used by `SplashActivity`/`presentation/compose/SplashScreen.kt` and `RoleSelectionActivity`/`RoleSelectionScreen.kt`, wrapped in `FaraZamanTheme`. Role selection mirrors the supervisor work-area visual shell with its exact green/white header colors, curved header, rounded-top content panel, profile/back controls, and notification bell/unread badge. A `superAdministrator` can select every app-supported role (supervisor, driver, and contractor).
+- Compose screens expose immutable UI state as input and a single typed event callback as output (`RoleSelectionEvent`, `AppUpdateEvent`); Activities own navigation and side effects. New Compose screens should follow the same contract to remain directly previewable.
+- Most Compose previews live in `app/src/debug/java/.../presentation/compose/`. `RoleSelectionScreen.kt` also keeps one inline preview so Android Studio can render the screen directly beside its implementation.
 - Navigation uses explicit Intents and manual FragmentTransactions; no active `res/navigation` graph was found despite the Safe Args plugin.
-- Launcher: `SplashActivity` asks `SplashViewModel` to check for an update, then routes to `LoginActivity` or `RoleSelectionActivity`. API failure is fail-open; a successfully reported mandatory update remains enforced for the current process. Role selection routes to `DriverActivity`, or to supervisor work-area selection/existing mission.
+- Launcher: `SplashActivity` asks `SplashViewModel` to check for an update, then routes to `LoginActivity` or `RoleSelectionActivity`. API failure is fail-open; a successfully reported mandatory update remains enforced for the current process. Role selection routes to `DriverActivity`, supervisor work-area selection/existing mission, or the Contractor shell according to stored access.
 - Update APKs are streamed into `cacheDir/app_updates` as `.part`, parsed and checked for package name/version/signing certificate, then installed through `PackageInstaller`. Android O+ unknown-source access is requested through system settings; no broad storage permission is used.
 - Supervisor host `NewSupervisorActivity` keeps home/today/history Fragments and switches them manually.
-- `MyApplication.kt` forces Persian locale, global RTL decor direction, follows system night mode, and checks `DeveloperOptionsGuard` whenever an Activity resumes.
+- The supervisor bell opens the single `ActionsNotificationsActivity` destination. Its Actions tab is backed by a paged generic action model with data-driven operations. The Notifications tab pages the authenticated selected-server `api/AppNotification/Index` feed, opens details, marks unread items through `Visit/{id}`, and supports confirmed soft deletion. The server feed is the source of truth; Firebase only triggers display and refresh.
+- `MyApplication.kt` applies Persian through AppCompat application locales, enforces global RTL decor direction, follows live system night-mode changes, and checks `DeveloperOptionsGuard` whenever an Activity resumes. Do not restore the old full-`Configuration` locale override because it also pinned the initial `uiMode` until process restart.
 - Night resources exist in `values-night/` and `drawable-night/`; styles also have API-specific variants including `values-v27/`.
+- XML buttons use the shared `FaraZaman.Button.*` styles and state-aware palettes in `res/color/button_*.xml`; their semantic colors resolve through `values/colors.xml` and `values-night/colors.xml`. `FaraZamanTheme.kt` mirrors the same primary, surface, and error pairs for Compose.
 
 ## Tracking, maps, and background work
 
 - `service/gps/GPSLogger.java` is a foreground location Service declared with `foregroundServiceType="location"`. It listens to GPS and network providers, records points through the ContentProvider, and reacts to start/stop intents from `OSMTracker.java`.
+- `activity/ViolationImageCaptureCoordinator.kt` is the shared camera-only `TakePicture`/MediaStore capture seam used by both Supervisor violation forms and reserved for the Contractor form. Failed/cancelled pending captures are removed.
+- Violation submission reads the latest persisted `TrackPoint` metadata and maps its real coordinates,
+  timestamp, accuracy, elevation, speed, heading, and pressure through `data/model/ViolationGeoLocationMapper.kt`.
+  Invalid coordinates block submission; unavailable sensor fields are omitted instead of fabricated.
+- `domain/location/LocationFixPolicy.kt` and `util/LocationAcquisitionCoordinator.kt` implement bounded, lifecycle-cancellable fresh-location acquisition followed by the best valid GPS/network last-known fallback. This helper is not connected to a Contractor submission until its API contract is known.
+
+## Contractor correction status
+
+- Confirmed entry: `activity/ContractorViolationsActivity.kt`; Contractor-only users route directly, while multi-role users select `پیمانکار` in the existing Compose role screen.
+- Read-only map destination: `activity/ContractorViolationLocationActivity.kt`; it accepts only supplied valid coordinates and uses `BaranMapStyle`/`MapLibreOverlayController`.
+- Reusable RTL layouts exist for the list, card, correction form, image preview, and read-only map.
+- Actionable-list and correction endpoints, DTOs, multipart names, identifier types, and ContractId/OrganId placement are unknown. No production service/repository/request has been created for them; see `specs/002-contractor-violation-correction/contracts/contractor-violation-contract.md`.
+- Contractor role selection now routes to a dedicated work-area shell and a separate operations shell using Contractor terminology (`شروع عملیات`, `ثبت اقدام`, `اصلاحیه`). The action form captures description and camera evidence locally. Operation/action/correction network actions remain explicitly unavailable and cannot report false success until the contracts in `specs/003-contractor-operations/` are supplied.
 - `DriverActivity.kt` and `supervisor/SupervisorTrackController.kt` create/activate missions and start/stop GPS tracking.
 - `DisplayTrackMap.kt` and `SubmitViolationActivity.kt` render native vector maps with MapLibre.
   `map/BaranMapStyle.kt` loads and caches `https://baran.tfs.co.ir/tiles/style.json`; if unavailable,
@@ -86,10 +105,14 @@ FaraZaman is an Android client for municipal field work. A user selects a munici
 
 ## Configuration and environments
 
+- Firebase Cloud Messaging is configured through `app/google-services.json` and the Google Services Gradle plugin. Firebase BoM 33.5.1 is pinned for Kotlin 1.9.22 compatibility. After authentication, the app posts a JSON device record (FCM token, Installation ID when available, Firebase app/project/sender IDs, package, and platform) to the selected municipality at `api/AssetPersonNotify/FirebaseDeviceToken`. Foreground/data notifications are displayed immediately and trigger an unread-count refresh; background notification payloads are ingested when their system notification is opened. The authoritative list and read/delete state come from `api/AppNotification`.
+- The unread notification count is fetched on login/foreground and after FCM receipt, retained as lightweight preference state, broadcast inside the package, and rendered as a badge on supervisor bell buttons. The app does not poll continuously.
+- Supervisor realtime uses the ASP.NET Core SignalR Java client against the selected municipality at `hubs/mobile-supervisor?clientType=supervisor`. `MobileSupervisorHubClient` is application-scoped, connects only for an authenticated supervisor while the app is foreground, stops in background/logout/auth failure, and retries with bounded increasing delays. FCM remains active in both foreground and background. SignalR events are exposed as package-scoped broadcasts with JSON payloads.
+
 - There are no product flavors and no compile-time dev/staging/prod URL split.
 - Municipality/environment selection is runtime data in default preferences (`BASE_URL`, OIDC client ID/scope, login mode), populated from the central instance registry.
 - BuildConfig contains `LEGACY_CLIENT_SECRET`; source is `local.properties` or `FARAZAMAN_LEGACY_CLIENT_SECRET`.
-- App version code is 65; version name is generated from the build date. Debug appends `-dev`.
+- App version code is 115; version name is generated from the build date. Debug appends `-dev`.
 - Language resources are extensive, but runtime locale is explicitly Persian. `supportsRtl=true`.
 
 ## Debug and Release

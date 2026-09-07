@@ -15,22 +15,20 @@
         android:padding="3dp"
         android:layoutDirection="rtl">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/trackdetail_btn_ok"
+            style="@style/FaraZaman.Button.Primary"
             android:layout_width="fill_parent"
-            android:backgroundTint="@color/app_primary"
-            android:textColor="@color/app_on_primary"
             android:fontFamily="@font/iran_sans"
 
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/trackdetail_save" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/trackdetail_btn_cancel"
+            style="@style/FaraZaman.Button.Text"
             android:layout_width="fill_parent"
-            android:backgroundTint="@color/app_surface_container_high"
-            android:textColor="@color/app_on_surface"
             android:fontFamily="@font/iran_sans"
 
             android:layout_height="wrap_content"

@@ -491,11 +491,11 @@
 
                 android:layout_height="wrap_content"
                 android:layout_margin="8dp"
-                android:backgroundTint="@color/app_primary_container"
+                android:backgroundTint="@color/button_primary_container"
                 android:fontFamily="@font/iran_sans"
                 android:padding="12dp"
                 android:text="انتخاب تصاویر تخلف"
-                android:textColor="@color/app_on_primary_container"
+                android:textColor="@color/button_primary_content"
                 app:cornerRadius="4dp" />
 
             <androidx.recyclerview.widget.RecyclerView
@@ -516,11 +516,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="8dp"
-        android:backgroundTint="@color/app_primary"
+        android:backgroundTint="@color/button_primary_container"
         android:fontFamily="@font/iran_sans"
         android:padding="8dp"
         android:text="ذخیره"
-        android:textColor="@color/app_on_primary"
+        android:textColor="@color/button_primary_content"
         app:cornerRadius="4dp"
         app:layout_constraintBottom_toBottomOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

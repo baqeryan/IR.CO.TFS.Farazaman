@@ -198,28 +198,30 @@
                     android:weightSum="2"
                     app:layout_constraintTop_toBottomOf="@id/line">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/stop_or_resume"
+                      <com.google.android.material.button.MaterialButton
+                          android:id="@+id/stop_or_resume"
+                          style="@style/FaraZaman.Button.Primary"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="4dp"
                         android:layout_weight="1"
-                        android:backgroundTint="@color/app_primary"
+                          android:backgroundTint="@color/button_primary_container"
                         android:fontFamily="@font/iran_sans"
                         android:text="@string/trackmgr_contextmenu_stop"
-                        android:textColor="@color/app_on_primary"
+                          android:textColor="@color/button_primary_content"
                         app:cornerRadius="12dp" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/end_mission"
+                      <com.google.android.material.button.MaterialButton
+                          android:id="@+id/end_mission"
+                          style="@style/FaraZaman.Button.TonalError"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="4dp"
                         android:layout_weight="1"
-                        android:backgroundTint="@color/app_error_container"
+                          android:backgroundTint="@color/button_error_tonal_container"
                         android:fontFamily="@font/iran_sans"
                         android:text="اتمام ماموریت"
-                        android:textColor="@color/app_on_error_container"
+                          android:textColor="@color/button_error_tonal_content"
                         app:cornerRadius="12dp" />
                 </LinearLayout>
 
@@ -238,17 +240,18 @@
             android:indeterminate="true"
             android:visibility="gone" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/start_mission_btn"
+          <com.google.android.material.button.MaterialButton
+              android:id="@+id/start_mission_btn"
+              style="@style/FaraZaman.Button.Primary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
             android:layout_margin="8dp"
-            android:backgroundTint="@color/app_primary"
+              android:backgroundTint="@color/button_primary_container"
             android:fontFamily="@font/iran_sans"
             android:padding="12dp"
             android:text="شروع ماموریت"
-            android:textColor="@color/app_on_primary"
+              android:textColor="@color/button_primary_content"
             app:cornerRadius="14dp" />
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>

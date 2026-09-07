@@ -1,5 +1,7 @@
 package Ir.co.tfs.farazaman.activity
 
+import Ir.co.tfs.farazaman.notification.NotificationBadgeBinder
+
 
 
 import android.graphics.Typeface
@@ -84,6 +86,10 @@ class SupervisorHistoryFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         view.bindSupervisorProfileButton()
+        binding.btnNotifications.setOnClickListener {
+            (activity as? NewSupervisorActivity)?.openActionsNotifications()
+        }
+        NotificationBadgeBinder.bind(binding.btnNotifications, viewLifecycleOwner)
         selectedDate = PersianDate()
 
         buildDateStrip()

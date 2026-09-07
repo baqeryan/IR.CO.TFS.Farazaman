@@ -56,7 +56,7 @@ public class GPSLogger extends Service implements LocationListener {
 	private long gpsLoggingMinDistance;
 
 	private final Handler guaranteedLogHandler = new Handler(Looper.getMainLooper());
-	private static final long GUARANTEED_LOG_INTERVAL_MS = 10000;
+	private static final long GUARANTEED_LOG_INTERVAL_MS = 5000;
 
 	private final Runnable guaranteedLogRunnable = () -> {
 		if (!isTracking) return;
