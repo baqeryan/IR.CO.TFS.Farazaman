@@ -38,6 +38,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import com.google.gson.Gson
+import Ir.co.tfs.farazaman.supervisor.actions.SupervisorActionRecorder
 
 @AndroidEntryPoint
 class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
@@ -724,7 +725,8 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
         val values = android.content.ContentValues()
         val missionName = "ماموریت ${missionData["organId"]} - ${missionData["contractId"]} - ${missionData["visitDate"]}"
         values.put(Ir.co.tfs.farazaman.data.db.TrackContentProvider.Schema.COL_NAME, missionName)
-        values.put(Ir.co.tfs.farazaman.data.db.TrackContentProvider.Schema.COL_START_DATE, java.util.Date().time)
+        val createdAt = java.util.Date().time
+        values.put(Ir.co.tfs.farazaman.data.db.TrackContentProvider.Schema.COL_START_DATE, createdAt)
         values.put(Ir.co.tfs.farazaman.data.db.TrackContentProvider.Schema.COL_ACTIVE, Ir.co.tfs.farazaman.data.db.TrackContentProvider.Schema.VAL_TRACK_INACTIVE)
         values.put(Ir.co.tfs.farazaman.data.db.TrackContentProvider.Schema.COL_ROLE, "supervisor")
         values.putNull(Ir.co.tfs.farazaman.data.db.TrackContentProvider.Schema.COL_EXPORT_DATE)
@@ -748,6 +750,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
         val missionDataKey = "mission_data_$trackId"
         val missionDataJson = org.json.JSONObject(missionData).toString()
         prefs.edit().putString(missionDataKey, missionDataJson).apply()
+        SupervisorActionRecorder.recordMissionCreated(requireContext(), trackId, createdAt, missionData)
         
         android.util.Log.d("NewMissionBottomSheet", "=== Stored mission data in SharedPreferences ===")
         android.util.Log.d("NewMissionBottomSheet", "trackId: $trackId")

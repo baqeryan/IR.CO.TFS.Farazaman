@@ -116,12 +116,12 @@ class TrackManagerViewModel @Inject constructor(
                 }
                 
                 _uploadProgress.value = UploadState.Success
-                _successMessage.value = "آپلود مسیر با موفقیت انجام شد"
+                _successMessage.value = "بارگذاری مسیر با موفقیت انجام شد"
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Error uploading track: $trackId", e)
-                _uploadProgress.value = UploadState.Error("خطا در آپلود مسیر")
-                _errorMessage.value = "خطا در آپلود مسیر"
+                _uploadProgress.value = UploadState.Error("خطا در بارگذاری مسیر")
+                _errorMessage.value = "خطا در بارگذاری مسیر"
             }
         }
     }

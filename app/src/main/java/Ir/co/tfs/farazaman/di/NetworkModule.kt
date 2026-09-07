@@ -41,7 +41,12 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideCustomLoggingInterceptor(): Interceptor {
-        return Interceptor { chain -> chain.proceed(chain.request()) }
+        return Interceptor { chain ->
+            val request = chain.request().newBuilder()
+                .header("Accept", "application/json")
+                .build()
+            chain.proceed(request)
+        }
     }
     
     @Provides
@@ -142,7 +147,7 @@ object NetworkModule {
     fun provideFormDataApiService(retrofit: Retrofit): FormDataApiService {
         return retrofit.create(FormDataApiService::class.java)
     }
-    
+
     @Provides
     fun provideFormDataRepository(
         apiService: FormDataApiService,

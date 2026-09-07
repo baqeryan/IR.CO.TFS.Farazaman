@@ -106,23 +106,23 @@ data class GisGeolocationTrack(
     @SerializedName("Longitude")
     val longitude: Double,
     @SerializedName("Elevation")
-    val elevation: Double,
+    val elevation: Double?,
     @SerializedName("Time")
     val time: String,
     @SerializedName("MagneticVariant")
     val magneticVariant: Double? = null,
     @SerializedName("C_Baro")
-    val cBaro: Double,
+    val cBaro: Double?,
     @SerializedName("Accuracy")
-    val accuracy: Double,
+    val accuracy: Double?,
     @SerializedName("AltitudeAccuracy")
-    val altitudeAccuracy: Double,
+    val altitudeAccuracy: Double?,
     @SerializedName("Heading")
-    val heading: Double,
+    val heading: Double?,
     @SerializedName("Speed")
-    val speed: Double,
+    val speed: Double?,
     @SerializedName("Type")
     val type: String,
     @SerializedName("SatelliteNumber")
-    val satelliteNumber: Int
+    val satelliteNumber: Int?
 )

@@ -25,7 +25,8 @@ import Ir.co.tfs.farazaman.data.model.SubmitViolationRequest
 import Ir.co.tfs.farazaman.data.model.ViolationData
 import Ir.co.tfs.farazaman.data.model.ViolationErrorResponse
 import Ir.co.tfs.farazaman.data.model.BillOriginViEventGeoLocation
-import Ir.co.tfs.farazaman.data.model.GisGeolocationTrack
+import Ir.co.tfs.farazaman.data.model.ViolationGeoLocationMapper
+import Ir.co.tfs.farazaman.data.db.model.TrackPoint
 import Ir.co.tfs.farazaman.data.repository.FormDataRepository
 import Ir.co.tfs.farazaman.service.remote.ViolationApiService
 import okhttp3.MultipartBody
@@ -389,9 +390,8 @@ class FormDataViewModel @Inject constructor(
         number: Int,
         address: String,
         description: String,
-        imageUris: List<Uri>, // برای آپلود عکس‌ها در آینده
-        latitude: Double = 0.0,
-        longitude: Double = 0.0,
+        imageUris: List<Uri>, // برای بارگذاری عکس‌ها در آینده
+        location: TrackPoint?,
         requireItemSelection: Boolean = true
     ) {
         if (isSubmitting) {
@@ -407,7 +407,10 @@ class FormDataViewModel @Inject constructor(
         Log.d("FormDataViewModel", "  - Description: $description")
         Log.d("FormDataViewModel", "  - Images Count: ${imageUris.size}")
         Log.d("FormDataViewModel", "  - Image URIs: ${imageUris.map { it.toString() }}")
-        Log.d("FormDataViewModel", "  - GPS Coordinates: Lat=$latitude, Lon=$longitude")
+        Log.d(
+            "FormDataViewModel",
+            "  - GPS Coordinates: Lat=${location?.latitude}, Lon=${location?.longitude}",
+        )
         
         Log.d("FormDataViewModel", "Selected IDs from ViewModel:")
         Log.d("FormDataViewModel", "  - Selected Organ ID: $selectedOrganId")
@@ -454,6 +457,15 @@ class FormDataViewModel @Inject constructor(
             return
         }
 
+        val validLocation = location?.takeIf(ViolationGeoLocationMapper::hasValidCoordinates)
+        if (validLocation == null) {
+            Log.e("FormDataViewModel", "Validation failed: GPS location is unavailable or invalid")
+            _submissionState.value = SubmissionState.Error(
+                "موقعیت GPS معتبر دریافت نشده است. لطفاً کمی صبر کنید و دوباره تلاش کنید.",
+            )
+            return
+        }
+
         // ساخت آبجکت درخواست با استفاده از ID های واقعی انتخاب شده
         val violationData = ViolationData(
             organIds = listOf(selectedOrganId!!), // Use actual selected organ ID
@@ -474,7 +486,7 @@ class FormDataViewModel @Inject constructor(
             billCleaningItemGroupId = selectedItemGroupId,
             billOriginCleaningItemId = selectedOriginItemId,
             tenantId = 1,
-            billOriginViEventGeoLocation = createGeoLocationData(visitDate, latitude, longitude)
+            billOriginViEventGeoLocation = createGeoLocationData(visitDate, validLocation)
         )
         
         Log.d("FormDataViewModel", "=== VIOLATION DATA OBJECT CREATED ===")
@@ -710,58 +722,10 @@ class FormDataViewModel @Inject constructor(
             }
         }
     }
-    /**
-     * Create GPS location data for the violation submission
-     * For now, using fixed values similar to the example, but this should be updated
-     * to use actual GPS data when available
-     */
-    private fun createGeoLocationData(visitDate: String, lat: Double, lon: Double): BillOriginViEventGeoLocation {
-        // Use actual GPS coordinates if provided, otherwise use default values
-        val latitude = if (lat != 0.0) lat else 37.28
-        val longitude = if (lon != 0.0) lon else 49.589
-        val elevation = 12.5
-        val accuracy = 5.0
-        val altitudeAccuracy = 2.0
-        val heading = 180.0
-        val speed = 0.0
-        val cBaro = 1013.25
-        val satelliteNumber = 7
-        
-        Log.d("FormDataViewModel", "=== CREATING GPS LOCATION DATA ===")
-        Log.d("FormDataViewModel", "Latitude: $latitude, Longitude: $longitude")
-        Log.d("FormDataViewModel", "Elevation: $elevation, Accuracy: $accuracy")
-        
-        val geoJson = "{\"type\":\"Point\",\"coordinates\":[$longitude,$latitude]}"
-        val wellKnownText = "POINT($longitude $latitude)"
-        
-        val gisGeolocationTrack = GisGeolocationTrack(
-            latitude = latitude,
-            longitude = longitude,
-            elevation = elevation,
-            time = visitDate, // Use the same date/time as visit date
-            magneticVariant = null,
-            cBaro = cBaro,
-            accuracy = accuracy,
-            altitudeAccuracy = altitudeAccuracy,
-            heading = heading,
-            speed = speed,
-            type = "ViEvent",
-            satelliteNumber = satelliteNumber
-        )
-        
-        val geoLocation = BillOriginViEventGeoLocation(
-            geoJson = geoJson,
-            wellKnownText = wellKnownText,
-            gisGeolocationTrack = gisGeolocationTrack
-        )
-        
-        Log.d("FormDataViewModel", "Generated GeoJSON: $geoJson")
-        Log.d("FormDataViewModel", "Generated WellKnownText: $wellKnownText")
-        Log.d("FormDataViewModel", "GisGeolocationTrack - Time: $visitDate, Type: ViEvent")
-        Log.d("FormDataViewModel", "===================================")
-        
-        return geoLocation
-    }
+    private fun createGeoLocationData(
+        visitDate: String,
+        location: TrackPoint,
+    ): BillOriginViEventGeoLocation = ViolationGeoLocationMapper.create(visitDate, location)
 
     fun clearError() {
         _error.value = null

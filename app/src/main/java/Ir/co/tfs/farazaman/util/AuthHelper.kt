@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import Ir.co.tfs.farazaman.domain.repository.AuthRepository
 import Ir.co.tfs.farazaman.presentation.login.LoginActivity
+import Ir.co.tfs.farazaman.realtime.MobileSupervisorHubClient
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -13,7 +14,8 @@ import javax.inject.Singleton
 @Singleton
 class AuthHelper @Inject constructor(
     private val authRepository: AuthRepository,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val mobileSupervisorHubClient: MobileSupervisorHubClient,
 ) {
     
     /**
@@ -21,6 +23,7 @@ class AuthHelper @Inject constructor(
      */
     fun logout(context: Context) {
         // Clear tokens first so no request can reuse the session while file caches are removed.
+        mobileSupervisorHubClient.stop()
         authRepository.logout()
 
         val applicationContext = context.applicationContext

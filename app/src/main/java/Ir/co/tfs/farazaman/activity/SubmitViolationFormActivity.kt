@@ -9,7 +9,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.MediaStore
+import android.preference.PreferenceManager
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -34,13 +34,16 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import Ir.co.tfs.farazaman.supervisor.DailyPlanItemViolationHelper
+import Ir.co.tfs.farazaman.supervisor.SupervisorMissionSetup
 import Ir.co.tfs.farazaman.supervisor.SupervisorViolationHistoryStore
 import Ir.co.tfs.farazaman.util.AddressLocationHelper
 import Ir.co.tfs.farazaman.util.GpsAccuracyHelper
 import dagger.hilt.android.AndroidEntryPoint
 import Ir.co.tfs.farazaman.R
+import Ir.co.tfs.farazaman.data.api.FormDataApiService
 import Ir.co.tfs.farazaman.data.db.TrackContentProvider
 import Ir.co.tfs.farazaman.data.db.DatabaseHelper
+import Ir.co.tfs.farazaman.data.db.model.TrackPoint
 import Ir.co.tfs.farazaman.data.model.DropdownItem
 import Ir.co.tfs.farazaman.data.repository.AddressLookupCoordinator
 import Ir.co.tfs.farazaman.domain.validation.ViolationFormValidator
@@ -56,6 +59,7 @@ import java.util.Locale
 import javax.inject.Inject
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -74,12 +78,13 @@ open class SubmitViolationFormActivity : BaseActivity() {
     private var currentTrackId: Long = -1
     private var latitude: Double = 0.0
     private var longitude: Double = 0.0
+    private var latestTrackPoint: TrackPoint? = null
     private var address: String = ""
     private var addressUpdateJob: Job? = null
     private var lastAddressCoordinates: Pair<Double, Double>? = null
     private lateinit var btnPickImage: Button
     private lateinit var imagesRecyclerView: androidx.recyclerview.widget.RecyclerView
-    private var cameraImageUri: Uri? = null
+    private lateinit var imageCaptureCoordinator: ViolationImageCaptureCoordinator
     private lateinit var permissionLauncher: ActivityResultLauncher<Array<String>>
     private var selectedDate: Date? = null
     protected val selectedImages = mutableListOf<Uri>()
@@ -150,18 +155,13 @@ open class SubmitViolationFormActivity : BaseActivity() {
         }
     }
 
-    private val takePictureLauncher =
-        registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-            if (success && cameraImageUri != null) {
-                selectedImages.add(cameraImageUri!!)
-                updateImageDisplay()
-            } else {
-                Toast.makeText(this, "خطا در گرفتن تصویر", Toast.LENGTH_SHORT).show()
-            }
-        }
-
     @Inject
     lateinit var addressLookup: AddressLookupCoordinator
+
+    @Inject
+    lateinit var missionFormDataApiService: FormDataApiService
+
+    private var missionDayRegistrationJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -199,6 +199,13 @@ open class SubmitViolationFormActivity : BaseActivity() {
         // For address, in fetchAddressFromRoadService, set loading text before API call
         latitude = intent.getDoubleExtra(Ir.co.tfs.farazaman.activity.DisplayTrackMap.EXTRA_LATITUDE, 0.0)
         longitude = intent.getDoubleExtra(Ir.co.tfs.farazaman.activity.DisplayTrackMap.EXTRA_LONGITUDE, 0.0)
+        if (latitude != 0.0 || longitude != 0.0) {
+            latestTrackPoint = TrackPoint().apply {
+                this.latitude = this@SubmitViolationFormActivity.latitude
+                this.longitude = this@SubmitViolationFormActivity.longitude
+                pointTimestamp = System.currentTimeMillis()
+            }
+        }
         address = intent.getStringExtra("extra_address") ?: ""
         currentTrackId = intent.getLongExtra(Ir.co.tfs.farazaman.data.db.TrackContentProvider.Schema.COL_TRACK_ID, -1)
         
@@ -587,6 +594,11 @@ open class SubmitViolationFormActivity : BaseActivity() {
                             subtitle = violationSubtitleForHistory(),
                             trackId = currentTrackId,
                             violationId = state.violationId,
+                            locationName = addressEditText.text?.toString().orEmpty(),
+                            organization = organTitle.orEmpty(),
+                            contract = contractTitle.orEmpty(),
+                            latitude = latitude,
+                            longitude = longitude,
                         )
                     }
                     if (currentTrackId != -1L && latitude != 0.0) {
@@ -1015,7 +1027,21 @@ open class SubmitViolationFormActivity : BaseActivity() {
     }
 
     private fun setupImagePicker() {
-        // ** این بخش اصلاح شده است **
+        imageCaptureCoordinator = ViolationImageCaptureCoordinator(
+            caller = this,
+            contentResolver = { contentResolver },
+            onCaptured = { uri, replaceIndex ->
+                if (replaceIndex != null && replaceIndex in selectedImages.indices) {
+                    selectedImages[replaceIndex] = uri
+                } else {
+                    selectedImages.add(uri)
+                }
+                updateImageDisplay()
+            },
+            onCaptureFailed = {
+                Toast.makeText(this, "خطا در گرفتن تصویر", Toast.LENGTH_SHORT).show()
+            },
+        )
         permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
             // پس از اینکه کاربر به دیالوگ دسترسی پاسخ داد، این کد اجرا می‌شود
             val cameraGranted = permissions[Manifest.permission.CAMERA] ?: false
@@ -1186,6 +1212,17 @@ open class SubmitViolationFormActivity : BaseActivity() {
 
         val saveButton = findViewById<Button>(R.id.save)
         saveButton.setOnClickListener {
+            val missionPreferences = PreferenceManager.getDefaultSharedPreferences(this)
+            val hasSupervisorMission = currentTrackId > 0 &&
+                missionPreferences.contains("mission_data_$currentTrackId")
+            if (
+                hasSupervisorMission &&
+                !SupervisorMissionSetup.isMissionRegisteredForDate(this, currentTrackId)
+            ) {
+                registerCurrentDayMission(saveButton)
+                return@setOnClickListener
+            }
+
             // جمع‌آوری اطلاعات از فیلدها
             val number = findViewById<EditText>(R.id.count).text.toString().toIntOrNull() ?: 0
             val address = addressEditText.text.toString()
@@ -1309,8 +1346,7 @@ open class SubmitViolationFormActivity : BaseActivity() {
                 address,
                 description,
                 selectedImages,
-                latitude,
-                longitude,
+                latestTrackPoint,
                 requireItemSelection = shouldShowSeasonAndPriceSelectors(),
             )
         }
@@ -1467,14 +1503,7 @@ open class SubmitViolationFormActivity : BaseActivity() {
     }
 
     private fun openCamera() {
-        // Camera permission is already checked in checkAndRequestPermissions
-        val contentValues = ContentValues().apply {
-            put(MediaStore.Images.Media.TITLE, "New Picture")
-            put(MediaStore.Images.Media.DESCRIPTION, "From Camera")
-        }
-        cameraImageUri =
-            contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-        cameraImageUri?.let { takePictureLauncher.launch(it) }
+        imageCaptureCoordinator.captureNew()
     }
 
     private fun checkAndRequestPermissions() {
@@ -1514,14 +1543,50 @@ open class SubmitViolationFormActivity : BaseActivity() {
             while (isActive) {
                 val location = withContext(Dispatchers.IO) { getLastLocationOfTrack(currentTrackId) }
                 val coordinates = location?.let { it.latitude to it.longitude }
-                if (coordinates != null &&
-                    AddressLocationHelper.shouldUpdateAddress(lastAddressCoordinates, coordinates)
-                ) {
+                if (location != null && coordinates != null) {
+                    latestTrackPoint = location
                     latitude = coordinates.first
                     longitude = coordinates.second
-                    fetchAddressFromRoadService(latitude, longitude)
+                    if (AddressLocationHelper.shouldUpdateAddress(lastAddressCoordinates, coordinates)) {
+                        fetchAddressFromRoadService(latitude, longitude)
+                    }
                 }
                 delay(ADDRESS_UPDATE_INTERVAL_MS)
+            }
+        }
+    }
+
+    private fun registerCurrentDayMission(saveButton: Button) {
+        if (missionDayRegistrationJob?.isActive == true) return
+        saveButton.isEnabled = false
+        Toast.makeText(this, R.string.mission_day_registration_loading, Toast.LENGTH_LONG).show()
+        missionDayRegistrationJob = lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    SupervisorMissionSetup.refreshMissionForDateIfNeeded(
+                        context = applicationContext,
+                        service = missionFormDataApiService,
+                        trackId = currentTrackId,
+                    )
+                }
+                Toast.makeText(
+                    this@SubmitViolationFormActivity,
+                    R.string.mission_day_registration_success,
+                    Toast.LENGTH_LONG,
+                ).show()
+                finish()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                Log.e(TAG, "Unable to register current-day mission before violation submission", error)
+                Toast.makeText(
+                    this@SubmitViolationFormActivity,
+                    R.string.mission_day_registration_failed,
+                    Toast.LENGTH_LONG,
+                ).show()
+                saveButton.isEnabled = true
+            } finally {
+                missionDayRegistrationJob = null
             }
         }
     }
@@ -1551,28 +1616,17 @@ open class SubmitViolationFormActivity : BaseActivity() {
         }
     }
 
-    private fun getLastLocationOfTrack(trackId: Long): android.location.Location? {
+    private fun getLastLocationOfTrack(trackId: Long): TrackPoint? {
         val cursor = contentResolver.query(
             TrackContentProvider.trackPointsUri(trackId),
-            arrayOf(
-                TrackContentProvider.Schema.COL_LATITUDE,
-                TrackContentProvider.Schema.COL_LONGITUDE,
-                TrackContentProvider.Schema.COL_TIMESTAMP,
-            ),
+            null,
             null,
             null,
             "${TrackContentProvider.Schema.COL_TIMESTAMP} DESC",
         )
         cursor?.use {
             if (it.moveToFirst()) {
-                val latIndex = it.getColumnIndex(TrackContentProvider.Schema.COL_LATITUDE)
-                val lonIndex = it.getColumnIndex(TrackContentProvider.Schema.COL_LONGITUDE)
-                if (latIndex >= 0 && lonIndex >= 0) {
-                    return android.location.Location("track_last_location").apply {
-                        latitude = it.getDouble(latIndex)
-                        longitude = it.getDouble(lonIndex)
-                    }
-                }
+                return TrackPoint(it)
             }
         }
         return null

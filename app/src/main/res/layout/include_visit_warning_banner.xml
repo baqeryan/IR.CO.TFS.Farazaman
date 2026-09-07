@@ -67,7 +67,7 @@
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
             android:text="@string/supervisor_start_visit"
-            android:textColor="@color/white"
+            android:textColor="@color/app_warning_container"
             android:textSize="12sp"
             app:backgroundTint="@color/app_on_warning_container"
             app:cornerRadius="18dp" />

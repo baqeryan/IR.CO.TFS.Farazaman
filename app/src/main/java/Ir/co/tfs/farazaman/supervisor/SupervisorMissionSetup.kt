@@ -13,6 +13,7 @@ import Ir.co.tfs.farazaman.data.model.FormDataRequest
 import Ir.co.tfs.farazaman.data.model.MissionIndexResponse
 import Ir.co.tfs.farazaman.data.model.OrganFenceRequest
 import Ir.co.tfs.farazaman.data.model.OrganFenceRequestData
+import Ir.co.tfs.farazaman.supervisor.actions.SupervisorActionRecorder
 import android.preference.PreferenceManager
 import org.json.JSONArray
 import org.json.JSONObject
@@ -48,53 +49,131 @@ object SupervisorMissionSetup {
         organTitle: String,
         contractTitle: String,
     ): Long {
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-        val requestBody = mapOf(
-            "request" to mapOf(
-                "organIds" to listOf(organId),
-                "contractIds" to listOf(contractId),
-                "visitdate" to today,
-                "TenantId" to 1,
-                "OrganId" to organId,
-                "contractId" to contractId,
-            ),
-        )
-
-        val createResponse = service.createMission(requestBody)
-        if (!createResponse.isSuccessful) {
-            throw MissionSetupException("خطا در ثبت برنامه کاری: ${createResponse.code()}")
-        }
-
-        val indexBody = mapOf(
-            "request" to mapOf(
-                "organIds" to listOf(organId),
-                "contractIds" to listOf(contractId),
-                "visitdate" to today,
-                "TenantId" to 1,
-                "OrganId" to organId,
-                "contractId" to contractId,
-            ),
-            "Pagination" to mapOf("page" to mapOf("pageSize" to 100)),
-        )
-        val indexResponse = service.getMissionIndex(indexBody)
-        if (!indexResponse.isSuccessful || indexResponse.body() == null) {
-            throw MissionSetupException("خطا در دریافت جزئیات برنامه کاری: ${indexResponse.code()}")
-        }
-
-        val missionData = processMissionDataFromResponse(
-            missionIndexResponse = indexResponse.body()!!,
+        val today = todayVisitDate()
+        val missionData = registerDailyPlan(
+            service = service,
             organId = organId,
             contractId = contractId,
             visitDate = today,
             organTitle = organTitle,
             contractTitle = contractTitle,
-        ).toMutableMap()
+        )
         loadOrganFence(service, organId)?.let { fence ->
             missionData["organFenceWkt"] = fence.wkt
             missionData["organFenceName"] = fence.name
         }
         return persistMission(context, missionData)
     }
+
+    /**
+     * Registers the existing, not-yet-uploaded mission for a new local calendar day and
+     * replaces its daily-plan payload without creating another GPS track.
+     */
+    suspend fun refreshMissionForDateIfNeeded(
+        context: Context,
+        service: FormDataApiService,
+        trackId: Long,
+        today: String = todayVisitDate(),
+    ): Boolean {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val missionKey = "mission_data_$trackId"
+        val stored = prefs.getString(missionKey, null)
+            ?: throw MissionSetupException("اطلاعات ماموریت یافت نشد")
+        val existing = runCatching { JSONObject(stored) }.getOrElse {
+            throw MissionSetupException("اطلاعات ماموریت معتبر نیست")
+        }
+        if (!SupervisorMissionDayPolicy.requiresRegistration(existing.optString("visitDate"), today)) {
+            return false
+        }
+
+        val organId = existing.optInt("organId", 0)
+        val contractId = existing.optInt("contractId", 0)
+        if (organId <= 0 || contractId <= 0) {
+            throw MissionSetupException("اطلاعات کارفرما یا قرارداد ماموریت کامل نیست")
+        }
+
+        val refreshed = registerDailyPlan(
+            service = service,
+            organId = organId,
+            contractId = contractId,
+            visitDate = today,
+            organTitle = existing.optString("organTitle", ""),
+            contractTitle = existing.optString("contractTitle", ""),
+        )
+        existing.optString("organFenceWkt", "").takeIf { it.isNotBlank() }?.let {
+            refreshed["organFenceWkt"] = it
+        }
+        existing.optString("organFenceName", "").takeIf { it.isNotBlank() }?.let {
+            refreshed["organFenceName"] = it
+        }
+
+        updatePersistedMission(context, trackId, refreshed)
+        Log.i(TAG, "Mission daily plan refreshed for trackId=$trackId date=$today")
+        return true
+    }
+
+    fun isMissionRegisteredForDate(context: Context, trackId: Long, today: String = todayVisitDate()): Boolean {
+        val stored = PreferenceManager.getDefaultSharedPreferences(context)
+            .getString("mission_data_$trackId", null)
+            ?.let { raw -> runCatching { JSONObject(raw) }.getOrNull() }
+            ?.optString("visitDate")
+        return !SupervisorMissionDayPolicy.requiresRegistration(stored, today)
+    }
+
+    fun todayVisitDate(): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+
+    private suspend fun registerDailyPlan(
+        service: FormDataApiService,
+        organId: Int,
+        contractId: Int,
+        visitDate: String,
+        organTitle: String,
+        contractTitle: String,
+    ): MutableMap<String, Any> {
+        val createResponse = service.createMission(
+            createMissionRequest(organId, contractId, visitDate),
+        )
+        if (!createResponse.isSuccessful) {
+            throw MissionSetupException("خطا در ثبت برنامه کاری: ${createResponse.code()}")
+        }
+
+        val indexResponse = service.getMissionIndex(
+            createMissionIndexRequest(organId, contractId, visitDate),
+        )
+        if (!indexResponse.isSuccessful || indexResponse.body() == null) {
+            throw MissionSetupException("خطا در دریافت جزئیات برنامه کاری: ${indexResponse.code()}")
+        }
+
+        return processMissionDataFromResponse(
+            missionIndexResponse = indexResponse.body()!!,
+            organId = organId,
+            contractId = contractId,
+            visitDate = visitDate,
+            organTitle = organTitle,
+            contractTitle = contractTitle,
+        ).toMutableMap()
+    }
+
+    private fun createMissionRequest(organId: Int, contractId: Int, visitDate: String): Map<String, Any> =
+        mapOf(
+            "request" to missionRequestFields(organId, contractId, visitDate),
+        )
+
+    private fun createMissionIndexRequest(organId: Int, contractId: Int, visitDate: String): Map<String, Any> =
+        mapOf(
+            "request" to missionRequestFields(organId, contractId, visitDate),
+            "Pagination" to mapOf("page" to mapOf("pageSize" to 100)),
+        )
+
+    private fun missionRequestFields(organId: Int, contractId: Int, visitDate: String): Map<String, Any> =
+        mapOf(
+            "organIds" to listOf(organId),
+            "contractIds" to listOf(contractId),
+            "visitdate" to visitDate,
+            "TenantId" to 1,
+            "OrganId" to organId,
+            "contractId" to contractId,
+        )
 
     private suspend fun loadOrganFence(
         service: FormDataApiService,
@@ -247,22 +326,14 @@ object SupervisorMissionSetup {
 
     private fun persistMission(context: Context, missionData: Map<String, Any>): Long {
         val values = ContentValues()
-        val missionName = "ماموریت ${missionData["organId"]} - ${missionData["contractId"]} - ${missionData["visitDate"]}"
-        values.put(TrackContentProvider.Schema.COL_NAME, missionName)
-        values.put(TrackContentProvider.Schema.COL_START_DATE, Date().time)
+        values.put(TrackContentProvider.Schema.COL_NAME, missionName(missionData))
+        val createdAt = Date().time
+        values.put(TrackContentProvider.Schema.COL_START_DATE, createdAt)
         values.put(TrackContentProvider.Schema.COL_ACTIVE, TrackContentProvider.Schema.VAL_TRACK_INACTIVE)
         values.put(TrackContentProvider.Schema.COL_ROLE, "supervisor")
         values.putNull(TrackContentProvider.Schema.COL_EXPORT_DATE)
 
-        val description = buildString {
-            append("Organ ID: ${missionData["organId"]}\n")
-            append("Contract ID: ${missionData["contractId"]}\n")
-            append("Visit Date: ${missionData["visitDate"]}\n")
-            append("Planning Items: ${(missionData["planningItems"] as List<*>).size}\n")
-            append("System Items: ${(missionData["systemItems"] as List<*>).size}\n")
-            append("Total Items: ${missionData["totalItems"]}")
-        }
-        values.put(TrackContentProvider.Schema.COL_DESCRIPTION, description)
+        values.put(TrackContentProvider.Schema.COL_DESCRIPTION, missionDescription(missionData))
 
         val trackUri = context.contentResolver.insert(TrackContentProvider.CONTENT_URI_TRACK, values)
             ?: throw MissionSetupException("خطا در ایجاد برنامه کاری")
@@ -270,9 +341,42 @@ object SupervisorMissionSetup {
 
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         prefs.edit().putString("mission_data_$trackId", JSONObject(missionData).toString()).apply()
+        SupervisorActionRecorder.recordMissionCreated(context, trackId, createdAt, missionData)
         Log.d(TAG, "Mission created with trackId=$trackId")
         return trackId
     }
+
+    private fun updatePersistedMission(context: Context, trackId: Long, missionData: Map<String, Any>) {
+        val stored = PreferenceManager.getDefaultSharedPreferences(context)
+            .edit()
+            .putString("mission_data_$trackId", JSONObject(missionData).toString())
+            .commit()
+        if (!stored) throw MissionSetupException("خطا در ذخیره برنامه کاری روز جدید")
+
+        val values = ContentValues().apply {
+            put(TrackContentProvider.Schema.COL_NAME, missionName(missionData))
+            put(TrackContentProvider.Schema.COL_DESCRIPTION, missionDescription(missionData))
+        }
+        context.contentResolver.update(
+            ContentUris.withAppendedId(TrackContentProvider.CONTENT_URI_TRACK, trackId),
+            values,
+            null,
+            null,
+        )
+    }
+
+    private fun missionName(missionData: Map<String, Any>): String =
+        "ماموریت ${missionData["organId"]} - ${missionData["contractId"]} - ${missionData["visitDate"]}"
+
+    private fun missionDescription(missionData: Map<String, Any>): String =
+        buildString {
+            append("Organ ID: ${missionData["organId"]}\n")
+            append("Contract ID: ${missionData["contractId"]}\n")
+            append("Visit Date: ${missionData["visitDate"]}\n")
+            append("Planning Items: ${(missionData["planningItems"] as List<*>).size}\n")
+            append("System Items: ${(missionData["systemItems"] as List<*>).size}\n")
+            append("Total Items: ${missionData["totalItems"]}")
+        }
 
     class MissionSetupException(message: String) : Exception(message)
 

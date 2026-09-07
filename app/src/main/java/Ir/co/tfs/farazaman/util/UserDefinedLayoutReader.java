@@ -258,9 +258,9 @@ public class UserDefinedLayoutReader {
      */
     public void inflateButton(TableRow row) {
         Button button = new Button(row.getContext());
-        button.setTextColor(ContextCompat.getColor(row.getContext(), R.color.colorPrimaryTextLight));
+        button.setTextColor(ContextCompat.getColorStateList(row.getContext(), R.color.button_primary_content));
         button.setElevation(6f); // سایه (در واحد dp)
-        button.setBackgroundTintList(ContextCompat.getColorStateList(row.getContext(), R.color.colorPrimaryText));
+        button.setBackgroundTintList(ContextCompat.getColorStateList(row.getContext(), R.color.button_primary_container));
 
         TableRow.LayoutParams params = new TableRow.LayoutParams(TableRow.LayoutParams.FILL_PARENT,
                 TableRow.LayoutParams.FILL_PARENT, 1);

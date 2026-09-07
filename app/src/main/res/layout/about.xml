@@ -99,17 +99,19 @@
         android:layout_alignParentBottom="true"
         android:orientation="horizontal">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:visibility="gone"
             android:id="@+id/about_debug_info_button"
+            style="@style/FaraZaman.Button.Outlined"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/about_debug_info" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:visibility="gone"
             android:id="@+id/about_export_db_button"
+            style="@style/FaraZaman.Button.Outlined"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_weight="1"

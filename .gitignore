@@ -22,6 +22,18 @@ app/src/test/assets/gpx/output-test.gpx
 
 # Ignore ad-hoc keys; the permanent project Release identity is explicitly included.
 key/
+
+# Kotlin/Android generated output and local editor artifacts
+out/
+*.class
+*.jar
+*.log
+.env*
+.vscode/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
 *.jks
 *.keystore
 !signing/

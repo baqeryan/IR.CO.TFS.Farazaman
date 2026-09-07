@@ -1,5 +1,7 @@
 package Ir.co.tfs.farazaman.activity
 
+import Ir.co.tfs.farazaman.notification.NotificationBadgeBinder
+
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -52,6 +54,10 @@ class SupervisorTodayFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.root.bindSupervisorProfileButton()
+        binding.btnNotifications.setOnClickListener {
+            (activity as? NewSupervisorActivity)?.openActionsNotifications()
+        }
+        NotificationBadgeBinder.bind(binding.btnNotifications, viewLifecycleOwner)
         binding.btnActiveVisitShowOnMap.setOnClickListener {
             (activity as? NewSupervisorActivity)?.controller?.openMissionMap()
         }

@@ -207,7 +207,12 @@ class TodayVisitTabFragment : Fragment() {
 
                 val title = items.getOrNull(pos)?.title ?: return@DailyPlanItemsAdapter
 
-                TodayVisitMissionActions.openViolation(requireContext(), trackId, tabType, title)
+                val host = activity as? NewSupervisorActivity
+                if (host != null) {
+                    host.openDailyPlanViolation(trackId, tabType, title)
+                } else {
+                    TodayVisitMissionActions.openViolation(requireContext(), trackId, tabType, title)
+                }
 
             },
 

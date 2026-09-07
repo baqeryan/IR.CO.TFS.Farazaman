@@ -24,7 +24,8 @@
         android:background="@drawable/intro_skip_button_bg"
         android:contentDescription="@string/supervisor_notifications"
         android:padding="10dp"
-        android:src="@drawable/bell"
+        android:src="@drawable/ic_notifications"
+        app:tint="@color/app_primary"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -55,7 +56,7 @@
         android:src="@drawable/ic_user"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:tint="@color/intro_primary" />
+        app:tint="@color/app_primary" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/historyRecycler"

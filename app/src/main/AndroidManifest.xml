@@ -51,6 +51,26 @@
             android:name=".activity.RoleSelectionActivity"
             android:exported="false" />
         <activity
+            android:name=".activity.ContractorViolationsActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme" />
+        <activity
+            android:name=".activity.ContractorWorkAreaSelectionActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme" />
+        <activity
+            android:name=".activity.ContractorOperationsActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme" />
+        <activity
+            android:name=".activity.ContractorActionActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme" />
+        <activity
+            android:name=".activity.ContractorViolationLocationActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme" />
+        <activity
             android:name=".activity.DriverActivity"
             android:exported="false" />
         <activity
@@ -91,6 +111,10 @@
             android:theme="@style/AppTheme" />
         <activity
             android:name=".activity.NewSupervisorActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme" />
+        <activity
+            android:name=".activity.ActionsNotificationsActivity"
             android:exported="false"
             android:theme="@style/AppTheme" />
         <activity
@@ -159,6 +183,21 @@
             </intent-filter>
         </activity>
         <activity android:name=".activity.AvailableLayouts" />
+
+        <service
+            android:name=".notification.FarazamanFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notifications" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="farazaman_notifications" />
 
         <service
             android:name=".service.gps.GPSLogger"

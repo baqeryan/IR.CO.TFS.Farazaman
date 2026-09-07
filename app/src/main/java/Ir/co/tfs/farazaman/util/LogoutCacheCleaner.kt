@@ -36,6 +36,8 @@ object LogoutCacheCleaner {
         val dynamicKeys = preferences.all.keys.filter { key ->
             key.startsWith("mission_data_") ||
                 key.startsWith("section_expanded_") ||
+                key.startsWith("firebase_notification_inbox_") ||
+                key.startsWith("contractor_work_context_") ||
                 key.startsWith("secure_")
         }
 
@@ -74,6 +76,8 @@ object LogoutCacheCleaner {
         "default_subsystem",
         "default_role_name",
         "user_roles",
+        "firebase_registered_token_key",
+        "app_notification_unread_count",
         "supervisor_violation_history",
         "is_driver_mode",
         "current_zone_work_vehicle_id",

@@ -14,18 +14,21 @@ private class RoleSelectionStateProvider : PreviewParameterProvider<RoleSelectio
         RoleSelectionUiState(
             showSupervisor = true,
             showDriver = true,
+            showContractor = true,
             selectedRole = RoleOption.SUPERVISOR,
         ),
         RoleSelectionUiState(
             showSupervisor = true,
             showDriver = true,
-            selectedRole = RoleOption.DRIVER,
+            showContractor = true,
+            selectedRole = RoleOption.CONTRACTOR,
             showBack = true,
         ),
         RoleSelectionUiState(
-            showSupervisor = true,
+            showSupervisor = false,
             showDriver = false,
-            selectedRole = RoleOption.SUPERVISOR,
+            showContractor = true,
+            selectedRole = RoleOption.CONTRACTOR,
         ),
     )
 }
@@ -57,6 +60,7 @@ private fun RoleSelectionDisabledPreview() {
         state = RoleSelectionUiState(
             showSupervisor = false,
             showDriver = false,
+            showContractor = false,
         ),
         darkTheme = false,
     )
@@ -74,7 +78,8 @@ private fun RoleSelectionDisabledPreview() {
 private fun RoleSelectionDarkPreview() {
     RoleSelectionPreviewContent(
         state = RoleSelectionUiState(
-            selectedRole = RoleOption.DRIVER,
+            showContractor = true,
+            selectedRole = RoleOption.CONTRACTOR,
             showBack = true,
         ),
         darkTheme = true,
@@ -90,10 +95,7 @@ private fun RoleSelectionPreviewContent(
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             RoleSelectionScreen(
                 state = state,
-                onRoleSelected = {},
-                onBack = {},
-                onProfile = {},
-                onEnter = {},
+                onEvent = {},
             )
         }
     }

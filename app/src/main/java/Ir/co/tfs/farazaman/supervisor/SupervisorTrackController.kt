@@ -25,6 +25,8 @@ import Ir.co.tfs.farazaman.data.db.DataHelper
 import Ir.co.tfs.farazaman.data.db.TrackContentProvider
 import Ir.co.tfs.farazaman.gpx.ZipHelper
 import Ir.co.tfs.farazaman.service.gps.GPSLogger
+import Ir.co.tfs.farazaman.supervisor.actions.SupervisorActionGpxFiles
+import Ir.co.tfs.farazaman.supervisor.actions.SupervisorActionRecorder
 import Ir.co.tfs.farazaman.util.FileSystemUtils
 import Ir.co.tfs.farazaman.util.GpxWriter
 import Ir.co.tfs.farazaman.util.LoadingDialog
@@ -34,7 +36,6 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
-import okhttp3.Response
 import org.json.JSONObject
 import saman.zamani.persiandate.PersianDate
 import java.io.File
@@ -88,6 +89,7 @@ class SupervisorTrackController(
                 organId = obj.optInt("organId", 0),
                 visitDate = obj.optString("visitDate", "-"),
                 districtLabel = obj.optString("districtLabel", obj.optString("zoneLabel", "-")),
+                organFenceWkt = obj.optString("organFenceWkt", ""),
                 planningCount = obj.optJSONArray("planningItems")?.length() ?: 0,
                 systemCount = obj.optJSONArray("systemItems")?.length() ?: 0,
             )
@@ -133,9 +135,12 @@ class SupervisorTrackController(
 
     fun stopMission() {
         if (currentTrackId == TRACK_ID_NONE) return
+        val trackId = currentTrackId
+        val wasTracking = isTracking()
         val intent = Intent(OSMTracker.INTENT_STOP_TRACKING).apply { setPackage(activity.packageName) }
         activity.sendBroadcast(intent)
-        DataHelper(activity).stopTracking(currentTrackId)
+        DataHelper(activity).stopTracking(trackId)
+        if (wasTracking) SupervisorActionRecorder.recordMissionPaused(activity, trackId)
         onStateChanged()
         Toast.makeText(activity, "ردیابی متوقف شد", Toast.LENGTH_SHORT).show()
     }
@@ -210,6 +215,8 @@ class SupervisorTrackController(
             activity.sendBroadcast(intent)
             DataHelper(activity).stopTracking(trackId)
         }
+
+        SupervisorActionRecorder.recordMissionCancelled(activity, trackId)
 
         val dir = DataHelper.getTrackDirectory(trackId, activity)
         if (dir.exists()) FileSystemUtils.delete(dir, true)
@@ -287,12 +294,14 @@ class SupervisorTrackController(
     }
 
     private fun startGpsTracking(trackId: Long) {
+        val resumed = trackPointCounts(trackId).first > 0
         setActiveTrack(trackId)
         val startTrackingIntent = Intent(activity, GPSLogger::class.java).apply {
             action = OSMTracker.INTENT_START_TRACKING
             putExtra(TrackContentProvider.Schema.COL_TRACK_ID, trackId)
         }
         activity.startService(startTrackingIntent)
+        SupervisorActionRecorder.recordMissionStarted(activity, trackId, resumed)
         onStateChanged()
         Toast.makeText(activity, "ماموریت شروع شد", Toast.LENGTH_SHORT).show()
     }
@@ -320,7 +329,7 @@ class SupervisorTrackController(
             activity.sendBroadcast(intent)
         }
         DataHelper(activity).stopTracking(trackId)
-        loadingDialog = LoadingDialog.show(activity, "در حال آپلود...")
+        loadingDialog = LoadingDialog.show(activity, "در حال بارگذاری...")
         UploadTask(trackId).execute()
     }
 
@@ -376,43 +385,52 @@ class SupervisorTrackController(
                 val gpxFile = File(activity.cacheDir, "$fileName.gpx").apply { if (!exists()) createNewFile() }
                 FileWriter(gpxFile).use { GpxWriter(it).write(activity, trackId) }
                 val zipFile = ZipHelper.zipCacheFiles(activity, trackId, gpxFile) ?: return false
-                uploadZip(zipFile)
+                uploadZip(zipFile, gpxFile)
             } catch (e: Exception) {
                 errorMessage = e.message ?: errorMessage
                 false
             }
         }
 
-        private fun uploadZip(zipFile: File): Boolean {
+        private fun uploadZip(zipFile: File, gpxFile: File): Boolean {
             val url = selectedBaseUrl() + "api/GisGeolocation/upload"
             val body = MultipartBody.Builder().setType(MultipartBody.FORM)
                 .addFormDataPart("file", zipFile.name, RequestBody.create("application/zip".toMediaTypeOrNull(), zipFile))
                 .build()
             val request = Request.Builder().url(url).post(body).build()
-            val response: Response = okHttpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                errorMessage = "خطا در آپلود: ${response.code}"
-                return false
+            return okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    errorMessage = "خطا در بارگذاری: ${response.code}"
+                    return@use false
+                }
+                val completedAt = System.currentTimeMillis()
+                val retainedGpx = SupervisorActionGpxFiles.persist(activity, trackId, gpxFile, completedAt)
+                val exportValues = ContentValues().apply {
+                    put(TrackContentProvider.Schema.COL_EXPORT_DATE, completedAt)
+                    put(TrackContentProvider.Schema.COL_ACTIVE, TrackContentProvider.Schema.VAL_TRACK_INACTIVE)
+                }
+                activity.contentResolver.update(
+                    ContentUris.withAppendedId(TrackContentProvider.CONTENT_URI_TRACK, trackId),
+                    exportValues,
+                    null,
+                    null,
+                )
+                SupervisorActionRecorder.recordMissionCompleted(
+                    activity,
+                    trackId,
+                    completedAt,
+                    retainedGpx,
+                )
+                val dir = DataHelper.getTrackDirectory(trackId, activity)
+                if (dir.exists()) FileSystemUtils.delete(dir, true)
+                activity.contentResolver.delete(
+                    ContentUris.withAppendedId(TrackContentProvider.CONTENT_URI_TRACK, trackId),
+                    null,
+                    null,
+                )
+                clearMissionLocalData(trackId)
+                true
             }
-            val exportValues = ContentValues().apply {
-                put(TrackContentProvider.Schema.COL_EXPORT_DATE, Date().time)
-                put(TrackContentProvider.Schema.COL_ACTIVE, TrackContentProvider.Schema.VAL_TRACK_INACTIVE)
-            }
-            activity.contentResolver.update(
-                ContentUris.withAppendedId(TrackContentProvider.CONTENT_URI_TRACK, trackId),
-                exportValues,
-                null,
-                null,
-            )
-            val dir = DataHelper.getTrackDirectory(trackId, activity)
-            if (dir.exists()) FileSystemUtils.delete(dir, true)
-            activity.contentResolver.delete(
-                ContentUris.withAppendedId(TrackContentProvider.CONTENT_URI_TRACK, trackId),
-                null,
-                null,
-            )
-            clearMissionLocalData(trackId)
-            return true
         }
 
         override fun onPostExecute(success: Boolean) {
@@ -424,6 +442,9 @@ class SupervisorTrackController(
                 SupervisorMissionHelper.openWorkAreaSelection(activity)
                 activity.finish()
             } else {
+                if (trackPointCounts(trackId).first > 0) {
+                    SupervisorActionRecorder.recordMissionPaused(activity, trackId)
+                }
                 Toast.makeText(activity, "خطا: $errorMessage", Toast.LENGTH_LONG).show()
             }
         }
@@ -436,6 +457,7 @@ class SupervisorTrackController(
         val organId: Int,
         val visitDate: String,
         val districtLabel: String,
+        val organFenceWkt: String,
         val planningCount: Int,
         val systemCount: Int,
     )

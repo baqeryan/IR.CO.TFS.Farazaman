@@ -11,7 +11,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 
 private val FaraZamanColors = lightColorScheme(
-    primary = Color(0xFF0B5E56),
+    primary = Color(0xFF006B5B),
     onPrimary = Color.White,
     secondary = Color(0xFF00A884),
     background = Color(0xFFF6F8F7),
@@ -19,10 +19,14 @@ private val FaraZamanColors = lightColorScheme(
     surface = Color.White,
     onSurface = Color(0xFF212121),
     surfaceVariant = Color(0xFFE8F5F2),
-    onSurfaceVariant = Color(0xFF3D5C59),
+    onSurfaceVariant = Color(0xFF757575),
     outline = Color(0xFFE0E0E0),
-    primaryContainer = Color(0xFF005144),
-    onPrimaryContainer = Color.White,
+    primaryContainer = Color(0xFFD5F5ED),
+    onPrimaryContainer = Color(0xFF00382F),
+    error = Color(0xFFBA1A1A),
+    onError = Color.White,
+    errorContainer = Color(0xFFFFDAD6),
+    onErrorContainer = Color(0xFF93000A),
 )
 
 private val FaraZamanDarkColors = darkColorScheme(
@@ -37,7 +41,11 @@ private val FaraZamanDarkColors = darkColorScheme(
     onSurfaceVariant = Color(0xFFBFC9C6),
     outline = Color(0xFF54615E),
     primaryContainer = Color(0xFF005144),
-    onPrimaryContainer = Color(0xFFD9F2EF),
+    onPrimaryContainer = Color(0xFFD5F5ED),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005),
+    errorContainer = Color(0xFF93000A),
+    onErrorContainer = Color(0xFFFFDAD6),
 )
 
 @Composable

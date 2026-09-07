@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="supervisor_header_subtitle">#D9F2EF</color>
 
     <!-- Base application colors -->
     <!-- https://material.io/resources/color/#!/?view.left=0&view.right=0&primary.color=004D40 -->
@@ -72,6 +73,7 @@
     <!-- Shared design-system tokens. Keep layouts free of light-only colors. -->
     <color name="app_primary">#006B5B</color>
     <color name="app_on_primary">#FFFFFF</color>
+    <color name="app_on_header">#FFFFFF</color>
     <color name="app_primary_container">#D5F5ED</color>
     <color name="app_on_primary_container">#00382F</color>
     <color name="app_surface_container">#EEF2F0</color>

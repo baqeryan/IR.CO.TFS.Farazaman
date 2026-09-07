@@ -67,23 +67,70 @@
         <item name="android:textSize">12sp</item>
     </style>
 
-    <style name="FaraZaman.Form.PrimaryButton" parent="Widget.Material3.Button">
+    <style name="FaraZaman.Button.Primary" parent="Widget.Material3.Button">
         <item name="android:fontFamily">@font/iran_sans</item>
-        <item name="android:textColor">@color/app_on_primary</item>
+        <item name="android:textColor">@color/button_primary_content</item>
         <item name="android:textSize">15sp</item>
         <item name="android:textStyle">bold</item>
-        <item name="backgroundTint">@color/app_primary</item>
+        <item name="backgroundTint">@color/button_primary_container</item>
+        <item name="iconTint">@color/button_primary_content</item>
         <item name="cornerRadius">14dp</item>
         <item name="android:minHeight">52dp</item>
         <item name="android:insetTop">0dp</item>
         <item name="android:insetBottom">0dp</item>
     </style>
 
-    <style name="FaraZaman.Form.TextButton" parent="Widget.Material3.Button.TextButton">
+    <style name="FaraZaman.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
         <item name="android:fontFamily">@font/iran_sans</item>
-        <item name="android:textColor">@color/app_primary</item>
+        <item name="android:textColor">@color/button_secondary_content</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="iconTint">@color/button_secondary_content</item>
+        <item name="strokeColor">@color/button_secondary_content</item>
+        <item name="cornerRadius">14dp</item>
+    </style>
+
+    <style name="FaraZaman.Button.HeaderOutlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:fontFamily">@font/iran_sans</item>
+        <item name="android:textColor">@color/app_on_header</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="iconTint">@color/app_on_header</item>
+        <item name="strokeColor">@color/app_on_header</item>
+    </style>
+
+    <style name="FaraZaman.Button.Text" parent="Widget.Material3.Button.TextButton">
+        <item name="android:fontFamily">@font/iran_sans</item>
+        <item name="android:textColor">@color/button_secondary_content</item>
         <item name="android:textSize">13sp</item>
         <item name="backgroundTint">@android:color/transparent</item>
+        <item name="iconTint">@color/button_secondary_content</item>
+    </style>
+
+    <style name="FaraZaman.Button.Error" parent="Widget.Material3.Button">
+        <item name="android:fontFamily">@font/iran_sans</item>
+        <item name="android:textColor">@color/button_error_content</item>
+        <item name="android:textStyle">bold</item>
+        <item name="backgroundTint">@color/button_error_container</item>
+        <item name="iconTint">@color/button_error_content</item>
+        <item name="cornerRadius">14dp</item>
+    </style>
+
+    <style name="FaraZaman.Button.TonalError" parent="Widget.Material3.Button.TonalButton">
+        <item name="android:fontFamily">@font/iran_sans</item>
+        <item name="android:textColor">@color/button_error_tonal_content</item>
+        <item name="backgroundTint">@color/button_error_tonal_container</item>
+        <item name="iconTint">@color/button_error_tonal_content</item>
+        <item name="cornerRadius">14dp</item>
+    </style>
+
+    <style name="FaraZaman.Button.TextError" parent="FaraZaman.Button.Text">
+        <item name="android:textColor">@color/app_error</item>
+        <item name="iconTint">@color/app_error</item>
+    </style>
+
+    <style name="FaraZaman.Form.PrimaryButton" parent="FaraZaman.Button.Primary" />
+
+    <style name="FaraZaman.Form.TextButton" parent="FaraZaman.Button.Text">
+        <item name="android:textSize">13sp</item>
     </style>
 
     <!-- Base application theme. -->

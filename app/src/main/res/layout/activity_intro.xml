@@ -19,6 +19,7 @@
         android:padding="12dp"
         android:scaleType="centerInside"
         android:src="@drawable/ic_intro_arrow_forward"
+        app:tint="@color/app_primary"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -54,7 +55,7 @@
             android:minWidth="72dp"
             android:minHeight="72dp"
             android:text="@string/intro_next"
-            android:textColor="@color/white"
+            android:textColor="@color/button_primary_content"
             android:textSize="14sp"
             app:backgroundTint="@null"
             app:cornerRadius="36dp"

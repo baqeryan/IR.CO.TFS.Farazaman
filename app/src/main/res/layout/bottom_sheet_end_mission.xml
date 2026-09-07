@@ -73,7 +73,7 @@
             android:textAlignment="center"
             android:textDirection="rtl"
             android:text="@string/end_mission_cancel"
-            android:textColor="@color/app_error"
+            android:textColor="@color/app_on_surface"
             android:textSize="15sp"
             android:textStyle="bold" />
 
@@ -92,7 +92,7 @@
             android:textAlignment="center"
             android:textDirection="rtl"
             android:text="@string/end_mission_confirm"
-            android:textColor="@color/white"
+            android:textColor="@color/app_on_error"
             android:textSize="15sp"
             android:textStyle="bold" />
     </LinearLayout>

@@ -181,7 +181,7 @@ class TrackManager : AppCompatActivity(), TrackListRecyclerViewAdapterListener {
         supportActionBar?.apply {
             setDisplayShowTitleEnabled(false)
             setDisplayHomeAsUpEnabled(true)
-            setHomeAsUpIndicator(R.drawable.bell)
+            setHomeAsUpIndicator(R.drawable.ic_notifications)
         }
         // Disable start_track button - missions are now created through NewMissionBottomSheetFragment
         // findViewById<View>(R.id.start_track).setOnClickListener { startTrackLoggerForNewTrack() }
@@ -463,10 +463,10 @@ class TrackManager : AppCompatActivity(), TrackListRecyclerViewAdapterListener {
 
     override fun endMission(trackId: Long) {
         MaterialAlertDialogBuilder(this)
-            .setTitle("اتمام و آپلود ماموریت")
-            .setMessage("با آپلود، این ماموریت از لیست شما حذف خواهد شد. آیا ادامه می‌دهید؟")
+            .setTitle("اتمام و بارگذاری ماموریت")
+            .setMessage("با بارگذاری، این ماموریت از لیست شما حذف خواهد شد. آیا ادامه می‌دهید؟")
             .setCancelable(true)
-            .setPositiveButton("تایید و آپلود") { dialog, which ->
+            .setPositiveButton("تایید و بارگذاری") { dialog, which ->
                 startUploadProcess(trackId)
             }
             .setNegativeButton("لغو") { dialog, which -> dialog.cancel() }
@@ -570,7 +570,7 @@ class TrackManager : AppCompatActivity(), TrackListRecyclerViewAdapterListener {
         updateTrackItemsInRecyclerView()
         
         // Show loading dialog
-        loadingDialog = LoadingDialog.show(this, "در حال آپلود...")
+        loadingDialog = LoadingDialog.show(this, "در حال بارگذاری...")
         UploadTrackTask(this, trackId).execute()
     }
 
@@ -841,10 +841,10 @@ class TrackManager : AppCompatActivity(), TrackListRecyclerViewAdapterListener {
             loadingDialog = null
             
             if (success) {
-                Toast.makeText(context, "ماموریت با موفقیت آپلود شد.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "ماموریت با موفقیت بارگذاری شد.", Toast.LENGTH_SHORT).show()
                 deleteTrack(trackId)
             } else {
-                Toast.makeText(context, "آپلود ناموفق بود: $errorMessage", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "بارگذاری ناموفق بود: $errorMessage", Toast.LENGTH_LONG).show()
                 updateTrackItemsInRecyclerView()
             }
         }

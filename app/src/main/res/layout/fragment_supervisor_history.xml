@@ -50,7 +50,9 @@
 
         android:padding="10dp"
 
-        android:src="@drawable/bell"
+        android:src="@drawable/ic_notifications"
+
+        app:tint="@color/app_primary"
 
         app:layout_constraintStart_toStartOf="parent"
 
@@ -110,7 +112,7 @@
 
         app:layout_constraintTop_toTopOf="parent"
 
-        app:tint="@color/intro_primary" />
+        app:tint="@color/app_primary" />
 
 
 
@@ -196,7 +198,7 @@
 
         android:paddingEnd="16dp"
 
-        android:paddingBottom="16dp"
+        android:paddingBottom="96dp"
 
         app:layout_constraintBottom_toBottomOf="parent"
 

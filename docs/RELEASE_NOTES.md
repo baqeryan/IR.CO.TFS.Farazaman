@@ -4,6 +4,30 @@ This file records build-type differences and confirmed Release-specific constrai
 
 ## Build configuration
 
+Current release: version code 115, dated 2026-09-07. Default published note: «بهبود سامانه اعلان‌ها، ارتباط برخط، مدیریت نقش‌ها و رابط کاربری».
+
+Firebase Cloud Messaging is enabled through the Google Services Gradle plugin and `app/google-services.json`.
+Firebase BoM 33.5.1 is intentionally pinned while the project uses Kotlin 1.9.22; BoM 34.18.0
+pulls Measurement artifacts containing Kotlin 2.2 metadata and fails the current Kotlin compilation.
+Release notification smoke testing must grant `POST_NOTIFICATIONS` on Android 13+, confirm token
+registration against the selected municipality, and test foreground/data plus background notification delivery.
+The Notifications tab now uses the authenticated selected-server `api/AppNotification` feed as its source
+of truth, with paging, details/Visit read state, confirmed deletion, and server unread-count badges. Firebase
+remains active in foreground/background and triggers a lightweight count/list refresh rather than polling.
+Authenticated supervisors now connect to the selected municipality's ASP.NET Core SignalR hub while the
+application is foreground. The connection stops in background/logout, uses the current bearer token on each
+new connection, and reconnects with bounded backoff; FCM remains enabled in every lifecycle state.
+Role selection now uses the same curved supervisor header and rounded content panel as work-area selection,
+including profile/back controls and a live unread-notification bell badge.
+Its title/subtitle and full status-bar header now use the exact work-area palette, and `superAdministrator`
+users can see all supervisor, driver, and contractor choices without role filtering.
+Super-admin recognition now accepts normalized role keys/values and the user-info `defaultRoleName`, fixing
+servers that do not repeat `superAdministrator` as an exact key in the legacy `roles` map.
+Persian locale selection now uses the AppCompat locale API instead of overriding the complete application
+configuration, allowing system light/dark changes to update the running app without a process restart.
+An empty successful `AccountUser/Roles` result now leads to a dedicated no-access screen instead of fallback
+roles. The screen explains the missing authorization and provides a full session logout button.
+
 | Concern | Debug | Release |
 |---|---|---|
 | Version name | Date-based plus `-dev` | Date-based |
@@ -29,6 +53,8 @@ download, archive, package-name, and version-code failures; a differently signed
 cannot be upgraded in place and must be migrated manually without discarding unsynced field data.
 
 There are no product flavors. Both build types use the same application ID, manifest, runtime municipality registry, selected `BASE_URL`, API interfaces, and authentication architecture.
+
+The role response model now preserves both `roles` and `actorRoles`. The confirmed Contractor actor-role key is `Contractor`; Release uses the same parsing/routing code as Debug. A signed minified build completed successfully on 2026-09-02 with the Contractor role shell, shared camera coordinator, location policy/coordinator, and read-only MapLibre destination. Runtime list/correction smoke testing remains unavailable until their backend contracts are confirmed; no speculative Retrofit method or DTO is packaged.
 
 ## BuildConfig and secrets
 

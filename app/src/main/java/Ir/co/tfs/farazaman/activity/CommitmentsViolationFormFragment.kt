@@ -1,13 +1,11 @@
 package Ir.co.tfs.farazaman.activity
 
 import android.Manifest
-import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.preference.PreferenceManager
-import android.provider.MediaStore
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
@@ -33,6 +31,7 @@ import com.google.android.material.textfield.TextInputEditText
 import dagger.hilt.android.AndroidEntryPoint
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.data.db.TrackContentProvider
+import Ir.co.tfs.farazaman.data.db.model.TrackPoint
 import Ir.co.tfs.farazaman.data.model.DropdownItem
 import Ir.co.tfs.farazaman.data.model.FormDataRequest
 import Ir.co.tfs.farazaman.data.model.FormDataResponse
@@ -82,6 +81,7 @@ class CommitmentsViolationFormFragment : Fragment() {
     private var currentTrackId: Long = SupervisorTrackController.TRACK_ID_NONE
     private var latitude: Double = 0.0
     private var longitude: Double = 0.0
+    private var latestTrackPoint: TrackPoint? = null
     private var organTitle: String? = null
     private var contractTitle: String? = null
     private var visitDate: String? = null
@@ -89,23 +89,13 @@ class CommitmentsViolationFormFragment : Fragment() {
     private var contractId: Int = 0
 
     private val selectedImages = mutableListOf<Uri>()
-    private var cameraImageUri: Uri? = null
+    private lateinit var imageCaptureCoordinator: ViolationImageCaptureCoordinator
     private var loadingDialog: LoadingDialog? = null
     private var gridAdapter: SelectedImagesAdapter? = null
     private var calculationListenerAttached = false
     private var initialFormDataApplied = false
     private var addressUpdateJob: Job? = null
     private var lastAddressCoordinates: Pair<Double, Double>? = null
-
-    private val takePictureLauncher =
-        registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-            if (success && cameraImageUri != null) {
-                selectedImages.add(cameraImageUri!!)
-                updateImageDisplay()
-            } else {
-                Toast.makeText(requireContext(), "خطا در گرفتن تصویر", Toast.LENGTH_SHORT).show()
-            }
-        }
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -122,6 +112,25 @@ class CommitmentsViolationFormFragment : Fragment() {
         val progress: ProgressBar,
         val hintRes: Int,
     )
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        imageCaptureCoordinator = ViolationImageCaptureCoordinator(
+            caller = this,
+            contentResolver = { requireContext().contentResolver },
+            onCaptured = { uri, replaceIndex ->
+                if (replaceIndex != null && replaceIndex in selectedImages.indices) {
+                    selectedImages[replaceIndex] = uri
+                } else {
+                    selectedImages.add(uri)
+                }
+                if (view != null) updateImageDisplay()
+            },
+            onCaptureFailed = {
+                context?.let { Toast.makeText(it, "خطا در گرفتن تصویر", Toast.LENGTH_SHORT).show() }
+            },
+        )
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -160,7 +169,10 @@ class CommitmentsViolationFormFragment : Fragment() {
             TrackContentProvider.Schema.COL_TRACK_ID,
             SupervisorTrackController.TRACK_ID_NONE,
         )
-        if (refreshedTrackId != currentTrackId) lastAddressCoordinates = null
+        if (refreshedTrackId != currentTrackId) {
+            lastAddressCoordinates = null
+            latestTrackPoint = null
+        }
         currentTrackId = refreshedTrackId
         if (currentTrackId == SupervisorTrackController.TRACK_ID_NONE) return
 
@@ -351,6 +363,11 @@ class CommitmentsViolationFormFragment : Fragment() {
                             subtitle = historySubtitleFromDefect(),
                             trackId = currentTrackId,
                             violationId = state.violationId,
+                            locationName = addressEditText.text?.toString().orEmpty(),
+                            organization = organTitle.orEmpty(),
+                            contract = contractTitle.orEmpty(),
+                            latitude = latitude,
+                            longitude = longitude,
                         )
                     }
                     if (currentTrackId != SupervisorTrackController.TRACK_ID_NONE && latitude != 0.0) {
@@ -434,6 +451,16 @@ class CommitmentsViolationFormFragment : Fragment() {
 
     private fun setupSaveButton(view: View) {
         view.findViewById<Button>(R.id.save).setOnClickListener {
+            val host = activity as? NewSupervisorActivity
+            if (host != null && !host.isMissionRegisteredForToday(currentTrackId)) {
+                host.ensureCurrentDayMission()
+                Toast.makeText(
+                    requireContext(),
+                    R.string.mission_day_registration_blocks_violation,
+                    Toast.LENGTH_LONG,
+                ).show()
+                return@setOnClickListener
+            }
             val number = view.findViewById<EditText>(R.id.count).text.toString().toIntOrNull() ?: 0
             val address = addressEditText.text.toString()
             val description = view.findViewById<TextInputEditText>(R.id.description).text.toString()
@@ -475,8 +502,7 @@ class CommitmentsViolationFormFragment : Fragment() {
                 address,
                 description,
                 selectedImages,
-                latitude,
-                longitude,
+                latestTrackPoint,
                 requireItemSelection = false,
             )
         }
@@ -549,12 +575,7 @@ class CommitmentsViolationFormFragment : Fragment() {
     }
 
     private fun openCamera() {
-        val contentValues = ContentValues().apply {
-            put(MediaStore.Images.Media.TITLE, "New Picture")
-            put(MediaStore.Images.Media.DESCRIPTION, "From Camera")
-        }
-        cameraImageUri = requireContext().contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-        cameraImageUri?.let { takePictureLauncher.launch(it) }
+        imageCaptureCoordinator.captureNew()
     }
 
     private fun updateImageDisplay() {
@@ -661,12 +682,13 @@ class CommitmentsViolationFormFragment : Fragment() {
             while (isActive) {
                 val location = withContext(Dispatchers.IO) { getLastLocationOfTrack(currentTrackId) }
                 val coordinates = location?.let { it.latitude to it.longitude }
-                if (coordinates != null &&
-                    AddressLocationHelper.shouldUpdateAddress(lastAddressCoordinates, coordinates)
-                ) {
+                if (location != null && coordinates != null) {
+                    latestTrackPoint = location
                     latitude = coordinates.first
                     longitude = coordinates.second
-                    fetchAddressFromRoadService(latitude, longitude)
+                    if (AddressLocationHelper.shouldUpdateAddress(lastAddressCoordinates, coordinates)) {
+                        fetchAddressFromRoadService(latitude, longitude)
+                    }
                 }
                 delay(ADDRESS_UPDATE_INTERVAL_MS)
             }
@@ -733,28 +755,17 @@ class CommitmentsViolationFormFragment : Fragment() {
         return false
     }
 
-    private fun getLastLocationOfTrack(trackId: Long): android.location.Location? {
+    private fun getLastLocationOfTrack(trackId: Long): TrackPoint? {
         val cursor = requireContext().contentResolver.query(
             TrackContentProvider.trackPointsUri(trackId),
-            arrayOf(
-                TrackContentProvider.Schema.COL_LATITUDE,
-                TrackContentProvider.Schema.COL_LONGITUDE,
-                TrackContentProvider.Schema.COL_TIMESTAMP,
-            ),
+            null,
             null,
             null,
             "${TrackContentProvider.Schema.COL_TIMESTAMP} DESC",
         )
         cursor?.use {
             if (it.moveToFirst()) {
-                val latIdx = it.getColumnIndex(TrackContentProvider.Schema.COL_LATITUDE)
-                val lonIdx = it.getColumnIndex(TrackContentProvider.Schema.COL_LONGITUDE)
-                if (latIdx >= 0 && lonIdx >= 0) {
-                    return android.location.Location("track_last_location").apply {
-                        latitude = it.getDouble(latIdx)
-                        longitude = it.getDouble(lonIdx)
-                    }
-                }
+                return TrackPoint(it)
             }
         }
         return null

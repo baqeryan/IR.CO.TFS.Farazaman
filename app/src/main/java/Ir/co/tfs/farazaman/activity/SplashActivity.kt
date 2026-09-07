@@ -14,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import Ir.co.tfs.farazaman.presentation.compose.AppUpdateUi
+import Ir.co.tfs.farazaman.presentation.compose.AppUpdateEvent
 import Ir.co.tfs.farazaman.presentation.compose.FaraZamanTheme
 import Ir.co.tfs.farazaman.presentation.compose.SplashScreen
 import Ir.co.tfs.farazaman.presentation.compose.SplashUiState
@@ -23,6 +24,7 @@ import Ir.co.tfs.farazaman.util.TokenManager
 import Ir.co.tfs.farazaman.presentation.viewmodel.SplashUpdateState
 import Ir.co.tfs.farazaman.presentation.viewmodel.SplashViewModel
 import Ir.co.tfs.farazaman.update.AppUpdateInstaller
+import Ir.co.tfs.farazaman.notification.FirebaseNotificationInboxStore
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -48,6 +50,7 @@ class SplashActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        FirebaseNotificationInboxStore.ingestNotificationIntent(this, intent)
         setContent {
             FaraZamanTheme {
                 val updateState by splashViewModel.updateState.collectAsState()
@@ -69,17 +72,25 @@ class SplashActivity : AppCompatActivity() {
                     )
                     AppUpdateUi(
                         state = updateState,
-                        onDownload = splashViewModel::downloadUpdate,
-                        onInstall = splashViewModel::installUpdate,
-                        onOpenInstallSettings = {
-                            openInstallPermissionSettings()
+                        onEvent = { event ->
+                            when (event) {
+                                AppUpdateEvent.Download -> splashViewModel.downloadUpdate()
+                                AppUpdateEvent.Install -> splashViewModel.installUpdate()
+                                AppUpdateEvent.OpenInstallSettings -> openInstallPermissionSettings()
+                                AppUpdateEvent.Retry -> splashViewModel.retry()
+                                AppUpdateEvent.Later -> splashViewModel.continueWithoutUpdate()
+                            }
                         },
-                        onRetry = splashViewModel::retry,
-                        onLater = splashViewModel::continueWithoutUpdate,
                     )
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        FirebaseNotificationInboxStore.ingestNotificationIntent(this, intent)
     }
 
     private fun openInstallPermissionSettings() {

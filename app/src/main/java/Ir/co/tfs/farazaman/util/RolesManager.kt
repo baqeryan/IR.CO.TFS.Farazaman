@@ -2,6 +2,7 @@ package Ir.co.tfs.farazaman.util
 
 import android.content.SharedPreferences
 import Ir.co.tfs.farazaman.data.model.UserAccess
+import Ir.co.tfs.farazaman.data.model.BusinessActorRole
 import Ir.co.tfs.farazaman.data.model.UserRolesResponse
 import com.google.gson.Gson
 import javax.inject.Inject
@@ -14,10 +15,8 @@ class RolesManager @Inject constructor(
 ) {
     companion object {
         private const val KEY_USER_ROLES = "user_roles"
-
-        private const val ROLE_ASSET_DRIVER = "AssetDriver"
-        private const val ROLE_MUNICIPAL_CONTRACT_SUPERVISOR = "MunicipalContractSupervisor"
         private const val ROLE_SUPER_ADMINISTRATOR = "superAdministrator"
+        private const val ROLE_SUPER_ADMIN = "superadmin"
     }
 
     fun saveUserRoles(rolesResponse: UserRolesResponse) {
@@ -33,12 +32,19 @@ class RolesManager @Inject constructor(
     }
 
     fun getUserAccess(): UserAccess {
-        val roles = getUserRoles()?.roles ?: emptyMap()
+        val roleResponse = getUserRoles()
+        val roles = roleResponse?.roles.orEmpty()
+        val actorRoles = roleResponse?.actorRoles.orEmpty()
+        val isSuperAdministrator = isSuperAdministrator(roles)
 
         return UserAccess(
-            hasDriverAccess = hasDriverRoleInMap(roles),
-            hasSupervisorAccess = hasSupervisorRoleInMap(roles),
-            isSuperAdmin = hasRoleInMap(roles, ROLE_SUPER_ADMINISTRATOR),
+            hasDriverAccess = isSuperAdministrator || hasDriverRoleInMap(roles) ||
+                hasActorRole(actorRoles, BusinessActorRole.AssetDriver),
+            hasSupervisorAccess = isSuperAdministrator || hasSupervisorRoleInMap(roles) ||
+                hasActorRole(actorRoles, BusinessActorRole.MunicipalContractSupervisor),
+            isSuperAdmin = isSuperAdministrator,
+            hasContractorAccess = isSuperAdministrator ||
+                hasActorRole(actorRoles, BusinessActorRole.Contractor),
         )
     }
 
@@ -52,10 +58,11 @@ class RolesManager @Inject constructor(
         return access.hasSupervisorAccess || access.isSuperAdmin
     }
 
+    fun hasContractorRole(): Boolean = getUserAccess().hasContractorAccess
+
     fun canSwitchRoles(): Boolean {
         val access = getUserAccess()
-        if (access.isSuperAdmin) return true
-        return access.hasDriverAccess && access.hasSupervisorAccess
+        return access.hasMultipleSelectableRoles()
     }
 
     fun clearUserRoles() {
@@ -64,18 +71,34 @@ class RolesManager @Inject constructor(
 
     fun hasAnyRole(): Boolean {
         val access = getUserAccess()
-        return access.hasDriverAccess || access.hasSupervisorAccess || access.isSuperAdmin
+        return access.hasDriverAccess || access.hasSupervisorAccess ||
+            access.hasContractorAccess || access.isSuperAdmin
     }
 
     private fun hasDriverRoleInMap(roles: Map<String, String>): Boolean =
-        hasRoleInMap(roles, ROLE_ASSET_DRIVER)
+        hasRoleInMap(roles, BusinessActorRole.AssetDriver.serviceKey)
 
     private fun hasSupervisorRoleInMap(roles: Map<String, String>): Boolean =
-        hasRoleInMap(roles, ROLE_MUNICIPAL_CONTRACT_SUPERVISOR)
+        hasRoleInMap(roles, BusinessActorRole.MunicipalContractSupervisor.serviceKey)
 
     private fun hasRoleInMap(roles: Map<String, String>, roleId: String): Boolean {
         return roles.any { (key, value) ->
             key.equals(roleId, ignoreCase = true) || value.equals(roleId, ignoreCase = true)
         }
     }
+
+    private fun isSuperAdministrator(roles: Map<String, String>): Boolean {
+        val candidates = roles.keys + roles.values
+        return candidates.any { role ->
+            val normalized = role.filter(Char::isLetterOrDigit).lowercase()
+            normalized == ROLE_SUPER_ADMINISTRATOR.lowercase() || normalized == ROLE_SUPER_ADMIN
+        }
+    }
+
+
+    private fun hasActorRole(
+        roles: Map<String, String>,
+        role: BusinessActorRole,
+    ): Boolean = roles.keys.any { it.equals(role.serviceKey, ignoreCase = true) }
+
 }

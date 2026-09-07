@@ -2,6 +2,7 @@ package Ir.co.tfs.farazaman.supervisor
 
 import android.content.Context
 import android.preference.PreferenceManager
+import Ir.co.tfs.farazaman.supervisor.actions.SupervisorActionRecorder
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -41,11 +42,17 @@ object SupervisorViolationHistoryStore {
         violationId: String,
         subtitle: String = "",
         timestampMs: Long = System.currentTimeMillis(),
+        locationName: String = "",
+        organization: String = "",
+        contract: String = "",
+        latitude: Double? = null,
+        longitude: Double? = null,
     ) {
         val records = loadAll(context).toMutableList()
+        val recordId = UUID.randomUUID().toString()
         records.add(
             Record(
-                id = UUID.randomUUID().toString(),
+                id = recordId,
                 title = title.trim().ifBlank { "تخلف ثبت شده" },
                 subtitle = subtitle.trim(),
                 trackId = trackId,
@@ -55,6 +62,20 @@ object SupervisorViolationHistoryStore {
             ),
         )
         saveAll(context, records)
+        SupervisorActionRecorder.recordPenalty(
+            context = context,
+            historyRecordId = recordId,
+            trackId = trackId,
+            violationId = violationId,
+            violationTitle = title,
+            violationSubtitle = subtitle,
+            locationName = locationName,
+            organization = organization,
+            contract = contract,
+            latitude = latitude,
+            longitude = longitude,
+            timestampMs = timestampMs,
+        )
     }
 
     fun loadAll(context: Context): List<Record> {

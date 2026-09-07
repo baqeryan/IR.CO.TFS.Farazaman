@@ -24,6 +24,8 @@ import android.widget.Toast
 
 import androidx.fragment.app.Fragment
 
+import androidx.lifecycle.lifecycleScope
+
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 import Ir.co.tfs.farazaman.R
@@ -33,13 +35,22 @@ import Ir.co.tfs.farazaman.databinding.FragmentSupervisorHomeBinding
 
 import Ir.co.tfs.farazaman.supervisor.SupervisorMissionHelper
 
+import Ir.co.tfs.farazaman.supervisor.OrganFenceContainment
+
 import Ir.co.tfs.farazaman.supervisor.SupervisorVisitTab
 
 import Ir.co.tfs.farazaman.supervisor.SupervisorViolationHistoryStore
+import Ir.co.tfs.farazaman.notification.NotificationBadgeBinder
 
 import Ir.co.tfs.farazaman.supervisor.bindSupervisorProfileButton
 
 import saman.zamani.persiandate.PersianDate
+
+import kotlinx.coroutines.Dispatchers
+
+import kotlinx.coroutines.launch
+
+import kotlinx.coroutines.withContext
 
 
 
@@ -62,13 +73,22 @@ class SupervisorHomeFragment : Fragment() {
     private var wasTracking = false
     private var lastKnownTracking: Boolean? = null
 
+    private val fenceStatusRunnable = object : Runnable {
+        override fun run() {
+            refreshFenceStatus()
+            holdHandler.postDelayed(this, FENCE_STATUS_REFRESH_MS)
+        }
+    }
+
 
 
     companion object {
 
-        private const val HOLD_END_MS = 5000L
+        private const val HOLD_END_MS = 3000L
 
         private const val TAP_MAX_MS = 350L
+
+        private const val FENCE_STATUS_REFRESH_MS = 3_000L
 
     }
 
@@ -96,7 +116,8 @@ class SupervisorHomeFragment : Fragment() {
 
         super.onViewCreated(view, savedInstanceState)
 
-        binding.btnNotifications.setOnClickListener { showNotificationsToast() }
+        binding.btnNotifications.setOnClickListener { hostActivity()?.openActionsNotifications() }
+        NotificationBadgeBinder.bind(binding.btnNotifications, viewLifecycleOwner)
 
         binding.root.bindSupervisorProfileButton()
 
@@ -111,6 +132,8 @@ class SupervisorHomeFragment : Fragment() {
         setupMissionButton()
 
         refreshUi()
+
+        holdHandler.post(fenceStatusRunnable)
 
     }
 
@@ -137,22 +160,6 @@ class SupervisorHomeFragment : Fragment() {
         root.findViewById<TextView>(R.id.statTitle).text = title
 
         root.setOnClickListener { onClick() }
-
-    }
-
-
-
-    private fun showNotificationsToast() {
-
-        Toast.makeText(
-
-            requireContext(),
-
-            getString(R.string.supervisor_notifications) + " — به‌زودی",
-
-            Toast.LENGTH_SHORT,
-
-        ).show()
 
     }
 
@@ -220,6 +227,8 @@ class SupervisorHomeFragment : Fragment() {
 
         holdRunnable?.let { holdHandler.removeCallbacks(it) }
 
+        holdHandler.removeCallbacks(fenceStatusRunnable)
+
         _binding = null
 
         super.onDestroyView()
@@ -251,6 +260,8 @@ class SupervisorHomeFragment : Fragment() {
 
         binding.activeBanner.visibility = if (tracking) View.VISIBLE else View.GONE
 
+        if (!tracking) binding.fenceStatusText.visibility = View.GONE
+
         binding.missionHint.visibility = if (tracking) View.VISIBLE else View.GONE
 
 
@@ -275,7 +286,7 @@ class SupervisorHomeFragment : Fragment() {
 
                 binding.btnMission.setBackgroundResource(R.drawable.supervisor_home_stop_btn)
 
-                binding.btnMission.setTextColor(requireContext().getColor(R.color.white))
+                binding.btnMission.setTextColor(requireContext().getColor(R.color.app_on_error))
 
             }
 
@@ -285,7 +296,7 @@ class SupervisorHomeFragment : Fragment() {
 
                 binding.btnMission.setBackgroundResource(R.drawable.supervisor_home_start_btn)
 
-                binding.btnMission.setTextColor(requireContext().getColor(R.color.intro_primary))
+                binding.btnMission.setTextColor(requireContext().getColor(R.color.app_on_primary_container))
 
             }
 
@@ -347,6 +358,44 @@ class SupervisorHomeFragment : Fragment() {
 
             getString(R.string.supervisor_home_stat_count, count)
 
+    }
+
+    private fun refreshFenceStatus() {
+        val activity = hostActivity() ?: return
+        val controller = activity.controller
+        if (!controller.isTracking()) {
+            _binding?.fenceStatusText?.visibility = View.GONE
+            return
+        }
+        val trackId = controller.currentTrackId
+        viewLifecycleOwner.lifecycleScope.launch {
+            val containment = withContext(Dispatchers.IO) {
+                val fenceWkt = controller.missionInfo(trackId)?.organFenceWkt.orEmpty()
+                val location = controller.lastTrackLocation()
+                if (fenceWkt.isBlank() || location == null) null else {
+                    OrganFenceContainment.contains(
+                        wkt = fenceWkt,
+                        latitude = location.latitude,
+                        longitude = location.longitude,
+                    )
+                }
+            }
+            val currentBinding = _binding ?: return@launch
+            if (!controller.isTracking() || controller.currentTrackId != trackId || containment == null) {
+                currentBinding.fenceStatusText.visibility = View.GONE
+                return@launch
+            }
+            currentBinding.fenceStatusText.setText(
+                if (containment) R.string.supervisor_home_inside_fence
+                else R.string.supervisor_home_outside_fence,
+            )
+            currentBinding.fenceStatusText.setTextColor(
+                currentBinding.root.context.getColor(
+                    if (containment) R.color.intro_primary else R.color.app_error,
+                ),
+            )
+            currentBinding.fenceStatusText.visibility = View.VISIBLE
+        }
     }
 
 

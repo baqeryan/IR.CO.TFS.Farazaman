@@ -15,6 +15,8 @@ import android.widget.CursorAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.core.content.ContextCompat;
+
 /**
  * Adapter for track list in {@link TrackManager Track Manager}.
  * For each row's contents, see <tt>tracklist_item.xml</tt>.
@@ -83,8 +85,9 @@ public class TracklistAdapter extends CursorAdapter {
 			vStatus.setImageResource(android.R.drawable.presence_away);
 			vStatus.setVisibility(View.VISIBLE);
 			stopOrResume.setText("توقف");
-			stopOrResume.setBackgroundColor(context.getResources().getColor(R.color.stop)); // Set red background
-			line.setBackgroundColor(context.getResources().getColor(R.color.stop)); // Set red background
+			stopOrResume.setBackgroundTintList(ContextCompat.getColorStateList(context, R.color.button_error_container));
+			stopOrResume.setTextColor(ContextCompat.getColorStateList(context, R.color.button_error_content));
+			line.setBackgroundColor(ContextCompat.getColor(context, R.color.app_error));
 		} else if (cursor.isNull(cursor.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_EXPORT_DATE))) {
 			// Hide green circle icon: Track not yet exported
 			vStatus.setVisibility(View.GONE);
@@ -98,8 +101,9 @@ public class TracklistAdapter extends CursorAdapter {
 				stopOrResume.setText("ادامه");
 			}
 			
-			stopOrResume.setBackgroundColor(context.getResources().getColor(R.color.brand_green)); // Set green background
-			line.setBackgroundColor(context.getResources().getColor(R.color.brand_green)); // Set green background
+			stopOrResume.setBackgroundTintList(ContextCompat.getColorStateList(context, R.color.button_primary_container));
+			stopOrResume.setTextColor(ContextCompat.getColorStateList(context, R.color.button_primary_content));
+			line.setBackgroundColor(ContextCompat.getColor(context, R.color.app_primary));
 		} else {
 			// Show green circle icon (don't assume already visible with this drawable; may be a re-query)
 			vStatus.setImageResource(android.R.drawable.presence_online);

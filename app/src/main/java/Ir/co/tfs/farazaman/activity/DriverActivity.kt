@@ -217,10 +217,12 @@ class DriverActivity : AppCompatActivity() {
             // Check if tracking is active
             if (isTrackActive(currentTrackId)) {
                 stopOrResumeBtn.text = "توقف"
-                stopOrResumeBtn.backgroundTintList = ContextCompat.getColorStateList(this, R.color.brand_green)
+                stopOrResumeBtn.backgroundTintList = ContextCompat.getColorStateList(this, R.color.button_error_container)
+                stopOrResumeBtn.setTextColor(ContextCompat.getColorStateList(this, R.color.button_error_content))
             } else {
                 stopOrResumeBtn.text = getString(R.string.trackmgr_contextmenu_resume)
-                stopOrResumeBtn.backgroundTintList = ContextCompat.getColorStateList(this, R.color.brand_green_dark)
+                stopOrResumeBtn.backgroundTintList = ContextCompat.getColorStateList(this, R.color.button_primary_container)
+                stopOrResumeBtn.setTextColor(ContextCompat.getColorStateList(this, R.color.button_primary_content))
             }
         } else {
             // Show empty view
@@ -353,10 +355,10 @@ class DriverActivity : AppCompatActivity() {
         if (currentTrackId == TRACK_ID_NO_TRACK) return
         
         MaterialAlertDialogBuilder(this)
-            .setTitle("اتمام و آپلود ماموریت")
-            .setMessage("با آپلود، این ماموریت از لیست شما حذف خواهد شد. آیا ادامه می‌دهید؟")
+            .setTitle("اتمام و بارگذاری ماموریت")
+            .setMessage("با بارگذاری، این ماموریت از لیست شما حذف خواهد شد. آیا ادامه می‌دهید؟")
             .setCancelable(true)
-            .setPositiveButton("تایید و آپلود") { dialog, _ ->
+            .setPositiveButton("تایید و بارگذاری") { dialog, _ ->
                 startUploadProcess(currentTrackId)
                 dialog.dismiss()
             }
@@ -369,7 +371,7 @@ class DriverActivity : AppCompatActivity() {
         val dataHelper = DataHelper(this)
         dataHelper.stopTracking(trackId)
         
-        loadingDialog = LoadingDialog.show(this, "در حال آپلود...")
+        loadingDialog = LoadingDialog.show(this, "در حال بارگذاری...")
         UploadTrackTask(this, trackId).execute()
     }
 
@@ -795,7 +797,7 @@ class DriverActivity : AppCompatActivity() {
             loadingDialog = null
             
             if (success) {
-                Toast.makeText(context, "ماموریت با موفقیت آپلود شد.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "ماموریت با موفقیت بارگذاری شد.", Toast.LENGTH_SHORT).show()
                 // Delete the track
                 contentResolver.delete(ContentUris.withAppendedId(TrackContentProvider.CONTENT_URI_TRACK, trackId), null, null)
                 
@@ -807,7 +809,7 @@ class DriverActivity : AppCompatActivity() {
                 currentZoneInfoSummary = ""
                 updateUI()
             } else {
-                Toast.makeText(context, "آپلود ناموفق بود: $errorMessage", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "بارگذاری ناموفق بود: $errorMessage", Toast.LENGTH_LONG).show()
             }
         }
     }

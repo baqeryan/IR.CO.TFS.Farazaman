@@ -21,7 +21,7 @@
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:contentDescription="@null"
-        android:src="@drawable/intro_clipboard"
+        android:src="@drawable/ic_daily_tasks"
         tools:ignore="ContentDescription" />
 
     <TextView
@@ -31,7 +31,9 @@
         android:layout_marginTop="8dp"
         android:fontFamily="@font/iran_sans"
         android:gravity="center"
+        android:textAlignment="center"
         android:textColor="@color/login_label"
+        android:textDirection="rtl"
         android:textSize="12sp"
         tools:text="وظایف روزانه" />
 
@@ -42,7 +44,9 @@
         android:layout_marginTop="4dp"
         android:fontFamily="@font/iran_sans"
         android:gravity="center"
+        android:textAlignment="center"
         android:textColor="@color/text_secondary_dark"
+        android:textDirection="rtl"
         android:textSize="11sp"
         tools:text="۱۲ مورد" />
 </LinearLayout>
