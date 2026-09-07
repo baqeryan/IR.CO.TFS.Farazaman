@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "935846899587",
+    "project_id": "farazaman-e9618",
+    "storage_bucket": "farazaman-e9618.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:935846899587:android:18a53fda406ed6af2790b6",
+        "android_client_info": {
+          "package_name": "Ir.co.tfs.farazaman"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCa5lI3wPJ-jLSXdwp-9zS0rfMGOXZXr9U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

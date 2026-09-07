@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.button.MaterialButton xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/FaraZaman.Button.Outlined"
+    android:layout_width="wrap_content"
+    android:layout_height="40dp"
+    android:layout_marginStart="8dp"
+    android:fontFamily="@font/iran_sans"
+    android:insetTop="0dp"
+    android:insetBottom="0dp"
+    android:minHeight="0dp"
+    android:minWidth="0dp"
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:textSize="12sp"
+    app:cornerRadius="20dp"
+    app:strokeWidth="1dp" />
