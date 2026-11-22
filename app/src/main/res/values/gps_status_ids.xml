@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="gpsstatus_record_tvHeading" type="id" />
+    <item name="gpsstatus_record_tvAccuracy" type="id" />
+    <item name="gpsstatus_record_imgSatIndicator" type="id" />
+    <item name="gpsstatus_record_animRec" type="id" />
+</resources>

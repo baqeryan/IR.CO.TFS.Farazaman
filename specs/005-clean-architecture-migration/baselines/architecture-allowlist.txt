@@ -1,0 +1,16 @@
+# Temporary architecture baseline
+#
+# New core/feature modules have no allowlisted violations. The architecture tests enforce strict
+# boundaries for core common/model and every migrated feature source set.
+#
+# Legacy `:app` packages are excluded by directory, rather than enumerating hundreds of unstable
+# line-level exceptions. Their permitted coexistence owners and removal phases are:
+#
+# app/activity, app/presentation/login, app/auth, app/util auth/session -> US1
+# app/supervisor and supervisor Activities/ViewModels                 -> US2
+# app/activity driver/track, app/data/db, app/gpx                      -> US3
+# app/map, location/camera coordinators, violation Activities          -> US4
+# app/notification, app/realtime, contractor/settings/support          -> US5
+#
+# Adding any legacy package to a new module or any new exemption to this file requires an owner,
+# story and expiry/removal condition. New feature/domain/presentation violations are never allowed.
