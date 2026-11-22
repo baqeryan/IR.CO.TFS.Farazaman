@@ -84,6 +84,6 @@
 
 ### Risk-scoped runtime rollback
 
-**Decision**: فقط Map/Camera/GPS/Track runtime flag دارند؛ flag محلی، مخفی، محافظت‌شده و پیش‌فرض Compose است. سایر صفحات rollback کد/نسخه‌ای دارند.  
+**Decision**: فقط Map/Camera/GPS/Track runtime flag دارند؛ flag محلی، مخفی، پیش‌فرض Compose و در Activity غیر-exported است. دسترسی production با نقش موجود `superAdministrator` محافظت می‌شود. سایر صفحات rollback کد/نسخه‌ای دارند.
 **Rationale**: rollback فوری system-critical بدون backend یا پیچیدگی تمام Screenها.  
 **Alternatives considered**: flag همه Screenها، BuildConfig و remote configuration خارج Scope.

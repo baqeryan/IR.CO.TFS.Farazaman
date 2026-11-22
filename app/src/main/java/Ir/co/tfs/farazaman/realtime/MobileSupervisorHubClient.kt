@@ -260,7 +260,7 @@ class MobileSupervisorHubClient @Inject constructor(
     private fun selectedHubUrl(): String {
         val base = preferences.getString("BASE_URL", AppConstants.BASE_URL)
             ?.trim()?.trimEnd('/').orEmpty().ifBlank { AppConstants.BASE_URL.trimEnd('/') }
-        return "$base/hubs/mobile-supervisor?clientType=supervisor"
+        return "$base/hubs/mobile?clientType=supervisor"
     }
 
     private fun broadcastJson(action: String, value: Any) {

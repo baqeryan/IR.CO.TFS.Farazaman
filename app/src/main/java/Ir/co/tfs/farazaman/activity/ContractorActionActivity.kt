@@ -1,97 +1,82 @@
 package Ir.co.tfs.farazaman.activity
 
-import android.app.Dialog
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
-import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.activity.compose.setContent
+import androidx.core.content.ContextCompat
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.contractor.ContractorDraftValidator
 import Ir.co.tfs.farazaman.contractor.UnconfiguredContractorGateway
-import Ir.co.tfs.farazaman.databinding.ActivityContractorActionBinding
+import Ir.co.tfs.farazaman.presentation.compose.ContractorActionEvent
+import Ir.co.tfs.farazaman.presentation.compose.ContractorActionScreen
+import Ir.co.tfs.farazaman.presentation.compose.ContractorActionUiState
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanTheme
 
 class ContractorActionActivity : AppCompatActivity() {
-    private lateinit var binding: ActivityContractorActionBinding
     private lateinit var imageCaptureCoordinator: ViolationImageCaptureCoordinator
     private val images = mutableListOf<Uri>()
-    private lateinit var imagesAdapter: SelectedImagesAdapter
+    private var description by mutableStateOf("")
+    private var formError by mutableStateOf<String?>(null)
+    private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        if (result.isNotEmpty() && result.values.all { it }) imageCaptureCoordinator.captureNew()
+        else Toast.makeText(this, R.string.contractor_capture_permission_required, Toast.LENGTH_LONG).show()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityContractorActionBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        setSupportActionBar(binding.toolbar)
-        supportActionBar?.apply {
-            setDisplayHomeAsUpEnabled(true)
-            setHomeAsUpIndicator(R.drawable.ic_arrow_back)
-            title = ""
-        }
-        binding.toolbar.setNavigationOnClickListener { finish() }
-
-        imagesAdapter = SelectedImagesAdapter(
-            images = images,
-            onImageClick = ::showImagePreview,
-            onImageRemove = { index ->
-                if (index in images.indices) {
-                    images.removeAt(index)
-                    imagesAdapter.notifyItemRemoved(index)
-                    imagesAdapter.notifyItemRangeChanged(index, images.size - index)
-                }
-            },
-        )
-        binding.imagesList.apply {
-            layoutManager = LinearLayoutManager(
-                this@ContractorActionActivity,
-                LinearLayoutManager.HORIZONTAL,
-                false,
-            )
-            adapter = imagesAdapter
-        }
+        setContent { FaraZamanTheme { ContractorActionScreen(ContractorActionUiState(description, images.size, formError, UnconfiguredContractorGateway.unavailableMessage()), ::handleEvent) } }
         imageCaptureCoordinator = ViolationImageCaptureCoordinator(
             caller = this,
             contentResolver = { contentResolver },
             onCaptured = { uri, _ ->
                 images.add(uri)
-                imagesAdapter.notifyItemInserted(images.lastIndex)
-                binding.imagesList.scrollToPosition(images.lastIndex)
             },
             onCaptureFailed = {
                 Toast.makeText(this, R.string.contractor_capture_failed, Toast.LENGTH_LONG).show()
             },
         )
-        binding.captureImageButton.setOnClickListener { imageCaptureCoordinator.captureNew() }
-        binding.submitButton.setOnClickListener { validateAndSubmit() }
+    }
+
+    private fun handleEvent(event: ContractorActionEvent) {
+        when (event) {
+            is ContractorActionEvent.DescriptionChanged -> { description = event.value; formError = null }
+            ContractorActionEvent.CaptureImage -> requestCameraCapture()
+            ContractorActionEvent.Submit -> validateAndSubmit()
+            ContractorActionEvent.Back -> finish()
+        }
+    }
+
+    private fun requestCameraCapture() {
+        val needed = buildList {
+            if (ContextCompat.checkSelfPermission(this@ContractorActionActivity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                add(Manifest.permission.CAMERA)
+            }
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
+                ContextCompat.checkSelfPermission(this@ContractorActionActivity, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+            ) {
+                add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        }
+        if (needed.isEmpty()) imageCaptureCoordinator.captureNew() else permissionLauncher.launch(needed.toTypedArray())
     }
 
     private fun validateAndSubmit() {
-        binding.descriptionLayout.error = null
-        binding.formError.text = null
-        when (ContractorDraftValidator.validate(binding.descriptionInput.text?.toString().orEmpty(), images.size)) {
+        formError = when (ContractorDraftValidator.validate(description, images.size)) {
             ContractorDraftValidator.Error.DESCRIPTION_REQUIRED ->
-                binding.descriptionLayout.error = getString(R.string.contractor_action_description_required)
+                getString(R.string.contractor_action_description_required)
             ContractorDraftValidator.Error.IMAGE_REQUIRED ->
-                binding.formError.text = getString(R.string.contractor_action_image_required)
-            null -> binding.formError.text = UnconfiguredContractorGateway.unavailableMessage()
+                getString(R.string.contractor_action_image_required)
+            null -> UnconfiguredContractorGateway.unavailableMessage()
         }
     }
 
-    private fun showImagePreview(uri: Uri) {
-        val image = ImageView(this).apply {
-            setImageURI(uri)
-            adjustViewBounds = true
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            setPadding(24, 24, 24, 24)
-        }
-        Dialog(this).apply {
-            setContentView(image)
-            setOnShowListener {
-                window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-            }
-            image.setOnClickListener { dismiss() }
-            show()
-        }
-    }
 }

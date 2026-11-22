@@ -1,169 +1,104 @@
 package Ir.co.tfs.farazaman.activity
 
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
-import android.view.View
-import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
-import androidx.core.content.res.ResourcesCompat
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.runtime.mutableStateOf
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.fragment.app.Fragment
-import androidx.viewpager2.adapter.FragmentStateAdapter
-import com.google.android.material.tabs.TabLayout
-import com.google.android.material.tabs.TabLayoutMediator
+import dagger.hilt.android.AndroidEntryPoint
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.data.db.DataHelper
-import Ir.co.tfs.farazaman.databinding.ActivityActionsNotificationsBinding
-import Ir.co.tfs.farazaman.supervisor.actions.UserActionMetadataKeys
-import Ir.co.tfs.farazaman.supervisor.actions.UserActionOperations
-import Ir.co.tfs.farazaman.supervisor.actions.UserActionRecord
+import Ir.co.tfs.farazaman.data.model.AppNotificationDto
+import Ir.co.tfs.farazaman.data.repository.AppNotificationRepository
+import Ir.co.tfs.farazaman.notification.FirebaseNotificationInboxStore
+import Ir.co.tfs.farazaman.notification.NotificationUnreadCountStore
+import Ir.co.tfs.farazaman.presentation.compose.*
+import Ir.co.tfs.farazaman.presentation.design.components.FzButton
+import Ir.co.tfs.farazaman.presentation.design.components.FzButtonVariant
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanTheme
+import Ir.co.tfs.farazaman.presentation.viewmodel.ActionsViewModel
+import Ir.co.tfs.farazaman.presentation.viewmodel.NotificationsViewModel
+import Ir.co.tfs.farazaman.supervisor.actions.*
 import java.io.File
-import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 class ActionsNotificationsActivity : AppCompatActivity(), UserActionOperationHost {
-    private lateinit var binding: ActivityActionsNotificationsBinding
+    @Inject lateinit var repository: AppNotificationRepository
+    @Inject lateinit var unreadStore: NotificationUnreadCountStore
+    private val actionsViewModel: ActionsViewModel by viewModels()
+    private val notificationsViewModel: NotificationsViewModel by viewModels()
+    private val selectedTab = mutableStateOf(ActionsNotificationsTab.Actions)
+    private val actionsState = mutableStateOf(UserActionsUiState())
+    private val notificationsState = mutableStateOf(NotificationsUiState())
+    private val notificationDetails = mutableStateOf<AppNotificationDto?>(null)
+    private val deleteCandidate = mutableStateOf<AppNotificationDto?>(null)
+    private var receiverRegistered = false
     private var pendingGpxFile: File? = null
-    private val saveGpxLauncher = registerForActivityResult(
-        ActivityResultContracts.CreateDocument(DataHelper.MIME_TYPE_GPX),
-    ) { destination ->
-        val source = pendingGpxFile
-        pendingGpxFile = null
+
+    private val inboxReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) = notificationsViewModel.refresh()
+    }
+    private val saveGpxLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument(DataHelper.MIME_TYPE_GPX)) { destination ->
+        val source = pendingGpxFile.also { pendingGpxFile = null }
         if (destination == null || source == null) return@registerForActivityResult
         lifecycleScope.launch {
-            val saved = withContext(Dispatchers.IO) {
-                runCatching {
-                    contentResolver.openOutputStream(destination, "w")?.use { output ->
-                        source.inputStream().use { input -> input.copyTo(output) }
-                    } ?: error("Unable to open GPX destination")
-                }.isSuccess
-            }
-            Toast.makeText(
-                this@ActionsNotificationsActivity,
-                if (saved) R.string.action_gpx_saved else R.string.action_gpx_open_failed,
-                Toast.LENGTH_SHORT,
-            ).show()
+            val saved = withContext(Dispatchers.IO) { runCatching { contentResolver.openOutputStream(destination, "w")?.use { out -> source.inputStream().use { it.copyTo(out) } } ?: error("output") }.isSuccess }
+            Toast.makeText(this@ActionsNotificationsActivity, if (saved) R.string.action_gpx_saved else R.string.action_gpx_open_failed, Toast.LENGTH_SHORT).show()
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityActionsNotificationsBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        binding.btnBack.setOnClickListener { finish() }
-        binding.actionsPager.adapter = ActionsPagerAdapter(this)
-        TabLayoutMediator(binding.actionsTabs, binding.actionsPager) { tab, position ->
-            tab.text = getString(
-                if (position == ACTIONS_TAB_INDEX) R.string.actions_tab_title
-                else R.string.notifications_tab_title,
-            )
-        }.attach()
-        binding.actionsPager.setCurrentItem(ACTIONS_TAB_INDEX, false)
-        binding.actionsTabs.post(::styleTabs)
-        binding.actionsTabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab) = styleTabs()
-            override fun onTabUnselected(tab: TabLayout.Tab) = styleTabs()
-            override fun onTabReselected(tab: TabLayout.Tab) = Unit
-        })
-    }
-
-    override fun onActionOperation(item: UserActionRecord, operationKey: String) {
-        when (operationKey) {
-            UserActionOperations.RESUME_MISSION -> requestMissionResume(item)
-            UserActionOperations.OPEN_GPX -> openGpx(item)
-        }
-    }
-
-    private fun requestMissionResume(item: UserActionRecord) {
-        val trackId = item.relatedEntityId?.toLongOrNull() ?: return
-        setResult(
-            Activity.RESULT_OK,
-            Intent().putExtra(EXTRA_RESUME_TRACK_ID, trackId),
-        )
-        finish()
-    }
-
-    private fun openGpx(item: UserActionRecord) {
-        val path = item.metadata[UserActionMetadataKeys.GPX_PATH]
-        val file = path?.let(::File)
-        if (file == null || !file.isFile || file.length() == 0L) {
-            Toast.makeText(this, R.string.action_gpx_missing, Toast.LENGTH_SHORT).show()
-            return
-        }
-        pendingGpxFile = file
-        saveGpxLauncher.launch(file.name)
-    }
-
-    private fun styleTabs() {
-        val selectedBg = ContextCompat.getDrawable(this, R.drawable.supervisor_tab_selected)
-        val unselectedBg = ContextCompat.getDrawable(this, R.drawable.supervisor_tab_unselected)
-        val selectedColor = getColor(R.color.app_on_surface)
-        val unselectedColor = getColor(R.color.app_on_surface_secondary)
-        val padH = resources.getDimensionPixelSize(R.dimen.supervisor_tab_padding_h)
-        val padV = resources.getDimensionPixelSize(R.dimen.supervisor_tab_padding_v)
-        val halfGap = resources.getDimensionPixelSize(R.dimen.supervisor_tab_spacing) / 2
-        val typeface = ResourcesCompat.getFont(this, R.font.iran_sans)
-
-        for (index in 0 until binding.actionsTabs.tabCount) {
-            val tab = binding.actionsTabs.getTabAt(index) ?: continue
-            val selected = tab.position == binding.actionsTabs.selectedTabPosition
-            tab.view.apply {
-                setPadding(padH, padV, padH, padV)
-                background = if (selected) selectedBg else unselectedBg
-                minimumWidth = 0
-                (layoutParams as? LinearLayout.LayoutParams)?.let { params ->
-                    params.width = 0
-                    params.weight = 1f
-                    params.marginStart = halfGap
-                    params.marginEnd = halfGap
-                    layoutParams = params
-                }
-                findTabTextView(this)?.apply {
-                    setTextColor(if (selected) selectedColor else unselectedColor)
-                    textSize = 12f
-                    includeFontPadding = false
-                    setTypeface(
-                        typeface,
-                        if (selected) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL,
-                    )
+        actionsViewModel.state.observe(this) { s -> actionsState.value = UserActionsUiState(s.categories, s.items, s.selectedFilter, s.loading, s.hasMore) }
+        notificationsViewModel.state.observe(this) { s -> notificationsState.value = NotificationsUiState(s.items, s.loading, s.hasMore, s.error?.message) }
+        setContent { FaraZamanTheme {
+            ActionsNotificationsScreen(selectedTab.value, ::onShellEvent) { modifier ->
+                when (selectedTab.value) {
+                    ActionsNotificationsTab.Actions -> UserActionsScreen(actionsState.value, ::onActionsEvent, modifier)
+                    ActionsNotificationsTab.Notifications -> NotificationsScreen(notificationsState.value, ::onNotificationsEvent, modifier)
                 }
             }
-        }
-    }
-
-    private fun findTabTextView(view: View): TextView? {
-        if (view is TextView) return view
-        if (view is ViewGroup) {
-            for (index in 0 until view.childCount) {
-                findTabTextView(view.getChildAt(index))?.let { return it }
+            notificationDetails.value?.let { item ->
+                AlertDialog(onDismissRequest = { notificationDetails.value = null }, title = { Text(item.title) },
+                    text = { Text(listOfNotNull(item.type, item.createDate, item.link).filter(String::isNotBlank).joinToString("\n")) },
+                    confirmButton = { FzButton(getString(R.string.notification_close), { notificationDetails.value = null }) })
             }
-        }
-        return null
+            deleteCandidate.value?.let { item ->
+                AlertDialog(onDismissRequest = { deleteCandidate.value = null }, text = { Text(getString(R.string.notification_delete_confirm)) },
+                    confirmButton = { FzButton(getString(R.string.notification_delete), { deleteCandidate.value = null; notificationsViewModel.delete(item) }) },
+                    dismissButton = { FzButton(getString(android.R.string.cancel), { deleteCandidate.value = null }, variant = FzButtonVariant.Ghost) })
+            }
+        } }
+        actionsViewModel.refresh(); notificationsViewModel.refresh()
     }
 
-    private class ActionsPagerAdapter(activity: AppCompatActivity) : FragmentStateAdapter(activity) {
-        override fun getItemCount(): Int = 2
+    override fun onStart() { super.onStart(); ContextCompat.registerReceiver(this, inboxReceiver, IntentFilter(FirebaseNotificationInboxStore.ACTION_INBOX_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED); receiverRegistered = true }
+    override fun onResume() { super.onResume(); actionsViewModel.refresh(); notificationsViewModel.refresh() }
+    override fun onStop() { if (receiverRegistered) unregisterReceiver(inboxReceiver); receiverRegistered = false; super.onStop() }
 
-        override fun createFragment(position: Int): Fragment =
-            if (position == ACTIONS_TAB_INDEX) UserActionsFragment() else FirebaseNotificationsFragment()
-    }
+    private fun onShellEvent(e: ActionsNotificationsUiEvent) { when (e) { ActionsNotificationsUiEvent.Back -> finish(); is ActionsNotificationsUiEvent.SelectTab -> selectedTab.value = e.tab } }
+    private fun onActionsEvent(e: UserActionsUiEvent) { when(e) { is UserActionsUiEvent.SelectFilter -> actionsViewModel.selectFilter(e.key); is UserActionsUiEvent.RunOperation -> onActionOperation(e.item,e.operation); UserActionsUiEvent.LoadNextPage -> actionsViewModel.loadNextPage() } }
+    private fun onNotificationsEvent(e: NotificationsUiEvent) { when(e) { NotificationsUiEvent.Retry -> notificationsViewModel.refresh(); NotificationsUiEvent.LoadNextPage -> notificationsViewModel.loadNextPage(); is NotificationsUiEvent.Open -> openNotification(e.notification); is NotificationsUiEvent.Delete -> deleteCandidate.value=e.notification } }
+    private fun openNotification(item: AppNotificationDto) { lifecycleScope.launch { val details=runCatching{repository.details(item.id)}.getOrElse{Toast.makeText(this@ActionsNotificationsActivity,R.string.notification_load_error,Toast.LENGTH_SHORT).show();return@launch};val shown=if(details.isRead)details else runCatching{repository.visit(details.id)}.getOrDefault(details);if(!details.isRead&&shown.isRead){unreadStore.update((unreadStore.current()-1).coerceAtLeast(0));notificationsViewModel.refresh()};notificationDetails.value=shown } }
 
-    companion object {
-        const val EXTRA_RESUME_TRACK_ID = "resume_track_id"
-        private const val ACTIONS_TAB_INDEX = 0
-    }
+    override fun onActionOperation(item: UserActionRecord, operationKey: String) { when(operationKey){UserActionOperations.RESUME_MISSION->{val id=item.relatedEntityId?.toLongOrNull()?:return;setResult(Activity.RESULT_OK,Intent().putExtra(EXTRA_RESUME_TRACK_ID,id));finish()};UserActionOperations.OPEN_GPX->openGpx(item)} }
+    private fun openGpx(item:UserActionRecord){val file=item.metadata[UserActionMetadataKeys.GPX_PATH]?.let(::File);if(file==null||!file.isFile||file.length()==0L){Toast.makeText(this,R.string.action_gpx_missing,Toast.LENGTH_SHORT).show();return};pendingGpxFile=file;saveGpxLauncher.launch(file.name)}
+    companion object { const val EXTRA_RESUME_TRACK_ID="resume_track_id" }
 }
 
-interface UserActionOperationHost {
-    fun onActionOperation(item: UserActionRecord, operationKey: String)
-}
+interface UserActionOperationHost { fun onActionOperation(item: UserActionRecord, operationKey: String) }

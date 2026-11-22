@@ -138,8 +138,8 @@ public class GpxWriter {
                         + "\">" + "\n");
                 writer.write("\t\t" + "<time>" + POINT_DATE_FORMATTER.format(new Date(c.getLong(c.getColumnIndexOrThrow(TrackContentProvider.Schema.COL_TIMESTAMP)))) + "</time>" + "\n");
                 
-                // Check if this is a violation waypoint (name = "تخلف ثبت شده")
-                if ("تخلف ثبت شده".equals(name)) {
+                // Keep recognizing the legacy stored waypoint name after the UI terminology change.
+                if ("نقص ثبت شده".equals(name) || "\u062A\u062E\u0644\u0641 \u062B\u0628\u062A \u0634\u062F\u0647".equals(name)) {
                     // Violation waypoint format
                     writer.write("\t\t" + "<name><![CDATA[BillOriginViEvent]]></name>" + "\n");
                     if (link != null && !link.isEmpty()) {

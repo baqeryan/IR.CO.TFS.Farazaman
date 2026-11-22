@@ -8,8 +8,6 @@ import com.google.gson.Gson
 import Ir.co.tfs.farazaman.activity.MissionSelectionOption
 import Ir.co.tfs.farazaman.data.api.FormDataApiService
 import Ir.co.tfs.farazaman.data.db.TrackContentProvider
-import Ir.co.tfs.farazaman.data.model.FormDataApiRequest
-import Ir.co.tfs.farazaman.data.model.FormDataRequest
 import Ir.co.tfs.farazaman.data.model.MissionIndexResponse
 import Ir.co.tfs.farazaman.data.model.OrganFenceRequest
 import Ir.co.tfs.farazaman.data.model.OrganFenceRequestData
@@ -25,25 +23,33 @@ object SupervisorMissionSetup {
 
     private const val TAG = "SupervisorMissionSetup"
 
-    suspend fun loadOrgans(service: FormDataApiService): List<MissionSelectionOption> {
-        val response = service.getFormData(createFormDataRequest())
+    suspend fun loadContractTypes(service: FormDataApiService) = service.getContractTypes().let { response ->
+        if (!response.isSuccessful || response.body() == null) {
+            throw MissionSetupException("خطا در دریافت انواع قرارداد: ${response.code()}")
+        }
+        response.body()!!
+    }
+
+    suspend fun loadOrgans(service: FormDataApiService, tenantId: Int): List<MissionSelectionOption> {
+        val response = service.getAllowedOrgans(tenantId = tenantId)
         if (!response.isSuccessful || response.body() == null) {
             throw MissionSetupException("خطا در دریافت لیست کارفرما: ${response.code()}")
         }
-        return response.body()!!.response.organs.map(MissionSelectionOption::fromDropdown)
+        return response.body()!!.map(MissionSelectionOption::fromDropdown)
     }
 
-    suspend fun loadContracts(service: FormDataApiService, organId: Int): List<MissionSelectionOption> {
-        val response = service.getFormData(createFormDataRequest(organIds = listOf(organId)))
+    suspend fun loadContracts(service: FormDataApiService, tenantId: Int, organId: Int): List<MissionSelectionOption> {
+        val response = service.getAllowedContracts(tenantId = tenantId, organId = organId)
         if (!response.isSuccessful || response.body() == null) {
             throw MissionSetupException("خطا در دریافت لیست قراردادها: ${response.code()}")
         }
-        return response.body()!!.response.contracts.map(MissionSelectionOption::fromDropdown)
+        return response.body()!!.map(MissionSelectionOption::fromDropdown)
     }
 
     suspend fun createSupervisorMission(
         context: Context,
         service: FormDataApiService,
+        tenantId: Int,
         organId: Int,
         contractId: Int,
         organTitle: String,
@@ -52,6 +58,7 @@ object SupervisorMissionSetup {
         val today = todayVisitDate()
         val missionData = registerDailyPlan(
             service = service,
+            tenantId = tenantId,
             organId = organId,
             contractId = contractId,
             visitDate = today,
@@ -88,12 +95,14 @@ object SupervisorMissionSetup {
 
         val organId = existing.optInt("organId", 0)
         val contractId = existing.optInt("contractId", 0)
+        val tenantId = existing.optInt("tenantId", 1)
         if (organId <= 0 || contractId <= 0) {
             throw MissionSetupException("اطلاعات کارفرما یا قرارداد ماموریت کامل نیست")
         }
 
         val refreshed = registerDailyPlan(
             service = service,
+            tenantId = tenantId,
             organId = organId,
             contractId = contractId,
             visitDate = today,
@@ -124,6 +133,7 @@ object SupervisorMissionSetup {
 
     private suspend fun registerDailyPlan(
         service: FormDataApiService,
+        tenantId: Int,
         organId: Int,
         contractId: Int,
         visitDate: String,
@@ -131,14 +141,16 @@ object SupervisorMissionSetup {
         contractTitle: String,
     ): MutableMap<String, Any> {
         val createResponse = service.createMission(
-            createMissionRequest(organId, contractId, visitDate),
+            tenantId,
+            createMissionRequest(tenantId, organId, contractId, visitDate),
         )
         if (!createResponse.isSuccessful) {
             throw MissionSetupException("خطا در ثبت برنامه کاری: ${createResponse.code()}")
         }
 
         val indexResponse = service.getMissionIndex(
-            createMissionIndexRequest(organId, contractId, visitDate),
+            tenantId,
+            createMissionIndexRequest(tenantId, organId, contractId, visitDate),
         )
         if (!indexResponse.isSuccessful || indexResponse.body() == null) {
             throw MissionSetupException("خطا در دریافت جزئیات برنامه کاری: ${indexResponse.code()}")
@@ -146,6 +158,7 @@ object SupervisorMissionSetup {
 
         return processMissionDataFromResponse(
             missionIndexResponse = indexResponse.body()!!,
+            tenantId = tenantId,
             organId = organId,
             contractId = contractId,
             visitDate = visitDate,
@@ -154,23 +167,23 @@ object SupervisorMissionSetup {
         ).toMutableMap()
     }
 
-    private fun createMissionRequest(organId: Int, contractId: Int, visitDate: String): Map<String, Any> =
+    private fun createMissionRequest(tenantId: Int, organId: Int, contractId: Int, visitDate: String): Map<String, Any> =
         mapOf(
-            "request" to missionRequestFields(organId, contractId, visitDate),
+            "request" to missionRequestFields(tenantId, organId, contractId, visitDate),
         )
 
-    private fun createMissionIndexRequest(organId: Int, contractId: Int, visitDate: String): Map<String, Any> =
+    private fun createMissionIndexRequest(tenantId: Int, organId: Int, contractId: Int, visitDate: String): Map<String, Any> =
         mapOf(
-            "request" to missionRequestFields(organId, contractId, visitDate),
+            "request" to missionRequestFields(tenantId, organId, contractId, visitDate),
             "Pagination" to mapOf("page" to mapOf("pageSize" to 100)),
         )
 
-    private fun missionRequestFields(organId: Int, contractId: Int, visitDate: String): Map<String, Any> =
+    private fun missionRequestFields(tenantId: Int, organId: Int, contractId: Int, visitDate: String): Map<String, Any> =
         mapOf(
             "organIds" to listOf(organId),
             "contractIds" to listOf(contractId),
             "visitdate" to visitDate,
-            "TenantId" to 1,
+            "TenantId" to tenantId,
             "OrganId" to organId,
             "contractId" to contractId,
         )
@@ -210,34 +223,9 @@ object SupervisorMissionSetup {
         }
     }
 
-    private fun createFormDataRequest(
-        organIds: List<Int> = emptyList(),
-        contractIds: List<Int> = emptyList(),
-        tenantId: Int = 1,
-    ): FormDataApiRequest {
-        return FormDataApiRequest(
-            request = FormDataRequest(
-                contractIds = contractIds,
-                organIds = organIds,
-                billCleaningViolationGroupIds = emptyList(),
-                billCleaningViolationIds = emptyList(),
-                billCleaningItemGroupIds = emptyList(),
-                billCleaningItemIds = emptyList(),
-                visitDate = "",
-                maxVisitDate = "",
-                minVisitDate = "",
-                isDeleted = false,
-                tenantId = tenantId,
-                billOriginCleaningItemIds = emptyList(),
-                billCleaningViolationId = 0,
-                contractId = contractIds.firstOrNull() ?: 0,
-                organId = organIds.firstOrNull() ?: 0,
-            ),
-        )
-    }
-
     private fun processMissionDataFromResponse(
         missionIndexResponse: MissionIndexResponse,
+        tenantId: Int,
         organId: Int,
         contractId: Int,
         visitDate: String,
@@ -252,6 +240,7 @@ object SupervisorMissionSetup {
         return processMissionData(
             dataArray = dataArray,
             encryptionsMap = encryptionsMap,
+            tenantId = tenantId,
             organId = organId,
             contractId = contractId,
             visitDate = visitDate,
@@ -263,6 +252,7 @@ object SupervisorMissionSetup {
     private fun processMissionData(
         dataArray: JSONArray,
         encryptionsMap: Map<String, String>,
+        tenantId: Int,
         organId: Int,
         contractId: Int,
         visitDate: String,
@@ -274,6 +264,7 @@ object SupervisorMissionSetup {
 
         for (i in 0 until dataArray.length()) {
             val item = dataArray.getJSONObject(i)
+            val billSystemCode = item.extractBillSystemCode()
             val billCleaningItemName = item.optJSONObject("billOriginCleaningItem")
                 ?.optJSONObject("billCleaningItem")
                 ?.optString("billCleaningItemName", "") ?: ""
@@ -295,6 +286,7 @@ object SupervisorMissionSetup {
 
             val itemData = mapOf(
                 "billCleaningItemName" to billCleaningItemName,
+                "bilsystemcode" to billSystemCode,
                 "appDataProviderID" to appDataProviderID,
                 "billOriginCleaningItemRealID" to billOriginCleaningItemRealID,
                 "billCleaningItemGroupID" to billCleaningItemGroupID,
@@ -312,6 +304,7 @@ object SupervisorMissionSetup {
         }
 
         return mapOf(
+            "tenantId" to tenantId,
             "organId" to organId,
             "organTitle" to organTitle,
             "contractId" to contractId,

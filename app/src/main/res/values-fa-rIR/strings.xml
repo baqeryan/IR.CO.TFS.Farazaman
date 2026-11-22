@@ -136,7 +136,7 @@
   <string name="various_accuracy">دقت</string>
   <string name="various_accuracy_with_sats">دقت {0}{1} ({2}/{3})</string>
   <!--parameters: (accuracy, meters, used sats, visible sats)-->
-  <string name="various_waiting_gps_fix">در انتظار تثبیت GPS...‏ ({0}/{1})</string>
+  <string name="various_waiting_gps_fix">در انتظار GPS...‏ ({0}/{1})</string>
   <!--parameters: (used sats, visible sats)-->
   <string name="various_heading_display">{0}°‎</string>
   <!--parameters: (heading in degrees)-->
@@ -193,17 +193,17 @@
   <string name="role_supervisor">ناظر</string>
   <string name="role_supervisor_description">نظارت بر عملیات اجرایی</string>
   <string name="role_contractor">پیمانکار</string>
-  <string name="role_contractor_description">مشاهده و پیگیری اصلاح تخلفات</string>
-  <string name="contractor_violations_title">تخلفات قابل اقدام</string>
-  <string name="contractor_violations_not_connected">امکان دریافت فهرست تخلفات پیمانکار در این نسخه هنوز فعال نیست.</string>
-  <string name="contractor_violations_empty">تخلف قابل اقدامی برای نمایش وجود ندارد.</string>
+  <string name="role_contractor_description">مشاهده و پیگیری اصلاح نواقص</string>
+  <string name="contractor_violations_title">نواقص قابل اقدام</string>
+  <string name="contractor_violations_not_connected">امکان دریافت فهرست نواقص پیمانکار در این نسخه هنوز فعال نیست.</string>
+  <string name="contractor_violations_empty">نقص قابل اقدامی برای نمایش وجود ندارد.</string>
   <string name="contractor_violations_retry">تلاش دوباره</string>
   <string name="contractor_violation_chapter">فصل فهرست‌بها</string>
-  <string name="contractor_violation_title">عنوان تخلف</string>
-  <string name="contractor_view_location">نمایش محل تخلف</string>
+  <string name="contractor_violation_title">عنوان نقص</string>
+  <string name="contractor_view_location">نمایش محل نقص</string>
   <string name="contractor_register_correction">ثبت اصلاح</string>
   <string name="contractor_correction_submitted">اصلاح ثبت شد</string>
-  <string name="contractor_correction_title">ثبت اصلاح تخلف</string>
+  <string name="contractor_correction_title">ثبت اصلاح نقص</string>
   <string name="contractor_correction_description">شرح اقدامات اصلاحی</string>
   <string name="contractor_correction_description_hint">اقدامات انجام‌شده را توضیح دهید</string>
   <string name="contractor_correction_images">تصاویر اصلاح</string>
@@ -219,8 +219,8 @@
   <string name="contractor_location_unavailable">موقعیت مکانی معتبر در دسترس نیست.</string>
   <string name="contractor_correction_submitting">در حال ارسال اصلاح…</string>
   <string name="contractor_correction_error">ثبت اصلاح انجام نشد. دوباره تلاش کنید.</string>
-  <string name="contractor_violation_location_title">محل تخلف</string>
-  <string name="contractor_violation_location_unavailable">مختصات معتبری برای این تخلف ثبت نشده است.</string>
+  <string name="contractor_violation_location_title">محل نقص</string>
+  <string name="contractor_violation_location_unavailable">مختصات معتبری برای این نقص ثبت نشده است.</string>
   <string name="role_driver">راننده</string>
   <string name="role_driver_description">عملیات حمل و نقل</string>
   

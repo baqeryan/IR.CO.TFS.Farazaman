@@ -15,7 +15,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.activity.DisplayTrackMap
 import Ir.co.tfs.farazaman.activity.EndMissionBottomSheet
@@ -28,6 +27,7 @@ import Ir.co.tfs.farazaman.service.gps.GPSLogger
 import Ir.co.tfs.farazaman.supervisor.actions.SupervisorActionGpxFiles
 import Ir.co.tfs.farazaman.supervisor.actions.SupervisorActionRecorder
 import Ir.co.tfs.farazaman.util.FileSystemUtils
+import Ir.co.tfs.farazaman.util.BackgroundLocationPermissionHelper
 import Ir.co.tfs.farazaman.util.GpxWriter
 import Ir.co.tfs.farazaman.util.LoadingDialog
 import Ir.co.tfs.farazaman.util.UserManager
@@ -188,22 +188,12 @@ class SupervisorTrackController(
             Toast.makeText(activity, "ابتدا برنامه را دریافت کنید", Toast.LENGTH_SHORT).show()
             return
         }
-        TodayVisitMissionActions.openMap(activity, currentTrackId, encryption = null)
-    }
-
-    fun confirmDeleteMission() {
-        if (currentTrackId == TRACK_ID_NONE) {
-            Toast.makeText(activity, "برنامه‌ای برای حذف وجود ندارد", Toast.LENGTH_SHORT).show()
-            return
-        }
-        MaterialAlertDialogBuilder(activity)
-            .setTitle(R.string.supervisor_delete_mission_title)
-            .setMessage(R.string.supervisor_delete_mission_message)
-            .setPositiveButton(R.string.supervisor_delete_mission_confirm) { _, _ ->
-                deleteMission()
-            }
-            .setNegativeButton(R.string.end_mission_cancel, null)
-            .show()
+        TodayVisitMissionActions.openMap(
+            activity,
+            currentTrackId,
+            encryption = null,
+            enableGpsTracking = isTracking(),
+        )
     }
 
     fun deleteMission() {
@@ -300,7 +290,10 @@ class SupervisorTrackController(
             action = OSMTracker.INTENT_START_TRACKING
             putExtra(TrackContentProvider.Schema.COL_TRACK_ID, trackId)
         }
-        activity.startService(startTrackingIntent)
+        ContextCompat.startForegroundService(activity, startTrackingIntent)
+        if (!BackgroundLocationPermissionHelper.promptIfNeeded(activity)) {
+            BackgroundLocationPermissionHelper.promptBatteryOptimizationIfNeeded(activity)
+        }
         SupervisorActionRecorder.recordMissionStarted(activity, trackId, resumed)
         onStateChanged()
         Toast.makeText(activity, "ماموریت شروع شد", Toast.LENGTH_SHORT).show()

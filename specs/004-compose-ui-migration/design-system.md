@@ -1,5 +1,25 @@
 # Farazaman Design System
 
+## Jetsnack-inspired visual language
+
+Jetsnack is used as a structural design reference for a custom palette, branded gradients,
+pill-shaped actions, soft floated cards and expressive navigation. Its purple/blue palette,
+commerce content and application architecture are not copied. `FzExpressiveColors` derives every
+brand and gradient role from the existing FaraZaman green palette and exposes light/dark values
+through `FaraZamanThemeTokens.colors`.
+
+The application keeps Material 3 as its accessible component and typography foundation. Shared
+wrappers apply the visual language centrally:
+
+- `FzButton`: pill shape and horizontal FaraZaman gradient for primary actions.
+- `FzCard`: 20dp soft shape, floated surface and semantic selected/outlined borders.
+- `FzPageTemplate`: branded vertical green header gradient and existing rounded RTL body.
+- `FzGradient`: reusable gradient background/border modifiers without business concepts.
+
+Existing feature screens inherit the style when they consume these wrappers. Screen-specific
+Jetsnack patterns are adopted only where they match a FaraZaman workflow; snack ordering models,
+imagery and navigation are explicitly out of scope.
+
 ## Architecture
 
 Material 3 implementation detail زیر Theme/tokens/components فرازمان قرار می‌گیرد. Feature Screen فقط semantic API فرازمان و Feature Componentهای خودش را می‌بیند.
@@ -33,6 +53,8 @@ ColorScheme نقش‌های استاندارد Material را می‌دهد. exte
 ## Components and Variants
 
 Foundation اولیه: FzButton، FzCard، FzTextField، FzStatusChip، FzScaffold و Loading/Empty/Error. variantها semantic هستند. wrapper دیگر فقط با branding، behavior، semantics، accessibility، variants، change-risk یا reuse واقعی اضافه می‌شود.
+
+در audit Foundation، `FzBadge`، `FzDialog` و `FzTopAppBar` برای Contractor MVP لازم نشدند و فعلاً ساخته نمی‌شوند. اعلان‌ها و shell هنگام رسیدن به Phase مربوط دوباره نیاز واقعی آن‌ها را ارزیابی می‌کنند تا wrapper بدون مصرف ایجاد نشود.
 
 ### Design System Components
 
@@ -71,3 +93,11 @@ SDUI فقط type/variant معنایی را به mapper client می‌دهد. hex
 ## Theme Extensibility
 
 ThemeConfiguration انتخاب token set را جدا می‌کند تا Default Farazaman امروز و Alternative Brand/High Contrast/Compact آینده بدون تغییر Screen ممکن باشد. presetهای آینده در Scope فعلی پیاده نمی‌شوند؛ Dynamic Color پیش‌فرض خاموش است.
+# Action placement contract
+
+- Navigation belongs to logical `TopStart`; in the Persian RTL layout this is the top-right. Screens use `FzBackButton` or the `onBack` parameter of `FzPageTemplate`, never a text button labelled “بازگشت”.
+- Page-level actions belong to logical `TopEnd`; in RTL this is the top-left. `FzTopBar` owns this split so feature screens do not choose physical left/right positions.
+- The primary completion action belongs in `FzBottomActionBar`, spans the available width, and stays visually separate from scrollable content. Destructive completion uses `FzButtonVariant.Danger`.
+- Icon-only actions use `FzIconButton`, a minimum 48dp touch target, a content description, and one of the semantic `Header`, `Floating`, `Ghost`, or `Danger` surfaces.
+- Map zoom, center, and layer actions use `FzMapControls`. Dialog confirmation rows use `FzDialogActions`.
+- `FzButton` supports optional leading/trailing icons; feature code must not reimplement spacing between button text, progress, and icons.

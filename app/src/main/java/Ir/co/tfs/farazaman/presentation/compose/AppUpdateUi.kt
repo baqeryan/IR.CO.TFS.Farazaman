@@ -26,6 +26,7 @@ sealed interface AppUpdateEvent {
     data object Download : AppUpdateEvent
     data object Install : AppUpdateEvent
     data object OpenInstallSettings : AppUpdateEvent
+    data object OpenSecuritySettings : AppUpdateEvent
     data object Retry : AppUpdateEvent
     data object Later : AppUpdateEvent
 }
@@ -60,6 +61,12 @@ fun AppUpdateUi(
             state = state,
             confirmText = stringResource(R.string.app_update_open_settings),
             onConfirm = { onEvent(AppUpdateEvent.OpenInstallSettings) },
+            onLater = { onEvent(AppUpdateEvent.Later) },
+        )
+        is SplashUpdateState.InstallSecuritySettingsRequired -> UpdateDialog(
+            state = state,
+            confirmText = stringResource(R.string.app_update_open_security_settings),
+            onConfirm = { onEvent(AppUpdateEvent.OpenSecuritySettings) },
             onLater = { onEvent(AppUpdateEvent.Later) },
         )
         is SplashUpdateState.Installing -> UpdateDialog(
@@ -120,6 +127,9 @@ private fun UpdateDialog(
                     is SplashUpdateState.ReadyToInstall -> stringResource(R.string.app_update_ready)
                     is SplashUpdateState.InstallPermissionRequired -> stringResource(
                         R.string.app_update_permission_explanation,
+                    )
+                    is SplashUpdateState.InstallSecuritySettingsRequired -> stringResource(
+                        R.string.app_update_security_block_explanation,
                     )
                     is SplashUpdateState.Installing -> stringResource(R.string.app_update_installing)
                     is SplashUpdateState.Error -> state.message

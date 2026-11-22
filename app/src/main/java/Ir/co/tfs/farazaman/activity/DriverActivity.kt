@@ -11,21 +11,16 @@ import android.os.AsyncTask
 import android.os.Bundle
 import android.preference.PreferenceManager
 import android.util.Log
-import android.view.MenuItem
-import android.view.View
-import android.widget.ImageButton
-import android.widget.ProgressBar
-import android.widget.PopupMenu
-import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Column
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.card.MaterialCardView
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import Ir.co.tfs.farazaman.OSMTracker
 import Ir.co.tfs.farazaman.R
@@ -37,6 +32,13 @@ import Ir.co.tfs.farazaman.util.LoadingDialog
 import Ir.co.tfs.farazaman.util.FileSystemUtils
 import Ir.co.tfs.farazaman.util.TokenManager
 import Ir.co.tfs.farazaman.util.UserManager
+import Ir.co.tfs.farazaman.util.BackgroundLocationPermissionHelper
+import Ir.co.tfs.farazaman.presentation.compose.DriverEvent
+import Ir.co.tfs.farazaman.presentation.compose.DriverScreen
+import Ir.co.tfs.farazaman.presentation.compose.DriverUiState
+import Ir.co.tfs.farazaman.presentation.compose.FaraZamanTheme
+import Ir.co.tfs.farazaman.presentation.design.components.FzButton
+import Ir.co.tfs.farazaman.presentation.design.components.FzButtonVariant
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -78,16 +80,12 @@ class DriverActivity : AppCompatActivity() {
     private var currentZoneInfoSummary: String = ""
     private var refreshJob: Job? = null
 
-    private lateinit var missionCard: MaterialCardView
-    private lateinit var emptyView: View
-    private lateinit var startMissionBtn: MaterialButton
-    private lateinit var stopOrResumeBtn: MaterialButton
-    private lateinit var endMissionBtn: MaterialButton
-    private lateinit var waypointsCount: TextView
-    private lateinit var trackpointsCount: TextView
-    private lateinit var zoneInfoSummary: TextView
-    private lateinit var uploadProgressBar: ProgressBar
-    private lateinit var missionOptions: ImageButton
+    private val composeDriverState = mutableStateOf(DriverUiState())
+    private var waypointsCount = 0
+    private var trackpointsCount = 0
+    private var isUploading = false
+    private enum class DriverDialog { EndMission, Options, DeleteTrack }
+    private val activeDialog = mutableStateOf<DriverDialog?>(null)
 
     private var refreshHandler: android.os.Handler? = null
     private var refreshRunnable: Runnable? = null
@@ -119,43 +117,44 @@ class DriverActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_driver)
-
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.setDisplayShowHomeEnabled(true)
-
-        missionCard = findViewById(R.id.mission_card)
-        emptyView = findViewById(R.id.empty_view)
-        startMissionBtn = findViewById(R.id.start_mission_btn)
-        stopOrResumeBtn = findViewById(R.id.stop_or_resume)
-        endMissionBtn = findViewById(R.id.end_mission)
-        waypointsCount = findViewById(R.id.waypoints_count)
-        trackpointsCount = findViewById(R.id.trackpoints_count)
-        zoneInfoSummary = findViewById(R.id.zone_info_summary)
-        uploadProgressBar = findViewById(R.id.upload_progressbar)
-        missionOptions = findViewById(R.id.mission_options)
+        setContent {
+            FaraZamanTheme {
+                DriverScreen(state = composeDriverState.value, onEvent = ::onDriverEvent)
+                when (activeDialog.value) {
+                    DriverDialog.EndMission -> AlertDialog(
+                        onDismissRequest = { activeDialog.value = null },
+                        title = { Text("اتمام و بارگذاری ماموریت") },
+                        text = { Text("با بارگذاری، این ماموریت از لیست شما حذف خواهد شد. آیا ادامه می‌دهید؟") },
+                        confirmButton = { FzButton("تایید و بارگذاری", { activeDialog.value = null; startUploadProcess(currentTrackId) }) },
+                        dismissButton = { FzButton("لغو", { activeDialog.value = null }, variant = FzButtonVariant.Ghost) },
+                    )
+                    DriverDialog.Options -> AlertDialog(
+                        onDismissRequest = { activeDialog.value = null },
+                        title = { Text("گزینه‌های ماموریت") },
+                        text = { Column {
+                            FzButton("نمایش روی نقشه", { activeDialog.value = null; displayTrackOnMap() })
+                            FzButton("ذخیره GPX در حافظه", { activeDialog.value = null; exportTrackToGpx() }, variant = FzButtonVariant.Secondary)
+                            FzButton("حذف", { activeDialog.value = DriverDialog.DeleteTrack }, variant = FzButtonVariant.Danger)
+                        } },
+                        confirmButton = { FzButton("بستن", { activeDialog.value = null }, variant = FzButtonVariant.Ghost) },
+                    )
+                    DriverDialog.DeleteTrack -> AlertDialog(
+                        onDismissRequest = { activeDialog.value = null },
+                        title = { Text(getString(R.string.trackmgr_contextmenu_delete)) },
+                        text = { Text(getString(R.string.trackmgr_delete_confirm)) },
+                        confirmButton = { FzButton("بله", { activeDialog.value = null; deleteCurrentTrack() }, variant = FzButtonVariant.Danger) },
+                        dismissButton = { FzButton("خیر", { activeDialog.value = null }, variant = FzButtonVariant.Ghost) },
+                    )
+                    null -> Unit
+                }
+            }
+        }
 
         // Set driver mode flag in SharedPreferences
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
         prefs.edit().putBoolean("is_driver_mode", true).apply()
 
-        startMissionBtn.setOnClickListener {
-            startNewMission()
-        }
-
-        stopOrResumeBtn.setOnClickListener {
-            handleStopOrResume()
-        }
-
-        endMissionBtn.setOnClickListener {
-            handleEndMission()
-        }
-
-        missionOptions.setOnClickListener {
-            showOptionsMenu()
-        }
+        refreshComposeDriverScreen()
     }
 
     override fun onResume() {
@@ -176,16 +175,6 @@ class DriverActivity : AppCompatActivity() {
         prefs.edit().putBoolean("is_driver_mode", false).apply()
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            android.R.id.home -> {
-                finish()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-
     private fun updateUI() {
         // Only update currentTrackId if it's not set yet
         if (currentTrackId == TRACK_ID_NO_TRACK) {
@@ -197,39 +186,8 @@ class DriverActivity : AppCompatActivity() {
             }
         }
         
-        if (currentTrackId != TRACK_ID_NO_TRACK) {
-            // Show mission card
-            missionCard.visibility = View.VISIBLE
-            emptyView.visibility = View.GONE
-            startMissionBtn.visibility = View.GONE
-            
-            // Update zone info summary
-            if (currentZoneInfoSummary.isNotEmpty()) {
-                zoneInfoSummary.text = currentZoneInfoSummary
-                zoneInfoSummary.visibility = View.VISIBLE
-            } else {
-                zoneInfoSummary.visibility = View.GONE
-            }
-            
-            // Update counts
-            updateTrackCounts()
-            
-            // Check if tracking is active
-            if (isTrackActive(currentTrackId)) {
-                stopOrResumeBtn.text = "توقف"
-                stopOrResumeBtn.backgroundTintList = ContextCompat.getColorStateList(this, R.color.button_error_container)
-                stopOrResumeBtn.setTextColor(ContextCompat.getColorStateList(this, R.color.button_error_content))
-            } else {
-                stopOrResumeBtn.text = getString(R.string.trackmgr_contextmenu_resume)
-                stopOrResumeBtn.backgroundTintList = ContextCompat.getColorStateList(this, R.color.button_primary_container)
-                stopOrResumeBtn.setTextColor(ContextCompat.getColorStateList(this, R.color.button_primary_content))
-            }
-        } else {
-            // Show empty view
-            missionCard.visibility = View.GONE
-            emptyView.visibility = View.VISIBLE
-            startMissionBtn.visibility = View.VISIBLE
-        }
+        if (currentTrackId != TRACK_ID_NO_TRACK) updateTrackCounts()
+        refreshComposeDriverScreen()
     }
 
     private fun updateTrackCounts() {
@@ -251,8 +209,30 @@ class DriverActivity : AppCompatActivity() {
         val tpCount = trackpointsCursor?.count ?: 0
         trackpointsCursor?.close()
         
-        waypointsCount.text = wpCount.toString()
-        trackpointsCount.text = tpCount.toString()
+        waypointsCount = wpCount
+        trackpointsCount = tpCount
+        refreshComposeDriverScreen()
+    }
+
+    private fun refreshComposeDriverScreen() {
+        composeDriverState.value = DriverUiState(
+            hasActiveMission = currentTrackId != TRACK_ID_NO_TRACK,
+            isTracking = currentTrackId != TRACK_ID_NO_TRACK && isTrackActive(currentTrackId),
+            zoneSummary = currentZoneInfoSummary,
+            waypointsCount = waypointsCount,
+            trackpointsCount = trackpointsCount,
+            isUploading = isUploading,
+        )
+    }
+
+    private fun onDriverEvent(event: DriverEvent) {
+        when (event) {
+            DriverEvent.Back -> finish()
+            DriverEvent.StartMission -> startNewMission()
+            DriverEvent.StopOrResumeGps -> handleStopOrResume()
+            DriverEvent.EndAndUpload -> handleEndMission()
+            DriverEvent.OpenOptions -> showOptionsMenu()
+        }
     }
 
     private fun startNewMission() {
@@ -354,16 +334,7 @@ class DriverActivity : AppCompatActivity() {
     private fun handleEndMission() {
         if (currentTrackId == TRACK_ID_NO_TRACK) return
         
-        MaterialAlertDialogBuilder(this)
-            .setTitle("اتمام و بارگذاری ماموریت")
-            .setMessage("با بارگذاری، این ماموریت از لیست شما حذف خواهد شد. آیا ادامه می‌دهید؟")
-            .setCancelable(true)
-            .setPositiveButton("تایید و بارگذاری") { dialog, _ ->
-                startUploadProcess(currentTrackId)
-                dialog.dismiss()
-            }
-            .setNegativeButton("لغو") { dialog, _ -> dialog.cancel() }
-            .show()
+        activeDialog.value = DriverDialog.EndMission
     }
 
     private fun startUploadProcess(trackId: Long) {
@@ -404,7 +375,10 @@ class DriverActivity : AppCompatActivity() {
             action = OSMTracker.INTENT_START_TRACKING
             putExtra(TrackContentProvider.Schema.COL_TRACK_ID, trackId)
         }
-        startService(startTrackingIntent)
+        ContextCompat.startForegroundService(this, startTrackingIntent)
+        if (!BackgroundLocationPermissionHelper.promptIfNeeded(this)) {
+            BackgroundLocationPermissionHelper.promptBatteryOptimizationIfNeeded(this)
+        }
     }
 
     private fun stopActiveTrack() {
@@ -448,8 +422,9 @@ class DriverActivity : AppCompatActivity() {
                             )
                             val trackpointCount = trackpointsCursor?.use { it.count } ?: 0
                             withContext(Dispatchers.Main) {
-                                waypointsCount.text = waypointCount.toString()
-                                trackpointsCount.text = trackpointCount.toString()
+                                waypointsCount = waypointCount
+                                trackpointsCount = trackpointCount
+                                refreshComposeDriverScreen()
                             }
                         }
                     }
@@ -496,27 +471,7 @@ class DriverActivity : AppCompatActivity() {
     private fun showOptionsMenu() {
         if (currentTrackId == TRACK_ID_NO_TRACK) return
         
-        val popupMenu = PopupMenu(this, missionOptions)
-        popupMenu.menuInflater.inflate(R.menu.trackmgr_contextmenu, popupMenu.menu)
-        
-        popupMenu.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                R.id.trackmgr_contextmenu_display -> {
-                    displayTrackOnMap()
-                    true
-                }
-                R.id.trackmgr_contextmenu_delete -> {
-                    confirmDeleteTrack()
-                    true
-                }
-                R.id.trackmgr_contextmenu_export_gpx -> {
-                    exportTrackToGpx()
-                    true
-                }
-                else -> false
-            }
-        }
-        popupMenu.show()
+        activeDialog.value = DriverDialog.Options
     }
 
     private fun displayTrackOnMap() {
@@ -533,16 +488,7 @@ class DriverActivity : AppCompatActivity() {
     private fun confirmDeleteTrack() {
         if (currentTrackId == TRACK_ID_NO_TRACK) return
         
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.trackmgr_contextmenu_delete)
-            .setMessage(resources.getString(R.string.trackmgr_delete_confirm))
-            .setCancelable(true)
-            .setPositiveButton("بله") { dialog, _ ->
-                deleteCurrentTrack()
-                dialog.dismiss()
-            }
-            .setNegativeButton("خیر") { dialog, _ -> dialog.cancel() }
-            .show()
+        activeDialog.value = DriverDialog.DeleteTrack
     }
 
     private fun deleteCurrentTrack() {
@@ -641,7 +587,8 @@ class DriverActivity : AppCompatActivity() {
         
         override fun onPreExecute() {
             super.onPreExecute()
-            uploadProgressBar.visibility = View.VISIBLE
+            isUploading = true
+            refreshComposeDriverScreen()
         }
         
         override fun doInBackground(vararg params: Void?): Boolean {
@@ -792,7 +739,8 @@ class DriverActivity : AppCompatActivity() {
         
         override fun onPostExecute(success: Boolean) {
             super.onPostExecute(success)
-            uploadProgressBar.visibility = View.GONE
+            isUploading = false
+            refreshComposeDriverScreen()
             loadingDialog?.dismiss()
             loadingDialog = null
             

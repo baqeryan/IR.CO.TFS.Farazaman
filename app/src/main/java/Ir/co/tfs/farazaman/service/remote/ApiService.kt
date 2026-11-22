@@ -6,7 +6,7 @@ import retrofit2.http.Header
 import retrofit2.http.Query
 
 interface ApiService {
-    @GET("api/GisLayers/DataLayerRoadByPoint")
+    @GET("api/GisLayer/DataLayerRoadByPoint")
     suspend fun getRoadByPoint(
         @Query("lat") lat: Double,
         @Query("lng") lng: Double,

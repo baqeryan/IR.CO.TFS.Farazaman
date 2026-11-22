@@ -53,7 +53,7 @@ object SupervisorViolationHistoryStore {
         records.add(
             Record(
                 id = recordId,
-                title = title.trim().ifBlank { "تخلف ثبت شده" },
+                title = title.trim().ifBlank { "نقص ثبت شده" },
                 subtitle = subtitle.trim(),
                 trackId = trackId,
                 violationId = violationId,

@@ -16,6 +16,7 @@ class AuthInterceptor @Inject constructor(
     private val tokenManager: TokenManager,
     private val authStateManager: AuthStateManager,
     private val authRepository: AuthRepository,
+    private val billTenantContextStore: BillTenantContextStore,
 ) : Interceptor {
 
     companion object {
@@ -60,21 +61,28 @@ class AuthInterceptor @Inject constructor(
         }
 
         // Add authorization header if available
-        val requestWithAuth = addAuthHeader(originalRequest)
+        val requestWithAuth = addAuthHeader(addBillTenantHeader(originalRequest))
         Log.d(TAG, "Making request with auth header: ${requestWithAuth.header(AUTHORIZATION_HEADER) != null}")
         
         var response = chain.proceed(requestWithAuth)
         Log.d(TAG, "Received response code: ${response.code}")
 
-        // If we get 401 Unauthorized, try to refresh the token
-        if (response.code == 401 && tokenManager.hasRefreshToken()) {
+        // Every authenticated 401 must be handled centrally. Refresh once when possible;
+        // otherwise invalidate the session instead of leaking an unhandled 401 to each screen.
+        if (response.code == 401) {
             Log.w(TAG, "=== 401 UNAUTHORIZED DETECTED ===")
             Log.w(TAG, "Response message: ${response.message}")
             Log.w(TAG, "Request URL: $url")
             Log.w(TAG, "Request method: ${originalRequest.method}")
             Log.w(TAG, "Auth header used: ${requestWithAuth.header(AUTHORIZATION_HEADER) != null}")
+            if (!tokenManager.hasRefreshToken()) {
+                Log.e(TAG, "Cannot refresh after 401 because no refresh token is available")
+                invalidateSession()
+                return response
+            }
+
             Log.w(TAG, "Attempting token refresh...")
-            
+
             val refreshResult = refreshTokenBlocking(
                 expectedToken = getTokenFromRequest(requestWithAuth),
                 onlyIfExpired = false,
@@ -83,17 +91,15 @@ class AuthInterceptor @Inject constructor(
             if (refreshResult) {
                 Log.d(TAG, "Token refresh successful, retrying original request")
                 response.close()
-                val retryResponse = chain.proceed(addAuthHeader(originalRequest))
+                val retryResponse = chain.proceed(addAuthHeader(addBillTenantHeader(originalRequest)))
                 if (retryResponse.code == 401) {
                     Log.e(TAG, "Still getting 401 after token refresh")
-                    tokenManager.clearTokens()
-                    authStateManager.notifyAuthStateChanged(false, AuthStateManager.REASON_REFRESH_FAILED)
+                    invalidateSession()
                 }
                 return retryResponse
             } else {
                 Log.e(TAG, "Token refresh failed, clearing tokens")
-                tokenManager.clearTokens()
-                authStateManager.notifyAuthStateChanged(false, AuthStateManager.REASON_REFRESH_FAILED)
+                invalidateSession()
             }
         }
 
@@ -123,6 +129,16 @@ class AuthInterceptor @Inject constructor(
         return authHeader?.removePrefix("Bearer ")?.trim()
     }
 
+    private fun addBillTenantHeader(request: Request): Request {
+        val path = request.url.encodedPath
+        if (!path.startsWith("/api/Bill", ignoreCase = true)
+            || path.equals("/api/Bill/Lookup/ContractType", ignoreCase = true)) {
+            return request
+        }
+        val tenantId = billTenantContextStore.getTenantId() ?: return request
+        return request.newBuilder().header("X-Tenant-Id", tenantId.toString()).build()
+    }
+
     private fun refreshTokenBlocking(expectedToken: String?, onlyIfExpired: Boolean): Boolean {
         return try {
             runBlocking {
@@ -141,6 +157,12 @@ class AuthInterceptor @Inject constructor(
             Log.e(TAG, "Token refresh failed: ${error.javaClass.simpleName}")
             false
         }
+    }
+
+    private fun invalidateSession() {
+        tokenManager.clearTokens()
+        billTenantContextStore.clear()
+        authStateManager.notifyAuthStateChanged(false, AuthStateManager.REASON_REFRESH_FAILED)
     }
 
     private suspend fun performTokenRefresh() {

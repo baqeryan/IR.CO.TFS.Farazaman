@@ -5,13 +5,13 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import Ir.co.tfs.farazaman.R
+import Ir.co.tfs.farazaman.presentation.compose.FaraZamanTheme
+import Ir.co.tfs.farazaman.presentation.compose.mission.MissionItemSelectionSheetContent
 
 class MissionItemSelectionBottomSheet : BottomSheetDialogFragment() {
 
@@ -20,7 +20,7 @@ class MissionItemSelectionBottomSheet : BottomSheetDialogFragment() {
     var onItemSelected: ((MissionSelectionOption) -> Unit)? = null
 
     companion object {
-        private const val SHEET_HEIGHT_RATIO = 0.90f
+        private const val SHEET_HEIGHT_RATIO = 0.75f
 
         fun newInstance(
             title: String,
@@ -37,16 +37,19 @@ class MissionItemSelectionBottomSheet : BottomSheetDialogFragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
-    ): View? = inflater.inflate(R.layout.bottom_sheet_mission_item_selection, container, false)
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        view.findViewById<TextView>(R.id.selectionTitle).text = sheetTitle
-        val recyclerView = view.findViewById<RecyclerView>(R.id.selectionRecyclerView)
-        recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        recyclerView.adapter = MissionSelectionAdapter(items) { item ->
-            onItemSelected?.invoke(item)
-            dismiss()
+    ): View = ComposeView(requireContext()).apply {
+        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        setContent {
+            FaraZamanTheme {
+                MissionItemSelectionSheetContent(
+                    title = sheetTitle,
+                    options = items,
+                    onSelect = { item ->
+                        onItemSelected?.invoke(item)
+                        dismiss()
+                    },
+                )
+            }
         }
     }
 

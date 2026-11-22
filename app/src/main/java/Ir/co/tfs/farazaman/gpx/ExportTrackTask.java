@@ -1,12 +1,8 @@
 package Ir.co.tfs.farazaman.gpx;
 
-import android.app.AlertDialog;
-import android.app.ProgressDialog;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.DialogInterface.OnClickListener;
 import android.database.Cursor;
 import android.media.MediaScannerConnection;
 import android.os.AsyncTask;
@@ -91,11 +87,6 @@ public abstract class ExportTrackTask extends AsyncTask<Void, Long, Boolean> {
 	private long[] trackIds;
 
 	/**
-	 * Dialog to display while exporting
-	 */
-	protected ProgressDialog dialog;
-
-	/**
 	 * Message in case of an error
 	 */
 	private String errorMsg = null;
@@ -128,13 +119,7 @@ public abstract class ExportTrackTask extends AsyncTask<Void, Long, Boolean> {
 
 	@Override
 	protected void onPreExecute() {
-		// Display dialog
-		dialog = new ProgressDialog(context);
-		dialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-		dialog.setIndeterminate(true);
-		dialog.setCancelable(false);
-		dialog.setMessage(context.getResources().getString(R.string.trackmgr_exporting_prepare));
-		dialog.show();
+		// Presentation is owned by the calling Compose screen.
 	}
 
 
@@ -153,45 +138,13 @@ public abstract class ExportTrackTask extends AsyncTask<Void, Long, Boolean> {
 
 	@Override
 	protected void onProgressUpdate(Long... values) {
-		if (values.length == 1) {
-			// Standard progress update
-			dialog.incrementProgressBy(values[0].intValue());
-		} else if (values.length == 3) {
-			// To initialise the dialog, 3 values are passed to onProgressUpdate()
-			// trackId, number of track points, number of waypoints
-			dialog.dismiss();
-
-			dialog = new ProgressDialog(context);
-			dialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-			dialog.setIndeterminate(false);
-			dialog.setCancelable(false);
-			dialog.setProgress(0);
-			dialog.setMax(values[1].intValue() + values[2].intValue());
-			dialog.setTitle(
-					context.getResources().getString(R.string.trackmgr_exporting)
-							.replace("{0}", Long.toString(values[0])));
-			dialog.show();
-
-		}
+		// Kept for AsyncTask compatibility; callers render progress from their own UI state.
 	}
 
 	@Override
 	protected void onPostExecute(Boolean success) {
-		dialog.dismiss();
 		if (!success) {
-			new AlertDialog.Builder(context)
-					.setTitle(android.R.string.dialog_alert_title)
-					.setMessage(context.getResources()
-							.getString(R.string.trackmgr_export_error)
-							.replace("{0}", errorMsg))
-					.setIcon(android.R.drawable.ic_dialog_alert)
-					.setNeutralButton(android.R.string.ok, new OnClickListener() {
-						@Override
-						public void onClick(DialogInterface dialog, int which) {
-							dialog.dismiss();
-						}
-					})
-					.show();
+			Toast.makeText(context, context.getResources().getString(R.string.trackmgr_export_error).replace("{0}", String.valueOf(errorMsg)), Toast.LENGTH_LONG).show();
 		}else{
 			Toast.makeText(this.context, R.string.various_export_finished, Toast.LENGTH_SHORT).show();
 		}

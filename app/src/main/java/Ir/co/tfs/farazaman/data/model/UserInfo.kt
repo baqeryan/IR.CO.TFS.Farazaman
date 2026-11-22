@@ -13,6 +13,9 @@ data class UserInfo(
     
     @SerializedName("displayName")
     val displayName: String,
+
+    @SerializedName("mail")
+    val mail: String? = null,
     
     @SerializedName("defaultSubsystem")
     val defaultSubsystem: Int,

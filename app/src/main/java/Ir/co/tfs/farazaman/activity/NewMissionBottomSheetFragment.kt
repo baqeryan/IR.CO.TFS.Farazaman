@@ -7,12 +7,12 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ProgressBar
-import android.widget.TextView
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import com.google.android.material.button.MaterialButton
 import saman.zamani.persiandate.PersianDate
 import Ir.co.tfs.farazaman.R
 import android.widget.Toast
@@ -28,8 +28,6 @@ import okhttp3.Response
 import java.util.Date
 import dagger.hilt.android.AndroidEntryPoint
 import Ir.co.tfs.farazaman.data.api.FormDataApiService
-import Ir.co.tfs.farazaman.data.model.FormDataApiRequest
-import Ir.co.tfs.farazaman.data.model.FormDataRequest
 import Ir.co.tfs.farazaman.data.model.MissionIndexResponse
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CancellationException
@@ -39,41 +37,26 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import com.google.gson.Gson
 import Ir.co.tfs.farazaman.supervisor.actions.SupervisorActionRecorder
+import Ir.co.tfs.farazaman.supervisor.extractBillSystemCode
+import Ir.co.tfs.farazaman.presentation.compose.mission.NewMissionEvent
+import Ir.co.tfs.farazaman.presentation.compose.mission.NewMissionSheetContent
+import Ir.co.tfs.farazaman.presentation.compose.mission.NewMissionUiState
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanTheme
+import Ir.co.tfs.farazaman.util.BillTenantContextStore
 
 @AndroidEntryPoint
 class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
     
     @Inject
     lateinit var formDataApiService: FormDataApiService
+    @Inject
+    lateinit var billTenantContextStore: BillTenantContextStore
+
+    private fun currentTenantId(): Int = requireNotNull(billTenantContextStore.getTenantId()) {
+        "ابتدا نوع قرارداد و محدوده کاری را انتخاب کنید."
+    }
     
     private val gson = Gson()
-    
-    // Helper function to create form data requests
-    private fun createFormDataRequest(
-        organIds: List<Int> = emptyList(),
-        contractIds: List<Int> = emptyList(),
-        tenantId: Int = 1
-    ): FormDataApiRequest {
-        return FormDataApiRequest(
-            request = FormDataRequest(
-                contractIds = contractIds,
-                organIds = organIds,
-                billCleaningViolationGroupIds = emptyList(),
-                billCleaningViolationIds = emptyList(),
-                billCleaningItemGroupIds = emptyList(),
-                billCleaningItemIds = emptyList(),
-                visitDate = "",
-                maxVisitDate = "",
-                minVisitDate = "",
-                isDeleted = false,
-                tenantId = tenantId,
-                billOriginCleaningItemIds = emptyList(),
-                billCleaningViolationId = 0,
-                contractId = contractIds.firstOrNull() ?: 0,
-                organId = organIds.firstOrNull() ?: 0
-            )
-        )
-    }
     
     // Class-level variables for storing selected values
     private var selectedOrganId: Int? = null
@@ -85,13 +68,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
     private var selectedDate: Date? = null
     private var loadingDialog: LoadingDialog? = null
 
-    private lateinit var organSelector: View
-    private lateinit var contractSelector: View
-    private lateinit var organSelectedText: TextView
-    private lateinit var contractSelectedText: TextView
-    private lateinit var organProgress: ProgressBar
-    private lateinit var contractProgress: ProgressBar
-    private lateinit var submitButton: MaterialButton
+    private val uiState = mutableStateOf(NewMissionUiState())
     private fun selectedBaseUrl(): String {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val base = prefs.getString("BASE_URL", "https://app.tfs.co.ir") ?: "https://app.tfs.co.ir"
@@ -103,30 +80,8 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
     }
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        organSelector = view.findViewById(R.id.organSelector)
-        contractSelector = view.findViewById(R.id.contractSelector)
-        organSelectedText = view.findViewById(R.id.organSelectedText)
-        contractSelectedText = view.findViewById(R.id.contractSelectedText)
-        organProgress = view.findViewById(R.id.organProgress)
-        contractProgress = view.findViewById(R.id.contractProgress)
-        submitButton = view.findViewById(R.id.submit_mission_button)
-
-        submitButton.isEnabled = false
         setOrganLoading(true)
         setContractEnabled(false)
-
-        organSelector.setOnClickListener { openOrganSelection() }
-        contractSelector.setOnClickListener { openContractSelection() }
-
-        submitButton.setOnClickListener {
-            val organId = selectedOrganId
-            val contractId = selectedContractId
-            if (organId == null || contractId == null) return@setOnClickListener
-            submitButton.isEnabled = false
-            submitButton.text = getString(R.string.mission_submitting)
-            sendCreateMissionRequest(organId, contractId, submitButton)
-        }
 
         // Start after all views are bound. Registering this through dialog?.setOnShowListener is
         // lifecycle-sensitive: in a minified Release build the dialog can already be shown (or
@@ -143,39 +98,34 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
     }
 
     private fun updateButtonState() {
-        submitButton.isEnabled = selectedOrganId != null && selectedContractId != null
+        uiState.value = uiState.value.copy(
+            organTitle = selectedOrganTitle,
+            contractTitle = selectedContractTitle,
+        )
     }
 
     private fun setOrganLoading(loading: Boolean) {
-        organProgress.visibility = if (loading) View.VISIBLE else View.GONE
-        organSelectedText.visibility = if (loading) View.INVISIBLE else View.VISIBLE
-        organSelector.isClickable = !loading
+        uiState.value = uiState.value.copy(organLoading = loading)
     }
 
     private fun setContractLoading(loading: Boolean) {
-        contractProgress.visibility = if (loading) View.VISIBLE else View.GONE
-        contractSelectedText.visibility = if (loading) View.INVISIBLE else View.VISIBLE
-        contractSelector.isClickable = !loading && selectedOrganId != null
+        uiState.value = uiState.value.copy(contractLoading = loading)
     }
 
     private fun setContractEnabled(enabled: Boolean) {
-        contractSelector.isClickable = enabled
-        contractSelector.isFocusable = enabled
-        contractSelector.alpha = if (enabled) 1f else 0.6f
+        if (!enabled) uiState.value = uiState.value.copy(contractTitle = null)
     }
 
     private fun resetContractSelection() {
         selectedContractId = null
         selectedContractTitle = null
         contractOptions = emptyList()
-        contractSelectedText.text = null
-        contractSelectedText.setHint(R.string.mission_select_contract_hint)
         setContractEnabled(false)
         updateButtonState()
     }
 
     private fun openOrganSelection() {
-        if (organProgress.visibility == View.VISIBLE) {
+        if (uiState.value.organLoading) {
             Toast.makeText(requireContext(), R.string.mission_organs_loading, Toast.LENGTH_SHORT).show()
             return
         }
@@ -196,7 +146,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
             Toast.makeText(requireContext(), R.string.mission_contracts_unavailable, Toast.LENGTH_SHORT).show()
             return
         }
-        if (contractProgress.visibility == View.VISIBLE) return
+        if (uiState.value.contractLoading) return
         if (contractOptions.isEmpty()) {
             Toast.makeText(requireContext(), R.string.mission_contracts_empty, Toast.LENGTH_SHORT).show()
             return
@@ -212,7 +162,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
     private fun onOrganSelected(option: MissionSelectionOption) {
         selectedOrganId = option.id
         selectedOrganTitle = option.title
-        organSelectedText.text = option.title
+        updateButtonState()
         resetContractSelection()
         fetchContracts(option.id)
     }
@@ -220,21 +170,13 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
     private fun onContractSelected(option: MissionSelectionOption) {
         selectedContractId = option.id
         selectedContractTitle = option.title
-        contractSelectedText.text = option.title
         updateButtonState()
     }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): View? {
-        val view = inflater.inflate(R.layout.fragment_new_mission_bottom_sheet, container, false)
-        val dateTextView = view.findViewById<TextView>(R.id.persian_date_text)
-       //        submitButton.visibility = View.GONE
-        val dateEditText = view.findViewById<TextView>(R.id.persian_date_text)
+    ): View {
         selectedDate = PersianDate().toDate()
-
-        dateEditText.text =
-            PersianDate().shYear.toString() + "/" + PersianDate().shMonth.toString() + "/" + PersianDate().shDay.toString()
 //        dateEditText.setOnClickListener {
 //            PersianDatePickerDialog(context)
 //                .setPositiveButtonString("باشه")
@@ -269,12 +211,12 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
 
 
         val today = PersianDate()
-        dateTextView.text = getString(
+        uiState.value = uiState.value.copy(date = getString(
             R.string.mission_today_date,
             today.shYear,
             today.shMonth,
             today.shDay,
-        )
+        ))
 
         // Note: This fragment should be refactored to use Hilt dependency injection
         // and proper API services instead of manual HTTP calls
@@ -282,7 +224,28 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
         // Set loading state
 
 
-        return view
+        return ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                FaraZamanTheme {
+                    NewMissionSheetContent(uiState.value, ::handleEvent)
+                }
+            }
+        }
+    }
+
+    private fun handleEvent(event: NewMissionEvent) {
+        when (event) {
+            NewMissionEvent.SelectOrgan -> openOrganSelection()
+            NewMissionEvent.SelectContract -> openContractSelection()
+            NewMissionEvent.Cancel -> dismiss()
+            NewMissionEvent.Submit -> {
+                val organId = selectedOrganId ?: return
+                val contractId = selectedContractId ?: return
+                uiState.value = uiState.value.copy(submitting = true)
+                sendCreateMissionRequest(organId, contractId)
+            }
+        }
     }
     private fun fetchOrgans() {
         setOrganLoading(true)
@@ -290,16 +253,14 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val request = createFormDataRequest()
-                val response = formDataApiService.getFormData(request)
+                val response = formDataApiService.getAllowedOrgans(tenantId = currentTenantId())
                 Log.d("NewMissionBottomSheet", "RESPONSE fetchOrgans -> code: ${response.code()}")
 
                 if (response.isSuccessful && response.body() != null) {
-                    val options = response.body()!!.response.organs.map(MissionSelectionOption::fromDropdown)
+                    val options = response.body()!!.map(MissionSelectionOption::fromDropdown)
                     withContext(Dispatchers.Main) {
                         organOptions = options
                         setOrganLoading(false)
-                        organSelector.isClickable = true
                     }
                 } else {
                     Log.e("NewMissionBottomSheet", "ناموفق بودن درخواست کارفرما: ${response.code()}")
@@ -336,12 +297,11 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val request = createFormDataRequest(organIds = listOf(organId))
-                val response = formDataApiService.getFormData(request)
+                val response = formDataApiService.getAllowedContracts(tenantId = currentTenantId(), organId = organId)
                 Log.d("NewMissionBottomSheet", "RESPONSE fetchContracts -> code: ${response.code()}")
 
                 if (response.isSuccessful && response.body() != null) {
-                    val options = response.body()!!.response.contracts.map(MissionSelectionOption::fromDropdown)
+                    val options = response.body()!!.map(MissionSelectionOption::fromDropdown)
                     withContext(Dispatchers.Main) {
                         contractOptions = options
                         setContractLoading(false)
@@ -382,7 +342,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
         }
     }
 
-    private fun sendCreateMissionRequest(organId: Int, contractId: Int, submitButton: com.google.android.material.button.MaterialButton) {
+    private fun sendCreateMissionRequest(organId: Int, contractId: Int) {
         // Show loading dialog
         loadingDialog = LoadingDialog.showWithTimeout(requireContext(), "در حال ثبت برنامه کاری جدید...", 180000) // 3 minutes timeout
         
@@ -398,7 +358,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
                         "organIds" to listOf(organId),
                         "contractIds" to listOf(contractId),
                         "visitdate" to today,
-                        "TenantId" to 1,
+                        "TenantId" to currentTenantId(),
                         "OrganId" to organId,
                         "contractId" to contractId
                     )
@@ -407,14 +367,13 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
                 Log.d("NewMissionBottomSheet", "REQUEST createMission -> Using injected FormDataApiService")
                 Log.d("NewMissionBottomSheet", "REQUEST createMission -> Body: $requestBody")
                 
-                val response = formDataApiService.createMission(requestBody)
+                val response = formDataApiService.createMission(currentTenantId(), requestBody)
                 
                 Log.d("NewMissionBottomSheet", "RESPONSE createMission -> code: ${response.code()}")
                 
                 loadingDialog?.dismiss()
                 loadingDialog = null
-                submitButton.isEnabled = true
-                submitButton.text = getString(R.string.mission_receive_submit)
+                uiState.value = uiState.value.copy(submitting = false)
                 
                 if (response.isSuccessful) {
                     Toast.makeText(context, "برنامه کاری جدید با موفقیت ثبت شد!", Toast.LENGTH_LONG).show()
@@ -430,8 +389,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
                 Log.e("NewMissionBottomSheet", "Exception in createMission", e)
                     loadingDialog?.dismiss()
                     loadingDialog = null
-                    submitButton.isEnabled = true
-                    submitButton.text = getString(R.string.mission_receive_submit)
+                    uiState.value = uiState.value.copy(submitting = false)
                     Ir.co.tfs.farazaman.util.ErrorHandler.handleNetworkError(e, requireContext(), "خطا در ثبت برنامه کاری جدید")
                 }
             }
@@ -451,7 +409,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
                         "organIds" to listOf(organId),
                         "contractIds" to listOf(contractId),
                         "visitdate" to visitDate,
-                        "TenantId" to 1,
+                        "TenantId" to currentTenantId(),
                         "OrganId" to organId,
                         "contractId" to contractId
                     ),
@@ -463,7 +421,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
                 Log.d("NewMissionBottomSheet", "REQUEST fetchMissionDetailsWithService -> Using injected FormDataApiService")
                 Log.d("NewMissionBottomSheet", "REQUEST fetchMissionDetailsWithService -> Body: $requestBody")
                 
-                val response = formDataApiService.getMissionIndex(requestBody)
+                val response = formDataApiService.getMissionIndex(currentTenantId(), requestBody)
                 
                 Log.d("NewMissionBottomSheet", "RESPONSE fetchMissionDetailsWithService -> code: ${response.code()}")
                 
@@ -540,7 +498,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
         // Show loading dialog
         loadingDialog = LoadingDialog.showWithTimeout(requireContext(), "در حال دریافت جزئیات برنامه کاری...", 180000) // 3 minutes timeout
         
-        val json = """{"request":{"organIds":[${organId}],"contractIds":[${contractId}],"visitdate":"${visitDate}","TenantId":1,"OrganId":${organId},"contractId":${contractId}},"Pagination":{"page":{"pageSize":100}}}"""
+        val json = """{"request":{"organIds":[${organId}],"contractIds":[${contractId}],"visitdate":"${visitDate}","TenantId":${currentTenantId()},"OrganId":${organId},"contractId":${contractId}},"Pagination":{"page":{"pageSize":100}}}"""
         val body = json.toRequestBody("application/json".toMediaType())
         val indexUrl = buildUrl("/api/BillOriginCleaningItemDailyItem/Index")
         val request = Request.Builder()
@@ -632,6 +590,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
         
         for (i in 0 until dataArray.length()) {
             val item = dataArray.getJSONObject(i)
+            val billSystemCode = item.extractBillSystemCode()
             
             // Extract billCleaningItemName from nested structure
             val billCleaningItemName = item.optJSONObject("billOriginCleaningItem")
@@ -665,6 +624,7 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
             
             val itemData = mapOf(
                 "billCleaningItemName" to billCleaningItemName,
+                "bilsystemcode" to billSystemCode,
                 "appDataProviderID" to appDataProviderID,
                 "billOriginCleaningItemRealID" to billOriginCleaningItemRealID,
                 "billCleaningItemGroupID" to billCleaningItemGroupID,
@@ -760,9 +720,8 @@ class NewMissionBottomSheetFragment : BottomSheetDialogFragment() {
         
         // Refresh the TrackManager to show the new mission
         activity?.let { act ->
-            when (act) {
-                is Ir.co.tfs.farazaman.activity.TrackManager -> act.refreshTrackList()
-                is Ir.co.tfs.farazaman.activity.NewSupervisorActivity -> act.onMissionUpdated()
+            if (act is Ir.co.tfs.farazaman.activity.NewSupervisorActivity) {
+                act.onMissionUpdated()
             }
             dismiss()
         }

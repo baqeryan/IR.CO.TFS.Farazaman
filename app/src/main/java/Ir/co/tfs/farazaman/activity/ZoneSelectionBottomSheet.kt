@@ -5,15 +5,23 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import dagger.hilt.android.AndroidEntryPoint
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.data.model.VehicleZoneWorkItem
+import Ir.co.tfs.farazaman.presentation.compose.ZoneSelectionEvent
+import Ir.co.tfs.farazaman.presentation.compose.ZoneSelectionScreen
+import Ir.co.tfs.farazaman.presentation.compose.ZoneSelectionUiState
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanTheme
 import Ir.co.tfs.farazaman.service.remote.VehicleZoneWorkService
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -23,6 +31,7 @@ class ZoneSelectionBottomSheet : BottomSheetDialogFragment() {
 
     companion object {
         private const val TAG = "ZoneSelectionBottomSheet"
+        private const val SHEET_HEIGHT_RATIO = 0.75f
         
         fun newInstance(onZoneSelected: (VehicleZoneWorkItem) -> Unit): ZoneSelectionBottomSheet {
             val fragment = ZoneSelectionBottomSheet()
@@ -35,29 +44,42 @@ class ZoneSelectionBottomSheet : BottomSheetDialogFragment() {
     lateinit var vehicleZoneWorkService: VehicleZoneWorkService
 
     private var onZoneSelectedListener: ((VehicleZoneWorkItem) -> Unit)? = null
-    private lateinit var recyclerView: RecyclerView
-    private lateinit var loadingProgress: ProgressBar
-    private lateinit var emptyView: View
+    private var uiState by mutableStateOf(ZoneSelectionUiState())
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.bottom_sheet_zone_selection, container, false)
+    ): View = ComposeView(requireContext()).apply {
+        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        setContent {
+            FaraZamanTheme {
+                ZoneSelectionScreen(uiState, onEvent = { event ->
+                    when (event) {
+                        is ZoneSelectionEvent.Select -> {
+                            Log.d(TAG, "Zone selected: ${event.zone.zoneWorkVehicleID}")
+                            onZoneSelectedListener?.invoke(event.zone)
+                            dismiss()
+                        }
+                    }
+                })
+            }
+        }
+        post { fetchVehicleZones() }
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
-        recyclerView = view.findViewById(R.id.zones_recycler_view)
-        loadingProgress = view.findViewById(R.id.loading_progress)
-        emptyView = view.findViewById(R.id.empty_view)
-
-        recyclerView.layoutManager = LinearLayoutManager(requireContext())
-
-        // Fetch zones
-        fetchVehicleZones()
+    override fun onStart() {
+        super.onStart()
+        val sheet = (dialog as? BottomSheetDialog)
+            ?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            ?: return
+        sheet.layoutParams = sheet.layoutParams.apply {
+            height = (resources.displayMetrics.heightPixels * SHEET_HEIGHT_RATIO).toInt()
+        }
+        BottomSheetBehavior.from(sheet).apply {
+            state = BottomSheetBehavior.STATE_EXPANDED
+            skipCollapsed = true
+        }
     }
 
     private fun fetchVehicleZones() {
@@ -86,9 +108,13 @@ class ZoneSelectionBottomSheet : BottomSheetDialogFragment() {
                     }
                 } else {
                     Log.e(TAG, "Response error: ${response.code()} - ${response.message()}")
+                    val errorMessage = Ir.co.tfs.farazaman.util.ErrorHandler.retrofitErrorMessage(
+                        response,
+                        "خطا در دریافت محدوده‌ها: ${response.message()}",
+                    )
                     Toast.makeText(
                         requireContext(),
-                        "خطا در دریافت محدوده‌ها: ${response.message()}",
+                        errorMessage,
                         Toast.LENGTH_LONG
                     ).show()
                     showEmpty()
@@ -108,26 +134,15 @@ class ZoneSelectionBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun showZones(zones: List<VehicleZoneWorkItem>) {
-        recyclerView.visibility = View.VISIBLE
-        emptyView.visibility = View.GONE
-
-        val adapter = ZoneWorkAdapter(zones) { selectedZone ->
-            Log.d(TAG, "Zone selected: ${selectedZone.zoneWorkVehicleID}")
-            onZoneSelectedListener?.invoke(selectedZone)
-            dismiss()
-        }
-        recyclerView.adapter = adapter
+        uiState = ZoneSelectionUiState(zones = zones)
     }
 
     private fun showEmpty() {
-        recyclerView.visibility = View.GONE
-        emptyView.visibility = View.VISIBLE
+        uiState = ZoneSelectionUiState()
     }
 
     private fun showLoading(isLoading: Boolean) {
-        loadingProgress.visibility = if (isLoading) View.VISIBLE else View.GONE
-        recyclerView.visibility = if (isLoading) View.GONE else recyclerView.visibility
-        emptyView.visibility = if (isLoading) View.GONE else emptyView.visibility
+        uiState = uiState.copy(loading = isLoading)
     }
 }
 

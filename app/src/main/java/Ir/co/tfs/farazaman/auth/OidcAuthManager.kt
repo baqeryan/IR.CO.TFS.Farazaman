@@ -6,6 +6,7 @@ import android.preference.PreferenceManager
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import Ir.co.tfs.farazaman.util.TokenManager
+import Ir.co.tfs.farazaman.presentation.login.LoginModeHelper
 import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationRequest
 import net.openid.appauth.AuthorizationResponse
@@ -27,6 +28,9 @@ class OidcAuthManager @Inject constructor(
 ) {
     @Volatile
     private var serviceConfig: AuthorizationServiceConfiguration? = null
+
+    @Volatile
+    private var serviceConfigKey: String? = null
 
     @Volatile
     private var pendingAuthorizationRequest: AuthorizationRequest? = null
@@ -57,7 +61,24 @@ class OidcAuthManager @Inject constructor(
     }
 
     suspend fun ensureConfiguration(): AuthorizationServiceConfiguration {
-        serviceConfig?.let { return it }
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        if (LoginModeHelper.isLocalRemoteLogin(prefs)) {
+            val baseAddress = prefs.getString("BASE_URL", null)
+                ?: throw IllegalStateException("LocalRemote BaseAddress is missing")
+            val endpoints = LocalRemoteEndpoints.fromBaseAddress(baseAddress)
+            val key = "local:${endpoints.authorizationEndpoint}|${endpoints.tokenEndpoint}"
+            serviceConfig?.takeIf { serviceConfigKey == key }?.let { return it }
+            return AuthorizationServiceConfiguration(
+                Uri.parse(endpoints.authorizationEndpoint.toString()),
+                Uri.parse(endpoints.tokenEndpoint.toString()),
+            ).also {
+                serviceConfig = it
+                serviceConfigKey = key
+            }
+        }
+
+        val key = "remote:$ISSUER_URI"
+        serviceConfig?.takeIf { serviceConfigKey == key }?.let { return it }
         return suspendCoroutine { continuation ->
             AuthorizationServiceConfiguration.fetchFromIssuer(ISSUER_URI) { config, ex ->
                 if (ex != null) {
@@ -72,6 +93,7 @@ class OidcAuthManager @Inject constructor(
                     return@fetchFromIssuer
                 }
                 serviceConfig = config
+                serviceConfigKey = key
                 continuation.resume(config)
             }
         }

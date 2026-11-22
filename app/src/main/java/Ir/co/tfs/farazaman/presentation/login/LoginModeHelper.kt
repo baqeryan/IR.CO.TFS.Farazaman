@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 object LoginModeHelper {
     const val MODE_PASSWORD = 0
     const val MODE_WEB = 1
+    const val MODE_LOCAL_REMOTE = 2
 
     private const val PREF_LOGIN_MODE = "LOGIN_MODE"
     private const val PREF_OIDC_SCOPE = "OIDC_SCOPE"
@@ -25,7 +26,14 @@ object LoginModeHelper {
     }
 
     fun isWebLogin(prefs: SharedPreferences): Boolean {
-        return getLoginMode(prefs) == MODE_WEB
+        return when (getLoginMode(prefs)) {
+            MODE_WEB, MODE_LOCAL_REMOTE -> true
+            else -> false
+        }
+    }
+
+    fun isLocalRemoteLogin(prefs: SharedPreferences): Boolean {
+        return getLoginMode(prefs) == MODE_LOCAL_REMOTE
     }
 
     fun getOidcScope(prefs: SharedPreferences): String {

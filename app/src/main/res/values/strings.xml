@@ -345,7 +345,7 @@
     <!--    <string name="about_exporting_db">Exporting database&#8230;</string>-->
     <!--    <string name="about_export_db_result">Database export result: %s</string>-->
     <string name="about">درباره</string>
-    <string name="about_text">شرکت تجارت فناوران سبز در حوزه محیط زیست با ارائه راه حل های میتنی بر فناوری اطلاعات و ارتباطات و بهره گیری از فناوری های نوین فهالیت مینماید و به صورت تخصصی باارائه نرمافزارهای سازمان پایه در زمینه مدیریت خدمات شهری و پسماند در خدمت شهرداری ها و محیط زیست کشور است. </string>
+    <string name="about_text">شرکت تجارت فناوران سبز با بهره‌گیری از فناوری اطلاعات و ارتباطات، راهکارهای تخصصی حوزه محیط‌زیست، خدمات شهری و مدیریت پسماند را توسعه می‌دهد. محصولات این شرکت برای برنامه‌ریزی، اجرای عملیات میدانی، پایش عملکرد و تصمیم‌گیری دقیق‌تر سازمان‌ها و شهرداری‌ها طراحی شده‌اند.</string>
     <string name="about_translate_text">کمک کنید OSMTracker را ترجمه کنیم:</string>
     <string name="about_debug_info">اطلاعات debug</string>
     <string name="about_export_db">خروجی از پایگاه‌داده</string>
@@ -377,7 +377,7 @@
     <string name="various_accuracy">دقت</string>
     <string name="various_accuracy_with_sats">دقت {0}{1} ({2}/{3})</string>
     <!--    <string name="various_waiting_gps_fix">Waiting for GPS fix&#8230; ({0}/{1})</string> &lt;!&ndash; parameters: (used sats, visible sats) &ndash;&gt;-->
-    <string name="various_waiting_gps_fix">در انتظار پایدار شدن gps&#8230; ({0}/{1})</string> <!-- parameters: (used sats, visible sats) -->
+    <string name="various_waiting_gps_fix">در انتظار GPS&#8230; ({0}/{1})</string> <!-- parameters: (used sats, visible sats) -->
     <!--    <string name="various_heading_display">{0}&#176;</string> &lt;!&ndash; parameters: (heading in degrees) &ndash;&gt;-->
     <!--    <string name="various_heading">Wait for heading&#8230;</string>-->
     <!--    <string name="various_heading_unknown">Heading can\'t be determined</string>-->
@@ -475,13 +475,13 @@
     <string name="intro_skip">رد کردن</string>
     <!--Intro - slide1: تاریخچه گزارشات-->
     <string name="app_intro_slide1_title">تاریخچه گزارشات</string>
-    <string name="app_intro_slide1_description">در بخش سوابق، می‌توانید همه بازدیدها و گزارش‌های دیروز را ببینید و مسیرها و تخلفات ثبت‌شده را مرور کنید.</string>
+    <string name="app_intro_slide1_description">در بخش سوابق، می‌توانید همه بازدیدها و گزارش‌های دیروز را ببینید و مسیرها و نواقص ثبت‌شده را مرور کنید.</string>
     <!--Intro - slide2: شروع ماموریت-->
     <string name="app_intro_slide2_title">شروع ماموریت و ثبت مسیر</string>
     <string name="app_intro_slide2_description">با زدن دکمه شروع ماموریت، برنامه به صورت خودکار مسیر حرکت شما را ضبط می‌کند تا گزارش دقیقی از روند بازدید داشته باشید.</string>
-    <!--Intro - slide3: ثبت تخلفات-->
-    <string name="app_intro_slide3_title">ثبت تخلفات در مسیر</string>
-    <string name="app_intro_slide3_description">اگر تخلفی در مسیر دیدید، کافی‌ست آن را ثبت کنید. جزئیات به‌طور خودکار گردآوری شده و در پایان مأموریت ارسال می‌شوند.</string>
+    <!--Intro - slide3: ثبت نواقص-->
+    <string name="app_intro_slide3_title">ثبت نواقص در مسیر</string>
+    <string name="app_intro_slide3_description">اگر نقصی در مسیر دیدید، کافی‌ست آن را ثبت کنید. جزئیات به‌طور خودکار گردآوری شده و در پایان مأموریت ارسال می‌شوند.</string>
 
     <!-- Login -->
     <string name="login_title">ورود به فرا زمان</string>
@@ -526,12 +526,12 @@
     <string name="contractor_action_image_required">حداقل یک تصویر با دوربین ثبت کنید.</string>
     <string name="contractor_capture_failed">تصویر از دوربین دریافت نشد.</string>
     <string name="contractor_violations_title">اصلاحیه‌ها</string>
-    <string name="contractor_violations_not_connected">سرویس دریافت تخلفات ثبت‌شده توسط ناظر هنوز متصل نشده است.</string>
+    <string name="contractor_violations_not_connected">سرویس دریافت نواقص ثبت‌شده توسط ناظر هنوز متصل نشده است.</string>
     <string name="contractor_violations_empty">موردی برای اصلاحیه وجود ندارد.</string>
     <string name="contractor_violations_retry">تلاش دوباره</string>
     <string name="contractor_violation_chapter">فصل فهرست‌بها</string>
-    <string name="contractor_violation_title">عنوان تخلف</string>
-    <string name="contractor_view_location">نمایش محل تخلف</string>
+    <string name="contractor_violation_title">عنوان نقص</string>
+    <string name="contractor_view_location">نمایش محل نقص</string>
     <string name="contractor_register_correction">ثبت اصلاحیه</string>
     <string name="contractor_correction_submitted">اصلاحیه ثبت شد</string>
     <string name="contractor_correction_title">ثبت اصلاحیه</string>
@@ -550,8 +550,8 @@
     <string name="contractor_location_unavailable">موقعیت مکانی معتبر در دسترس نیست.</string>
     <string name="contractor_correction_submitting">در حال ارسال اصلاح…</string>
     <string name="contractor_correction_error">ثبت اصلاح انجام نشد. دوباره تلاش کنید.</string>
-    <string name="contractor_violation_location_title">محل تخلف</string>
-    <string name="contractor_violation_location_unavailable">مختصات معتبری برای این تخلف ثبت نشده است.</string>
+    <string name="contractor_violation_location_title">محل نقص</string>
+    <string name="contractor_violation_location_unavailable">مختصات معتبری برای این نقص ثبت نشده است.</string>
 
     <!-- Work area selection -->
     <string name="work_area_selection_title">انتخاب محدوده کاری</string>
@@ -584,16 +584,16 @@
     <string name="supervisor_home_employer_label">محدوده کاری</string>
     <string name="supervisor_home_change_contract">تغییر</string>
     <string name="supervisor_home_contract_detail">%1$s - %2$s</string>
-    <string name="supervisor_home_warning_start_visit">برای ثبت تخلف، ابتدا بازدید را شروع کنید</string>
+    <string name="supervisor_home_warning_start_visit">برای ثبت نقص، ابتدا بازدید را شروع کنید</string>
     <string name="supervisor_home_active_visit">بازدید فعال</string>
     <string name="supervisor_home_inside_fence">(در محدوده)</string>
     <string name="supervisor_home_outside_fence">(خارج محدوده)</string>
     <string name="supervisor_home_visit_not_started">بازدید امروز هنوز شروع نشده</string>
     <string name="supervisor_home_visit_in_progress">بازدید در حال انجام است</string>
-    <string name="supervisor_home_visit_desc">با شروع بازدید، مسیر GPS شما ثبت می‌شود و می‌توانید تخلفات را گزارش دهید.</string>
+    <string name="supervisor_home_visit_desc">با شروع بازدید، مسیر GPS شما ثبت می‌شود و می‌توانید نواقص را گزارش دهید.</string>
     <string name="supervisor_home_stat_daily">وظایف روزانه</string>
     <string name="supervisor_home_stat_continuous">وظایف مستمر</string>
-    <string name="supervisor_home_stat_violations">تخلفات ثبت شده</string>
+    <string name="supervisor_home_stat_violations">نواقص ثبت شده</string>
     <string name="supervisor_home_stat_count">%1$d مورد</string>
     <string name="supervisor_tracking_started">ردیابی برای ماموریت شروع شد</string>
     <string name="supervisor_change_contract_blocked">ابتدا بازدید را متوقف کنید</string>
@@ -608,7 +608,7 @@
     <string name="supervisor_no_mission">برنامه‌ای دریافت نشده است. دکمه بالا را بزنید.</string>
     <string name="supervisor_row_planning">ردیف برنامه‌ریزی</string>
     <string name="supervisor_row_continuous">ردیف مستمر</string>
-    <string name="supervisor_row_commitments">عدم اجرای تعهدات</string>
+    <string name="supervisor_row_commitments">نواقص</string>
     <string name="supervisor_today_visit">بازدید امروز</string>
     <string name="supervisor_reports">گزارش‌ها</string>
     <string name="supervisor_nav_home">خانه</string>
@@ -621,7 +621,7 @@
     <string name="profile_change_role">تغییر نقش</string>
     <string name="supervisor_today_title">بازدید امروز</string>
     <string name="daily_plan_visit_not_started_title">بازدید شروع نشده!</string>
-    <string name="daily_plan_violation_count">%1$d تخلف ثبت شده</string>
+    <string name="daily_plan_violation_count">%1$d نقص ثبت شده</string>
     <string name="daily_plan_no_violation">موردی ثبت نشده</string>
     <string name="supervisor_no_items">آیتمی برای نمایش وجود ندارد</string>
     <string name="daily_plan_show_on_map">نمایش روی نقشه</string>
@@ -638,18 +638,18 @@
     <string name="map_zoom_out">کوچک‌نمایی</string>
     <string name="map_loading_address">در حال دریافت...</string>
     <string name="map_address_unknown">آدرس یافت نشد</string>
-    <string name="daily_plan_register_violation">ثبت اطلاعات تخلف</string>
+    <string name="daily_plan_register_violation">ثبت اطلاعات نقص</string>
     <string name="daily_plan_status_reviewed">بررسی شده</string>
     <string name="daily_plan_status_in_progress">در حال بررسی</string>
     <string name="daily_plan_status_not_reviewed">بررسی نشده</string>
 
-    <string name="end_mission_title">اتمام و بارگذاری ماموریت</string>
+    <string name="end_mission_title">پایان کامل و بارگذاری مأموریت</string>
     <string name="end_mission_message_remove">با تایید این مرحله، ماموریت از فهرست شما حذف خواهد شد.</string>
     <string name="end_mission_message_confirm">آیا از اتمام ماموریت خود مطمئن هستید؟</string>
     <string name="end_mission_confirm">تایید و بارگذاری</string>
     <string name="end_mission_cancel">لغو</string>
-    <string name="supervisor_commitments_tab_hint">ثبت عدم اجرای تعهدات از طریق فرم تخلف انجام می‌شود.</string>
-    <string name="supervisor_history_empty">تخلفی برای این تاریخ ثبت نشده است</string>
+    <string name="supervisor_commitments_tab_hint">ثبت نقص از طریق فرم نقص انجام می‌شود.</string>
+    <string name="supervisor_history_empty">نقصی برای این تاریخ ثبت نشده است</string>
     <string name="supervisor_history_registered_count">%1$d ثبت شده</string>
     <string name="supervisor_history_in_progress_count">%1$d در حال بررسی</string>
     <string name="supervisor_history_confirmed_count">%1$d تایید شده</string>
@@ -658,11 +658,11 @@
     <string name="supervisor_history_datetime">%1$s - %2$s</string>
     <string name="supervisor_delete_mission">حذف برنامه</string>
     <string name="supervisor_delete_mission_title">حذف برنامه</string>
-    <string name="supervisor_delete_mission_message">برنامه، برنامه روزانه و تاریخچه تخلفات این ماموریت حذف می‌شود. ادامه می‌دهید؟</string>
+    <string name="supervisor_delete_mission_message">برنامه، برنامه روزانه و تاریخچه نواقص این ماموریت حذف می‌شود. ادامه می‌دهید؟</string>
     <string name="supervisor_delete_mission_confirm">حذف</string>
     <string name="supervisor_delete_mission_done">برنامه حذف شد</string>
-    <string name="supervisor_violation_default_title">تخلف ثبت شده</string>
-    <string name="supervisor_violation_title_label">عنوان تخلف ثبت شده</string>
+    <string name="supervisor_violation_default_title">نقص ثبت شده</string>
+    <string name="supervisor_violation_title_label">عنوان نقص ثبت شده</string>
     <string name="label_date">تاریخ</string>
     <string name="label_employer">کارفرما</string>
     <string name="label_district">ناحیه</string>
@@ -672,7 +672,7 @@
     <string name="label_waypoints">نقاط بین‌راهی</string>
 
     <string name="back">بازگشت</string>
-    <string name="violation_form_title">ثبت اطلاعات تخلف</string>
+    <string name="violation_form_title">ثبت اطلاعات نقص</string>
     <string name="violation_defect_title_label">عنوان نقص صورت گرفته</string>
     <string name="violation_visit_date_label">تاریخ ثبت عملکرد : %1$s</string>
     <string name="violation_view_more_details">مشاهده جزئیات بیشتر</string>
@@ -680,7 +680,7 @@
     <string name="violation_fine_total">مبلغ کل جریمه : %1$s ریال</string>
     <string name="violation_description_label">توضیحات</string>
     <string name="violation_address_label">نشانی محل</string>
-    <string name="violation_images_label">تصاویر تخلف</string>
+    <string name="violation_images_label">تصاویر نقص</string>
     <string name="violation_pick_images">گرفتن تصویر با دوربین</string>
     <string name="violation_max_file_size">Max. File Size: ۳۰MB</string>
     <string name="violation_images_count">%1$d تصویر بارگذاری شده</string>
@@ -689,15 +689,15 @@
     <string name="violation_delete_all_images">حذف همه تصاویر</string>
     <string name="violation_save">ذخیره</string>
     <string name="violation_details_title">جزئیات %1$s</string>
-    <string name="violation_group_label">گروه‌بندی تخلفات</string>
+    <string name="violation_group_label">گروه‌بندی نواقص</string>
     <string name="violation_season_label">فصل‌های فهرست بها</string>
     <string name="violation_price_row_label">ردیف فهرست بها</string>
-    <string name="commitments_violation_form_title">عدم اجرای تعهدات</string>
-    <string name="violation_select_group_hint">انتخاب گروه تخلف</string>
+    <string name="commitments_violation_form_title">ثبت نقص</string>
+    <string name="violation_select_group_hint">انتخاب گروه نقص</string>
     <string name="violation_select_defect_hint">انتخاب عنوان نقص</string>
     <string name="violation_select_season_hint">انتخاب فصل فهرست بها</string>
     <string name="violation_select_price_row_hint">انتخاب ردیف فهرست بها</string>
-    <string name="violation_select_group_title">انتخاب گروه‌بندی تخلفات</string>
+    <string name="violation_select_group_title">انتخاب گروه‌بندی نواقص</string>
     <string name="violation_select_defect_title">انتخاب عنوان نقص</string>
     <string name="violation_select_season_title">انتخاب فصل فهرست بها</string>
     <string name="violation_select_price_row_title">انتخاب ردیف فهرست بها</string>
@@ -725,12 +725,14 @@
     <string name="app_update_download">دریافت بروزرسانی</string>
     <string name="app_update_install">نصب نسخه جدید</string>
     <string name="app_update_open_settings">رفتن به تنظیمات</string>
+    <string name="app_update_open_security_settings">باز کردن تنظیمات امنیتی</string>
     <string name="app_update_retry">تلاش مجدد</string>
     <string name="app_update_later">بعداً</string>
     <string name="app_update_default_notes">نسخه جدید فرا زمان آماده دریافت است.</string>
     <string name="app_update_downloading">در حال دریافت نسخه جدید: %1$d٪</string>
     <string name="app_update_ready">فایل بروزرسانی با موفقیت دریافت و اعتبارسنجی شد. برای ادامه، نصب را تأیید کنید.</string>
     <string name="app_update_permission_explanation">برای نصب نسخه جدید لازم است اجازه نصب برنامه از فرا زمان را در تنظیمات Android فعال کنید.</string>
+    <string name="app_update_security_block_explanation">Android نصب نسخه جدید را به‌دلیل محدودیت امنیتی «منابع ناشناس» مسدود کرده است. در تنظیمات امنیتی، نصب برنامه‌های ناشناس را برای فرا زمان مجاز کنید. در گوشی‌های سامسونگ اگر «مسدودکننده خودکار (Auto Blocker)» روشن است، آن را خاموش کنید؛ سپس برگردید و دوباره نصب را بزنید.</string>
     <string name="app_update_installing">در انتظار تأیید نصب Android…</string>
     <!-- Actions and notifications -->
     <string name="actions_notifications_title">اقدامات و اعلانها</string>
@@ -788,5 +790,6 @@
     <string name="mission_day_registration_loading">روز جدید شناسایی شد؛ در حال ثبت برنامه کاری امروز…</string>
     <string name="mission_day_registration_success">برنامه کاری امروز ثبت و اطلاعات مأموریت به‌روزرسانی شد.</string>
     <string name="mission_day_registration_failed">ثبت برنامه کاری امروز انجام نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید.</string>
-    <string name="mission_day_registration_blocks_violation">ابتدا برنامه کاری امروز ثبت می‌شود؛ سپس اطلاعات تخلف را بررسی و دوباره ثبت کنید.</string>
+    <string name="mission_day_registration_blocks_violation">ابتدا برنامه کاری امروز ثبت می‌شود؛ سپس اطلاعات نقص را بررسی و دوباره ثبت کنید.</string>
+    <string name="contractor_capture_permission_required">برای افزودن تصویر، دسترسی دوربین لازم است.</string>
 </resources>

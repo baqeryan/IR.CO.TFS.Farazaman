@@ -11,11 +11,16 @@ import org.json.JSONObject
 
 object TodayVisitMissionActions {
 
-    fun openMap(context: Context, trackId: Long, encryption: String?) {
+    fun openMap(
+        context: Context,
+        trackId: Long,
+        encryption: String?,
+        enableGpsTracking: Boolean = false,
+    ) {
         val intent = Intent(context, DisplayTrackMap::class.java).apply {
             putExtra(TrackContentProvider.Schema.COL_TRACK_ID, trackId)
             putExtra("playback_mode", false)
-            putExtra("disable_gps_service", true)
+            putExtra("disable_gps_service", !enableGpsTracking)
             putExtra(DisplayTrackMap.EXTRA_FROM_NEW_SUPERVISOR, true)
             if (!encryption.isNullOrEmpty()) {
                 putExtra("zone_encryption", encryption)

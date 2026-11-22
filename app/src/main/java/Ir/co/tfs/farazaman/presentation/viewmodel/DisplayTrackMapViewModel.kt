@@ -5,8 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import Ir.co.tfs.farazaman.data.api.FormDataApiService
@@ -47,6 +50,8 @@ class DisplayTrackMapViewModel @Inject constructor(
     // UI State for errors
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+    private val _roadLookupFailures = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val roadLookupFailures: SharedFlow<Unit> = _roadLookupFailures.asSharedFlow()
 
     // UI State for mission details
     private val _missionDetails = MutableStateFlow<Any?>(null)
@@ -85,9 +90,9 @@ class DisplayTrackMapViewModel @Inject constructor(
                     longitude = longitude,
                     buffer = buffer,
                 )
-                requestCompleted = true
                 
                 if (roadDataList.isNotEmpty()) {
+                    requestCompleted = true
                     val firstRoadResult = roadDataList[0]
                     _roadInfo.value = RoadInfo(
                         name = firstRoadResult.name,
@@ -97,6 +102,9 @@ class DisplayTrackMapViewModel @Inject constructor(
                     )
                     Log.d(TAG, "Road info fetched successfully: ${firstRoadResult.name}")
                 } else {
+                    // Do not cache an empty API result. The vector tiles may finish loading
+                    // shortly afterwards, allowing MapRoadNameResolver to resolve the road
+                    // name from the map data on the next updater tick.
                     _roadInfo.value = RoadInfo(
                         name = "آدرسی یافت نشد",
                         fclass = "",
@@ -107,13 +115,8 @@ class DisplayTrackMapViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to fetch road data", e)
-                _roadInfo.value = RoadInfo(
-                    name = "خطا در دریافت اطلاعات",
-                    fclass = "",
-                    maxspeed = "",
-                    isValid = false
-                )
-                _errorMessage.value = "خطا در دریافت اطلاعات جاده"
+                // Preserve the last valid road name; the map gives a brief visual signal.
+                _roadLookupFailures.tryEmit(Unit)
             } finally {
                 _isLoadingRoadInfo.value = false
                 onRequestCompleted(requestCompleted)
@@ -202,6 +205,17 @@ class DisplayTrackMapViewModel @Inject constructor(
                 _isLoadingGisLayers.value = false
             }
         }
+    }
+
+    fun useMapRoadInfo(name: String, roadClass: String) {
+        if (name.isBlank()) return
+        _roadInfo.value = RoadInfo(
+            name = name.trim(),
+            fclass = roadClass.trim(),
+            maxspeed = "",
+            isValid = roadClass.isNotBlank(),
+        )
+        _errorMessage.value = null
     }
 
     private data class RoadInfoRequest(

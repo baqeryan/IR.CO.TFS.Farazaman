@@ -1,92 +1,90 @@
 package Ir.co.tfs.farazaman.util
 
+import Ir.co.tfs.farazaman.presentation.design.components.FzButton
+import Ir.co.tfs.farazaman.presentation.design.components.FzButtonVariant
+import Ir.co.tfs.farazaman.presentation.design.components.FzLoading
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanTheme
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanThemeTokens
 import android.app.Dialog
 import android.content.Context
+import android.content.ContextWrapper
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.View
 import android.view.Window
-import android.widget.ImageView
-import android.widget.TextView
-import com.google.android.material.button.MaterialButton
-import Ir.co.tfs.farazaman.R
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 
 class LoadingDialog(context: Context) : Dialog(context) {
-
-    private lateinit var logoImageView: ImageView
-    private lateinit var loadingTextView: TextView
-    private lateinit var cancelButton: MaterialButton
-    private var initialMessage: String = "در حال بارگذاری..."
+    private val messageState = mutableStateOf("در حال بارگذاری...")
+    private val cancellableState = mutableStateOf(false)
     private var timeoutHandler: Handler? = null
     private var timeoutRunnable: Runnable? = null
+
     var onCancelListener: (() -> Unit)? = null
         set(value) {
             field = value
-            if (::cancelButton.isInitialized) {
-                applyCancelUi()
-            }
+            cancellableState.value = value != null
+            setCancelable(value != null)
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
-        setContentView(R.layout.loading_dialog)
-
         window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         setCanceledOnTouchOutside(false)
+        setCancelable(cancellableState.value)
+        setOnCancelListener { onCancelListener?.invoke() }
 
-        logoImageView = findViewById(R.id.loading_logo)
-        loadingTextView = findViewById(R.id.loading_text)
-        cancelButton = findViewById(R.id.btnLoadingCancel)
-
-        loadingTextView.text = initialMessage
-        applyCancelUi()
-
-        cancelButton.setOnClickListener {
-            onCancelListener?.invoke()
-            dismiss()
+        val composeView = ComposeView(context).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            context.findComponentActivity()?.let { owner ->
+                setViewTreeLifecycleOwner(owner)
+                setViewTreeViewModelStoreOwner(owner)
+                setViewTreeSavedStateRegistryOwner(owner)
+            }
+            setContent {
+                FaraZamanTheme {
+                    LoadingDialogContent(
+                        message = messageState.value,
+                        cancellable = cancellableState.value,
+                        onCancel = {
+                            onCancelListener?.invoke()
+                            dismiss()
+                        },
+                    )
+                }
+            }
         }
-
-        setOnCancelListener {
-            onCancelListener?.invoke()
-        }
-    }
-
-    private fun applyCancelUi() {
-        val cancellable = onCancelListener != null
-        if (::cancelButton.isInitialized) {
-            cancelButton.visibility = if (cancellable) View.VISIBLE else View.GONE
-        }
-        setCancelable(cancellable)
+        setContentView(composeView)
     }
 
     fun setLoadingText(text: String) {
-        if (::loadingTextView.isInitialized) {
-            loadingTextView.text = text
-        } else {
-            initialMessage = text
-        }
+        messageState.value = text
     }
 
     fun setTimeout(timeoutMs: Long) {
         cancelTimeout()
-
         timeoutHandler = Handler(Looper.getMainLooper())
-        timeoutRunnable = Runnable {
-            if (isShowing) {
-                dismiss()
-            }
-        }
+        timeoutRunnable = Runnable { if (isShowing) dismiss() }
         timeoutHandler?.postDelayed(timeoutRunnable!!, timeoutMs)
     }
 
     fun cancelTimeout() {
-        timeoutRunnable?.let { runnable ->
-            timeoutHandler?.removeCallbacks(runnable)
-        }
+        timeoutRunnable?.let { timeoutHandler?.removeCallbacks(it) }
         timeoutHandler = null
         timeoutRunnable = null
     }
@@ -101,12 +99,10 @@ class LoadingDialog(context: Context) : Dialog(context) {
             context: Context,
             message: String = "در حال بارگذاری...",
             onCancel: (() -> Unit)? = null,
-        ): LoadingDialog {
-            val dialog = LoadingDialog(context)
-            dialog.initialMessage = message
-            dialog.onCancelListener = onCancel
-            dialog.show()
-            return dialog
+        ) = LoadingDialog(context).apply {
+            setLoadingText(message)
+            onCancelListener = onCancel
+            show()
         }
 
         fun showWithTimeout(
@@ -114,13 +110,36 @@ class LoadingDialog(context: Context) : Dialog(context) {
             message: String = "در حال بارگذاری...",
             timeoutMs: Long = 180000,
             onCancel: (() -> Unit)? = null,
-        ): LoadingDialog {
-            val dialog = LoadingDialog(context)
-            dialog.initialMessage = message
-            dialog.onCancelListener = onCancel
-            dialog.show()
-            dialog.setTimeout(timeoutMs)
-            return dialog
+        ) = show(context, message, onCancel).apply { setTimeout(timeoutMs) }
+    }
+}
+
+private tailrec fun Context.findComponentActivity(): ComponentActivity? = when (this) {
+    is ComponentActivity -> this
+    is ContextWrapper -> baseContext.findComponentActivity()
+    else -> null
+}
+
+@Composable
+private fun LoadingDialogContent(
+    message: String,
+    cancellable: Boolean,
+    onCancel: () -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.extraLarge,
+        tonalElevation = FaraZamanThemeTokens.elevation.raised,
+    ) {
+        Column(Modifier.padding(FaraZamanThemeTokens.spacing.md)) {
+            FzLoading(message)
+            if (cancellable) {
+                FzButton(
+                    text = "انصراف",
+                    onClick = onCancel,
+                    variant = FzButtonVariant.Ghost,
+                )
+            }
         }
     }
 }

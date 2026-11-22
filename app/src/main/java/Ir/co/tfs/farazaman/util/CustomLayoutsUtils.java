@@ -5,7 +5,6 @@ import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 
 import Ir.co.tfs.farazaman.OSMTracker;
-import Ir.co.tfs.farazaman.activity.AvailableLayouts;
 import Ir.co.tfs.farazaman.activity.Preferences;
 import Ir.co.tfs.farazaman.layout.GetStringResponseTask;
 
@@ -23,6 +22,7 @@ import java.nio.charset.StandardCharsets;
  */
 
 public class CustomLayoutsUtils {
+    private static final int ISO_CHARACTER_LENGTH = 2;
     //File Extension for the layouts in different languages
     public final static String LAYOUT_EXTENSION_ISO = "_xx.xml";
 
@@ -37,7 +37,7 @@ public class CustomLayoutsUtils {
         //Check if it has iso:
         if(subname.matches("\\w+_..")){
             //Remove "_es"
-            subname = subname.substring(0,subname.length() - (AvailableLayouts.ISO_CHARACTER_LENGTH+1));
+            subname = subname.substring(0,subname.length() - (ISO_CHARACTER_LENGTH+1));
         }
 
         //Replace "_" to " "

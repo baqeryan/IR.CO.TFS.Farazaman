@@ -10,12 +10,14 @@ import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
+import retrofit2.http.Query
 
 interface ViolationApiService {
 
     @Multipart
     @POST("api/BillOriginViEvent/Create")
     suspend fun createViolation(
+        @Query("tenantId") tenantId: Int,
         @Part model: MultipartBody.Part, // ما درخواست را به صورت multipart ارسال می‌کنیم
         @Part files: List<MultipartBody.Part>? = null // فایل‌های تصویر
     ): Response<ViolationSuccessResponse>

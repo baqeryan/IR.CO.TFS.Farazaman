@@ -9,6 +9,10 @@ sealed interface AppUpdateInstallStatus {
     data class Failure(val message: String) : AppUpdateInstallStatus
 }
 
+internal fun isUnknownSourceInstallBlock(message: String): Boolean =
+    message.contains("unknown source", ignoreCase = true) ||
+        message.contains("unknown sources", ignoreCase = true)
+
 object AppUpdateInstallStatusBus {
     private val mutableEvents = MutableSharedFlow<AppUpdateInstallStatus>(extraBufferCapacity = 8)
     val events = mutableEvents.asSharedFlow()

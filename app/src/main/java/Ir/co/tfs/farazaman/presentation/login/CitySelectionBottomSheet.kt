@@ -5,15 +5,13 @@ import android.content.DialogInterface
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ProgressBar
-import android.widget.TextView
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.auth.OidcAuthManager
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanTheme
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -25,6 +23,7 @@ class CitySelectionBottomSheet : BottomSheetDialogFragment() {
     companion object {
         private const val ARG_CITIES_JSON = "cities_json"
         private const val ARG_IS_LOADING = "is_loading"
+        private const val SHEET_HEIGHT_RATIO = 0.75f
 
         fun newInstance(
             cities: List<LoginActivity.ProvinceInstance>,
@@ -58,48 +57,24 @@ class CitySelectionBottomSheet : BottomSheetDialogFragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
-    ): View? = inflater.inflate(R.layout.bottom_sheet_city_selection, container, false)
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        val recyclerView = view.findViewById<RecyclerView>(R.id.citiesRecyclerView)
-        val loadingView = view.findViewById<ProgressBar>(R.id.citiesLoading)
-        val emptyView = view.findViewById<TextView>(R.id.citiesEmpty)
-
+    ): View = ComposeView(requireContext()).apply {
+        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         val isLoading = arguments?.getBoolean(ARG_IS_LOADING, false) == true
         val cities = parseCities(arguments?.getString(ARG_CITIES_JSON).orEmpty())
-
-        recyclerView.layoutManager = LinearLayoutManager(requireContext())
-
-        when {
-            isLoading -> {
-                loadingView.visibility = View.VISIBLE
-                emptyView.visibility = View.GONE
-                recyclerView.visibility = View.GONE
+        setContent {
+            FaraZamanTheme {
+                CitySelectionScreen(
+                    state = CitySelectionUiState(cities = cities, loading = isLoading),
+                    onEvent = { event ->
+                        when (event) {
+                            is CitySelectionEvent.Select -> {
+                                pendingSelectedCity = event.city
+                                dismiss()
+                            }
+                        }
+                    },
+                )
             }
-            cities.isEmpty() -> {
-                loadingView.visibility = View.GONE
-                emptyView.visibility = View.VISIBLE
-                recyclerView.visibility = View.GONE
-            }
-            else -> {
-                loadingView.visibility = View.GONE
-                emptyView.visibility = View.GONE
-                recyclerView.visibility = View.VISIBLE
-                recyclerView.adapter = CitySelectionAdapter(cities) { city ->
-                    pendingSelectedCity = city
-                    dismiss()
-                }
-                applyRecyclerHeight(recyclerView, cities.size)
-            }
-        }
-    }
-
-    private fun applyRecyclerHeight(recyclerView: RecyclerView, itemCount: Int) {
-        val itemHeight = resources.getDimensionPixelSize(R.dimen.city_selection_item_height)
-        val maxListHeight = (resources.displayMetrics.heightPixels * 0.45f).toInt()
-        recyclerView.layoutParams = recyclerView.layoutParams.apply {
-            height = (itemCount * itemHeight).coerceAtMost(maxListHeight)
         }
     }
 
@@ -108,6 +83,9 @@ class CitySelectionBottomSheet : BottomSheetDialogFragment() {
         val dialog = dialog as? BottomSheetDialog ?: return
         val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             ?: return
+        bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
+            height = (resources.displayMetrics.heightPixels * SHEET_HEIGHT_RATIO).toInt()
+        }
         BottomSheetBehavior.from(bottomSheet).apply {
             state = BottomSheetBehavior.STATE_EXPANDED
             skipCollapsed = true

@@ -65,6 +65,24 @@ class RolesManager @Inject constructor(
         return access.hasMultipleSelectableRoles()
     }
 
+    fun getProfileRoleLabel(): String? {
+        val response = getUserRoles() ?: return null
+        return response.roles.values
+            .asSequence()
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .distinct()
+            .joinToString("، ")
+            .takeIf(String::isNotEmpty)
+            ?: response.actorRoles.values
+                .asSequence()
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+                .distinct()
+                .joinToString("، ")
+                .takeIf(String::isNotEmpty)
+    }
+
     fun clearUserRoles() {
         sharedPreferences.edit().remove(KEY_USER_ROLES).apply()
     }

@@ -13,6 +13,7 @@ class UserManager(private val sharedPreferences: SharedPreferences) {
         private const val TAG = "UserManager"
         private const val KEY_USER_NAME = "user_name"
         private const val KEY_DISPLAY_NAME = "display_name"
+        private const val KEY_MAIL = "mail"
         private const val KEY_DEFAULT_SUBSYSTEM = "default_subsystem"
         private const val KEY_DEFAULT_ROLE_NAME = "default_role_name"
     }
@@ -25,6 +26,7 @@ class UserManager(private val sharedPreferences: SharedPreferences) {
         sharedPreferences.edit()
             .putString(KEY_USER_NAME, userInfo.userName)
             .putString(KEY_DISPLAY_NAME, userInfo.displayName)
+            .putString(KEY_MAIL, userInfo.mail)
             .putInt(KEY_DEFAULT_SUBSYSTEM, userInfo.defaultSubsystem)
             .putString(KEY_DEFAULT_ROLE_NAME, userInfo.defaultRoleName)
             .apply()
@@ -44,6 +46,7 @@ class UserManager(private val sharedPreferences: SharedPreferences) {
         return UserInfo(
             userName = userName,
             displayName = sharedPreferences.getString(KEY_DISPLAY_NAME, "") ?: "",
+            mail = sharedPreferences.getString(KEY_MAIL, null),
             defaultSubsystem = sharedPreferences.getInt(KEY_DEFAULT_SUBSYSTEM, 0),
             defaultRoleName = sharedPreferences.getString(KEY_DEFAULT_ROLE_NAME, "") ?: ""
         )
@@ -92,6 +95,7 @@ class UserManager(private val sharedPreferences: SharedPreferences) {
         sharedPreferences.edit()
             .remove(KEY_USER_NAME)
             .remove(KEY_DISPLAY_NAME)
+            .remove(KEY_MAIL)
             .remove(KEY_DEFAULT_SUBSYSTEM)
             .remove(KEY_DEFAULT_ROLE_NAME)
             .apply()

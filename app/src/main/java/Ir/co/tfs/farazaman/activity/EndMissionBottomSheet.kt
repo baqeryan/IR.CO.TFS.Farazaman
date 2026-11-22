@@ -1,11 +1,17 @@
 package Ir.co.tfs.farazaman.activity
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import Ir.co.tfs.farazaman.R
+import Ir.co.tfs.farazaman.presentation.compose.FaraZamanTheme
+import Ir.co.tfs.farazaman.presentation.compose.mission.EndMissionSheetContent
 
 class EndMissionBottomSheet : BottomSheetDialogFragment() {
 
@@ -23,16 +29,30 @@ class EndMissionBottomSheet : BottomSheetDialogFragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
-    ): View = inflater.inflate(R.layout.bottom_sheet_end_mission, container, false)
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        view.findViewById<View>(R.id.btnEndMissionConfirm).setOnClickListener {
-            dismiss()
-            onConfirm?.invoke()
+    ): View = ComposeView(requireContext()).apply {
+        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        setContent {
+            FaraZamanTheme {
+                EndMissionSheetContent(
+                    onConfirm = {
+                        dismiss()
+                        onConfirm?.invoke()
+                    },
+                    onCancel = ::dismiss,
+                )
+            }
         }
-        view.findViewById<View>(R.id.btnEndMissionCancel).setOnClickListener {
-            dismiss()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val sheet = (dialog as? BottomSheetDialog)
+            ?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            ?: return
+        sheet.setBackgroundColor(Color.TRANSPARENT)
+        BottomSheetBehavior.from(sheet).apply {
+            state = BottomSheetBehavior.STATE_EXPANDED
+            skipCollapsed = true
         }
     }
 }

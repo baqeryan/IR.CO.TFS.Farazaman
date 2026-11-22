@@ -2,13 +2,19 @@ package Ir.co.tfs.farazaman.data.model
 
 import com.google.gson.annotations.SerializedName
 
+data class ContractTypeTenantOption(
+    @SerializedName("contractTypeId") val contractTypeId: Int,
+    @SerializedName("contractTypeName") val contractTypeName: String,
+    @SerializedName("tenantId") val tenantId: Int,
+)
+
 data class FormDataResponse(
-    @SerializedName("dto") val dto: FormDataDto,
+    @SerializedName("dto") val dto: FormDataDto? = null,
     @SerializedName("request") val request: FormDataRequest,
     @SerializedName("response") val response: FormDataResponseData,
-    @SerializedName("pagination") val pagination: Pagination,
-    @SerializedName("encryption") val encryption: Map<String, Any>,
-    @SerializedName("encryptions") val encryptions: Map<String, Any>
+    @SerializedName("pagination") val pagination: Pagination? = null,
+    @SerializedName("encryption") val encryption: Map<String, Any>? = null,
+    @SerializedName("encryptions") val encryptions: Map<String, Any>? = null,
 )
 
 data class FormDataDto(
@@ -50,9 +56,9 @@ data class FormDataRequest(
     @SerializedName("billCleaningViolationIds") val billCleaningViolationIds: List<Int>,
     @SerializedName("billCleaningItemGroupIds") val billCleaningItemGroupIds: List<Int>,
     @SerializedName("billCleaningItemIds") val billCleaningItemIds: List<Int>,
-    @SerializedName("visitDate") val visitDate: String,
-    @SerializedName("maxVisitDate") val maxVisitDate: String,
-    @SerializedName("minVisitDate") val minVisitDate: String,
+    @SerializedName("visitDate") val visitDate: String?,
+    @SerializedName("maxVisitDate") val maxVisitDate: String?,
+    @SerializedName("minVisitDate") val minVisitDate: String?,
     @SerializedName("isDeleted") val isDeleted: Boolean,
     @SerializedName("tenantId") val tenantId: Int,
     @SerializedName("billOriginCleaningItemIds") val billOriginCleaningItemIds: List<Int>,

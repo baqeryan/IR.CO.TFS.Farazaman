@@ -6,13 +6,14 @@ import Ir.co.tfs.farazaman.R;
 import Ir.co.tfs.farazaman.data.db.DataHelper;
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.Color;
+import android.content.res.ColorStateList;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.util.Log;
 import android.widget.TextView;
+import androidx.core.content.ContextCompat;
 
 /**
  * Listener for sensors. In particular for the acceleration and magnetic sensors to provide compass
@@ -133,27 +134,34 @@ public class SensorListener implements SensorEventListener {
 			TextView tvHeading = (TextView) activity.findViewById(R.id.gpsstatus_record_tvHeading);
 			if (tvHeading != null) {
 				if (valid) {
-					int color = Color.RED;
+					int colorResource = R.color.app_error;
 					switch (accuracy) {
 					case SensorManager.SENSOR_STATUS_UNRELIABLE:
-						color = Color.RED;
+						colorResource = R.color.app_error;
 						break;
 					case SensorManager.SENSOR_STATUS_ACCURACY_LOW:
-						color = Color.MAGENTA;
+						colorResource = R.color.stop;
 						break;
 					case SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM:
-						color = Color.YELLOW;
+						colorResource = R.color.stop;
 						break;
 					case SensorManager.SENSOR_STATUS_ACCURACY_HIGH:
-						color = Color.GREEN;
+						colorResource = R.color.brand_green;
 						break;
 					}
+					int color = ContextCompat.getColor(activity, colorResource);
 					tvHeading.setTextColor(color);
-					tvHeading.setText(activity.getResources().getString(R.string.various_heading_display)
-							.replace("{0}", HEADING_FORMAT.format(azimuth)));
+					tvHeading.setCompoundDrawableTintList(ColorStateList.valueOf(color));
+					String headingText = activity.getResources().getString(R.string.various_heading_display)
+							.replace("{0}", HEADING_FORMAT.format(azimuth));
+					tvHeading.setText(headingText);
+					tvHeading.setContentDescription(headingText);
 				} else {
-					tvHeading.setTextColor(Color.GRAY);
-					tvHeading.setText(activity.getResources().getString(R.string.various_heading_unknown));
+					int color = ContextCompat.getColor(activity, R.color.icon_gray);
+					tvHeading.setTextColor(color);
+					tvHeading.setCompoundDrawableTintList(ColorStateList.valueOf(color));
+					tvHeading.setText("");
+					tvHeading.setContentDescription(activity.getResources().getString(R.string.various_heading_unknown));
 				}
 			}
 		}

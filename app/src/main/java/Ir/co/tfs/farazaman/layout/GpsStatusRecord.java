@@ -23,7 +23,6 @@ import androidx.core.location.GnssStatusCompat;
 import androidx.core.location.LocationManagerCompat;
 import android.util.AttributeSet;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -94,7 +93,7 @@ public class GpsStatusRecord extends LinearLayout implements LocationListener {
 	
 	public GpsStatusRecord(Context context, AttributeSet attrs) {
 		super(context, attrs);
-		LayoutInflater.from(context).inflate(R.layout.gpsstatus_record, this, true);
+		GpsStatusViewFactory.populate(this);
 
 		//read the logging interval from preferences
 		gpsLoggingInterval = Long.parseLong(PreferenceManager.getDefaultSharedPreferences(context).getString(

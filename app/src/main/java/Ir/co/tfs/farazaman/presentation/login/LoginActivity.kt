@@ -4,24 +4,30 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.preference.PreferenceManager
-import android.view.View
 import android.widget.Toast
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import Ir.co.tfs.farazaman.OSMTracker
 import Ir.co.tfs.farazaman.R
-import Ir.co.tfs.farazaman.activity.Intro
+import Ir.co.tfs.farazaman.activity.RoleTutorialLauncher
+import Ir.co.tfs.farazaman.activity.TutorialRole
+import Ir.co.tfs.farazaman.activity.AboutComposeActivity
 import Ir.co.tfs.farazaman.auth.OidcAuthManager
 import Ir.co.tfs.farazaman.domain.repository.AuthRepository
 import Ir.co.tfs.farazaman.domain.model.LoginResult
 import Ir.co.tfs.farazaman.domain.usecase.LoginUseCase
 import Ir.co.tfs.farazaman.domain.validation.LoginInputValidator
 import Ir.co.tfs.farazaman.supervisor.SupervisorMissionHelper
-import Ir.co.tfs.farazaman.databinding.ActivityLoginBinding
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanTheme
 import Ir.co.tfs.farazaman.util.LoadingDialog
 import Ir.co.tfs.farazaman.util.UserManager
 import Ir.co.tfs.farazaman.util.RolesManager
@@ -31,6 +37,8 @@ import Ir.co.tfs.farazaman.service.remote.UserService
 import Ir.co.tfs.farazaman.service.remote.RolesService
 import android.util.Log
 import net.openid.appauth.AuthorizationResponse
+import net.openid.appauth.AuthorizationException
+import net.openid.appauth.AuthorizationService
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
@@ -47,8 +55,8 @@ import java.net.URI
 
 @AndroidEntryPoint
 class LoginActivity : AppCompatActivity() {
-    private lateinit var binding: ActivityLoginBinding
     private lateinit var prefs: SharedPreferences
+    private var uiState by mutableStateOf(LoginUiState())
     private var provinceList: List<ProvinceInstance> = emptyList()
     private var selectedProvince: ProvinceInstance? = null
     private var loadingDialog: LoadingDialog? = null
@@ -62,10 +70,19 @@ class LoginActivity : AppCompatActivity() {
     @Inject lateinit var authRepository: AuthRepository
     @Inject lateinit var loginUseCase: LoginUseCase
 
+    private val oidcAuthorizationLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        handleOidcAuthorizationResult(result)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityLoginBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        setContent {
+            FaraZamanTheme {
+                LoginScreen(state = uiState, onEvent = ::onUiEvent)
+            }
+        }
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
 
         currentBaseUrl = prefs.getString("BASE_URL", "No base URL set") ?: "No base URL set"
@@ -79,12 +96,13 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun setupLoginScreen() {
-        binding.loginButton.isEnabled = false
-        binding.citySelectedText.text = null
+        uiState = uiState.copy(
+            cities = emptyList(),
+            selectedCityUid = null,
+            loginEnabled = false,
+        )
 
         fetchProvincesAndPopulateSpinner()
-        setupListeners()
-        setupCitySelector()
     }
 
     private fun hasValidSession(): Boolean {
@@ -94,7 +112,7 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun continueWithExistingSession(showLoginOnFailure: Boolean = false) {
-        binding.loginButton.isEnabled = false
+        setLoginButtonEnabled(false)
         loadingDialog = LoadingDialog.show(this, "در حال ورود...")
 
         lifecycleScope.launch {
@@ -112,7 +130,7 @@ class LoginActivity : AppCompatActivity() {
             if (showLoginOnFailure) {
                 setupLoginScreen()
             } else {
-                binding.loginButton.isEnabled = selectedProvince != null
+                setLoginButtonEnabled(selectedProvince != null)
                 Toast.makeText(
                     this@LoginActivity,
                     "نشست منقضی شده. لطفاً دوباره وارد شوید.",
@@ -287,15 +305,6 @@ class LoginActivity : AppCompatActivity() {
     }
     
     private fun decideNextActivity() {
-        val showIntro = prefs.getBoolean(OSMTracker.Preferences.KEY_DISPLAY_APP_INTRO, OSMTracker.Preferences.VAL_DISPLAY_APP_INTRO)
-        
-        // Check if intro should be shown first
-        if (showIntro) {
-            startActivity(Intent(this, Intro::class.java))
-            finish()
-            return
-        }
-        
         // Get user access based on roles
         val userAccess = rolesManager.getUserAccess()
         
@@ -308,11 +317,19 @@ class LoginActivity : AppCompatActivity() {
         when {
             userAccess.canAccessOnlySupervisor() && !userAccess.isSuperAdmin -> {
                 Log.d("LoginActivity", "User has only supervisor access, navigating to supervisor flow")
-                SupervisorMissionHelper.launchSupervisor(this)
+                RoleTutorialLauncher.launch(
+                    this,
+                    TutorialRole.Supervisor,
+                    createSupervisorIntent(),
+                )
             }
             userAccess.canAccessOnlyContractor() -> {
                 Log.d("LoginActivity", "User has only contractor access, navigating to contractor flow")
-                startActivity(Intent(this, Ir.co.tfs.farazaman.activity.ContractorWorkAreaSelectionActivity::class.java))
+                RoleTutorialLauncher.launch(
+                    this,
+                    TutorialRole.Contractor,
+                    Intent(this, Ir.co.tfs.farazaman.activity.ContractorWorkAreaSelectionActivity::class.java),
+                )
             }
             else -> {
                 val intent = when {
@@ -322,7 +339,9 @@ class LoginActivity : AppCompatActivity() {
                     }
                     userAccess.canAccessOnlyDriver() -> {
                         Log.d("LoginActivity", "User has only driver access, navigating to DriverActivity")
-                        Intent(this, Ir.co.tfs.farazaman.activity.DriverActivity::class.java)
+                        val destination = Intent(this, Ir.co.tfs.farazaman.activity.DriverActivity::class.java)
+                        RoleTutorialLauncher.launch(this, TutorialRole.Driver, destination)
+                        null
                     }
                     userAccess.hasMultipleSelectableRoles() -> {
                         Log.d("LoginActivity", "User has multiple accesses, navigating to RoleSelectionActivity")
@@ -334,7 +353,7 @@ class LoginActivity : AppCompatActivity() {
                         Intent(this, Ir.co.tfs.farazaman.activity.RoleSelectionActivity::class.java)
                     }
                 }
-                startActivity(intent)
+                intent?.let(::startActivity)
             }
         }
 
@@ -342,13 +361,28 @@ class LoginActivity : AppCompatActivity() {
         finish()
     }
 
-    private fun setupListeners() {
-        binding.loginButton.setOnClickListener {
+    private fun createSupervisorIntent(): Intent {
+        val target = if (SupervisorMissionHelper.hasExistingMission(this)) {
+            Ir.co.tfs.farazaman.activity.NewSupervisorActivity::class.java
+        } else {
+            Ir.co.tfs.farazaman.activity.SupervisorWorkAreaSelectionActivity::class.java
+        }
+        return Intent(this, target)
+    }
+
+    private fun onUiEvent(event: LoginUiEvent) {
+        when (event) {
+            is LoginUiEvent.CitySelected -> onProvinceSelected(event.city)
+            LoginUiEvent.Login -> {
             if (selectedProvince == null || currentBaseUrl.isBlank()) {
                 Toast.makeText(this, "لطفاً شهر را انتخاب کنید", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+                return
             }
             startLogin()
+            }
+            LoginUiEvent.About -> startActivity(Intent(this, AboutComposeActivity::class.java))
+            is LoginUiEvent.UsernameChanged -> uiState = uiState.copy(username = event.value)
+            is LoginUiEvent.PasswordChanged -> uiState = uiState.copy(password = event.value)
         }
     }
 
@@ -366,14 +400,14 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun startPasswordLogin() {
-        val username = binding.usernameInput.text?.toString()?.trim().orEmpty()
-        val password = binding.passwordInput.text?.toString().orEmpty()
+        val username = uiState.username.trim()
+        val password = uiState.password
         if (!LoginInputValidator.isValid(username, password)) {
             Toast.makeText(this, "لطفاً نام کاربری و رمز عبور را وارد کنید", Toast.LENGTH_SHORT).show()
             return
         }
 
-        binding.loginButton.isEnabled = false
+        setLoginButtonEnabled(false)
         showLoginLoading("در حال ورود...")
 
         lifecycleScope.launch {
@@ -384,7 +418,7 @@ class LoginActivity : AppCompatActivity() {
                 }
                 is LoginResult.Error -> {
                     dismissLoginLoading()
-                    binding.loginButton.isEnabled = selectedProvince != null
+                    setLoginButtonEnabled(selectedProvince != null)
                     Toast.makeText(
                         this@LoginActivity,
                         result.message ?: "خطا در ورود",
@@ -396,11 +430,8 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun startWebOidcLogin() {
-        if (supportFragmentManager.findFragmentByTag(OIDC_LOGIN_TAG) != null) {
-            return
-        }
-
         loadingDialog = LoadingDialog.show(this, "در حال بارگذاری صفحه ورود...")
+        setLoginButtonEnabled(false)
 
         lifecycleScope.launch {
             try {
@@ -408,34 +439,17 @@ class LoginActivity : AppCompatActivity() {
                 loadingDialog?.dismiss()
                 loadingDialog = null
 
-                val authRequest = oidcAuthManager.createAuthorizationRequest(config)
-                (supportFragmentManager.findFragmentByTag(OIDC_LOGIN_TAG) as? OidcLoginBottomSheet)
-                    ?.dismissAllowingStateLoss()
-
-                val sheet = OidcLoginBottomSheet.newInstance(
-                    authUrl = authRequest.toUri().toString(),
-                    authRequestJson = authRequest.jsonSerializeString(),
+                val authRequest = oidcAuthManager.createAuthorizationRequest(
+                    config = config,
+                    forceLogin = true,
                 )
-                sheet.onAuthSuccess = { response ->
-                    oidcAuthManager.clearPendingAuthorizationRequest()
-                    showLoginLoading("در حال ورود...")
-                    handleOidcResponse(response)
+                val authService = AuthorizationService(this@LoginActivity)
+                val authIntent = try {
+                    authService.getAuthorizationRequestIntent(authRequest)
+                } finally {
+                    authService.dispose()
                 }
-                sheet.onAuthCancelled = {
-                    oidcAuthManager.clearPendingAuthorizationRequest()
-                    setLoginButtonEnabled(selectedProvince != null)
-                }
-                sheet.onAuthError = { exception ->
-                    oidcAuthManager.clearPendingAuthorizationRequest()
-                    setLoginButtonEnabled(selectedProvince != null)
-                    Log.e("LoginActivity", "OIDC auth error: ${exception.error} - ${exception.errorDescription}")
-                    Toast.makeText(
-                        this@LoginActivity,
-                        "خطا در ورود: ${exception.errorDescription ?: exception.error ?: "نامشخص"}",
-                        Toast.LENGTH_LONG,
-                    ).show()
-                }
-                sheet.show(supportFragmentManager, OIDC_LOGIN_TAG)
+                oidcAuthorizationLauncher.launch(authIntent)
             } catch (e: Exception) {
                 Log.e("LoginActivity", "Failed to start OIDC login", e)
                 loadingDialog?.dismiss()
@@ -446,6 +460,36 @@ class LoginActivity : AppCompatActivity() {
                     "خطا در اتصال به سرور احراز هویت",
                     Toast.LENGTH_LONG,
                 ).show()
+            }
+        }
+    }
+
+    private fun handleOidcAuthorizationResult(result: ActivityResult) {
+        val data = result.data
+        val response = data?.let(AuthorizationResponse::fromIntent)
+        val exception = data?.let(AuthorizationException::fromIntent)
+        oidcAuthManager.clearPendingAuthorizationRequest()
+
+        when {
+            response != null -> {
+                showLoginLoading("در حال ورود...")
+                handleOidcResponse(response)
+            }
+            exception != null -> {
+                setLoginButtonEnabled(selectedProvince != null)
+                Log.e(
+                    "LoginActivity",
+                    "OIDC auth error: ${exception.error} - ${exception.errorDescription}",
+                )
+                Toast.makeText(
+                    this,
+                    "خطا در ورود: ${exception.errorDescription ?: exception.error ?: "نامشخص"}",
+                    Toast.LENGTH_LONG,
+                ).show()
+            }
+            else -> {
+                setLoginButtonEnabled(selectedProvince != null)
+                Log.d("LoginActivity", "OIDC authorization was cancelled by the user")
             }
         }
     }
@@ -474,15 +518,9 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupCitySelector() {
-        val openSheet = { openCitySelectionSheet() }
-        binding.citySelector.setOnClickListener { openSheet() }
-        binding.citySelectedText.setOnClickListener { openSheet() }
-    }
-
     private fun fetchProvincesAndPopulateSpinner() {
         provinceList = emptyList()
-        binding.citySelectedText.text = null
+        uiState = uiState.copy(cities = emptyList(), selectedCityUid = null)
         setLoginButtonEnabled(false)
 
         setCityLoading(true)
@@ -532,19 +570,6 @@ class LoginActivity : AppCompatActivity() {
         })
     }
 
-    private fun openCitySelectionSheet() {
-        val isLoading = binding.provinceProgressBar.visibility == View.VISIBLE
-        CitySelectionBottomSheet.newInstance(provinceList, isLoading).apply {
-            onCitySelected = { selected ->
-                binding.root.post {
-                    if (!isFinishing && !isDestroyed) {
-                        onProvinceSelected(selected)
-                    }
-                }
-            }
-        }.show(supportFragmentManager, "city_selection")
-    }
-
     private fun onProvinceSelected(selected: ProvinceInstance) {
         Log.d("LoginActivity", "=== PROVINCE SELECTION ===")
         Log.d("LoginActivity", "Province selected: ${selected.title}")
@@ -554,7 +579,7 @@ class LoginActivity : AppCompatActivity() {
         Log.d("LoginActivity", "Province loginMode: ${selected.loginMode}")
 
         selectedProvince = selected
-        binding.citySelectedText.text = selected.title
+        uiState = uiState.copy(selectedCityUid = selected.uid)
         currentBaseUrl = selected.baseAddress
         prefs.edit().putString("BASE_URL", selected.baseAddress).apply()
         LoginModeHelper.saveCityLoginConfig(
@@ -577,20 +602,15 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun updateLoginFormForCity(city: ProvinceInstance) {
-        val legacyVisibility = if (city.isWebLogin) View.GONE else View.VISIBLE
-        binding.usernameLabel.visibility = legacyVisibility
-        binding.usernameFieldContainer.visibility = legacyVisibility
-        binding.passwordLabel.visibility = legacyVisibility
-        binding.passwordFieldContainer.visibility = legacyVisibility
-        if (city.isWebLogin) {
-            binding.usernameInput.text?.clear()
-            binding.passwordInput.text?.clear()
-        }
+        uiState = uiState.copy(
+            webLogin = city.isWebLogin,
+            username = if (city.isWebLogin) "" else uiState.username,
+            password = if (city.isWebLogin) "" else uiState.password,
+        )
     }
 
     private fun setCityLoading(loading: Boolean) {
-        binding.provinceProgressBar.visibility = if (loading) View.VISIBLE else View.GONE
-        binding.citySelectedText.visibility = if (loading) View.INVISIBLE else View.VISIBLE
+        uiState = uiState.copy(citiesLoading = loading)
     }
 
     private fun saveProvincesCache(json: String) {
@@ -604,7 +624,7 @@ class LoginActivity : AppCompatActivity() {
 
     private fun onProvincesFetchFailed() {
         provinceList = emptyList()
-        binding.citySelectedText.text = null
+        uiState = uiState.copy(cities = emptyList(), selectedCityUid = null)
         setLoginButtonEnabled(false)
         setCityLoading(false)
         Log.d("LoginActivity", "Provinces fetch failed — city list cleared")
@@ -624,6 +644,7 @@ class LoginActivity : AppCompatActivity() {
                 return false
             }
             provinceList = tempList.sortedBy { it.title }
+            uiState = uiState.copy(cities = provinceList)
             Log.d("LoginActivity", "Provinces populated (${tempList.size}) from server")
             true
         } catch (e: Exception) {
@@ -667,11 +688,15 @@ class LoginActivity : AppCompatActivity() {
 
         val rawTitle = obj.optStringField("title", "Title", "name", "Name")
         val displayTitle = resolveCityDisplayName(rawTitle, baseAddress)
-        val clientId = obj.optStringField("clientId", "ClientId")
-            .ifBlank { OidcAuthManager.DEFAULT_CLIENT_ID }
+        val loginMode = obj.optInt("loginMode", obj.optInt("LoginMode", LoginModeHelper.MODE_WEB))
+        val configuredClientId = obj.optStringField("clientId", "ClientId")
+        if (loginMode == LoginModeHelper.MODE_LOCAL_REMOTE && configuredClientId.isBlank()) {
+            Log.w("LoginActivity", "Skipping LocalRemote instance without ClientId: $baseAddress")
+            return null
+        }
+        val clientId = configuredClientId.ifBlank { OidcAuthManager.DEFAULT_CLIENT_ID }
         val scope = obj.optStringField("scope", "Scope")
             .ifBlank { OidcAuthManager.DEFAULT_SCOPES }
-        val loginMode = obj.optInt("loginMode", obj.optInt("LoginMode", LoginModeHelper.MODE_WEB))
         return ProvinceInstance(
             uid = uid,
             title = displayTitle,
@@ -726,10 +751,11 @@ class LoginActivity : AppCompatActivity() {
         val loginMode: Int = LoginModeHelper.MODE_WEB,
     ) {
         val isWebLogin: Boolean
-            get() = loginMode == LoginModeHelper.MODE_WEB
+            get() = loginMode == LoginModeHelper.MODE_WEB ||
+                loginMode == LoginModeHelper.MODE_LOCAL_REMOTE
     }
     private fun setLoginButtonEnabled(enabled: Boolean) {
-        binding.loginButton.isEnabled = enabled
+        uiState = uiState.copy(loginEnabled = enabled)
     }
 
     private fun showLoginLoading(message: String) {
@@ -743,9 +769,5 @@ class LoginActivity : AppCompatActivity() {
     private fun dismissLoginLoading() {
         loadingDialog?.dismiss()
         loadingDialog = null
-    }
-
-    companion object {
-        private const val OIDC_LOGIN_TAG = "oidc_login"
     }
 }

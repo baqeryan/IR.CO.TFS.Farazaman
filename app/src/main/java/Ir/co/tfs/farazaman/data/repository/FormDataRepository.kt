@@ -19,38 +19,18 @@ class FormDataRepository @Inject constructor(
     private val tokenManager: TokenManager
 ) {
     
-    suspend fun getFormData(formDataRequest: FormDataRequest? = null): Response<FormDataResponse> {
-        val authHeader = tokenManager.getAuthorizationHeader()
-        if (authHeader.isNullOrEmpty()) {
-            throw IllegalStateException("Access token not found. Please login first.")
-        }
-        
-        val request = if (formDataRequest != null) {
-            FormDataApiRequest(request = formDataRequest)
-        } else {
-            // Initial request with just tenantId
-            val initialRequest = FormDataRequest(
-                contractIds = emptyList(),
-                organIds = emptyList(),
-                billCleaningViolationGroupIds = emptyList(),
-                billCleaningViolationIds = emptyList(),
-                billCleaningItemGroupIds = emptyList(),
-                billCleaningItemIds = emptyList(),
-                visitDate = "",
-                maxVisitDate = "",
-                minVisitDate = "",
-                isDeleted = false,
-                tenantId = 1,
-                billOriginCleaningItemIds = emptyList(),
-                billCleaningViolationId = 0,
-                contractId = 0,
-                organId = 0
-            )
-            FormDataApiRequest(request = initialRequest)
-        }
-        
-        return apiService.getFormData(
-            request = request
-        )
-    }
+    suspend fun getViolationGroups(request: FormDataRequest): Response<FormDataResponse> =
+        apiService.getViolationGroups(FormDataApiRequest(request))
+
+    suspend fun getViolations(request: FormDataRequest): Response<FormDataResponse> =
+        apiService.getViolations(FormDataApiRequest(request))
+
+    suspend fun getItemGroups(request: FormDataRequest): Response<FormDataResponse> =
+        apiService.getItemGroups(FormDataApiRequest(request))
+
+    suspend fun getOriginItems(request: FormDataRequest): Response<FormDataResponse> =
+        apiService.getOriginItems(FormDataApiRequest(request))
+
+    suspend fun getViolationDetails(request: FormDataRequest): Response<FormDataResponse> =
+        apiService.getViolationDetails(FormDataApiRequest(request))
 } 

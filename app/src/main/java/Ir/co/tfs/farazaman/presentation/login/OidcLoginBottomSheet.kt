@@ -11,13 +11,17 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.ImageButton
-import android.widget.ProgressBar
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.auth.OidcAuthManager
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanTheme
 import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationRequest
 import net.openid.appauth.AuthorizationResponse
@@ -31,6 +35,8 @@ class OidcLoginBottomSheet : BottomSheetDialogFragment() {
     private var authRequest: AuthorizationRequest? = null
     private var authHandled = false
     private var cancelNotified = false
+    private var loadingProgress by mutableIntStateOf(0)
+    private var sheetBehavior: BottomSheetBehavior<View>? = null
 
     companion object {
         private const val TAG = "OidcLoginBottomSheet"
@@ -52,40 +58,43 @@ class OidcLoginBottomSheet : BottomSheetDialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        isCancelable = false
+        isCancelable = true
     }
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
-    ): View? = inflater.inflate(R.layout.bottom_sheet_oidc_login, container, false)
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
+    ): View {
         val authUrl = arguments?.getString(ARG_AUTH_URL).orEmpty()
         authRequest = readAuthRequest()
         if (authUrl.isBlank() || authRequest == null) {
             Log.e(TAG, "Missing auth URL or request")
             dismissAllowingStateLoss()
-            return
         }
-
-        val webView = view.findViewById<WebView>(R.id.oidcWebView)
-        val progressBar = view.findViewById<ProgressBar>(R.id.oidcLoadingProgress)
-        val closeButton = view.findViewById<ImageButton>(R.id.oidcCloseButton)
-
-        closeButton.setOnClickListener {
-            notifyCancelled()
-            dismiss()
-        }
-
-        setupWebView(webView, progressBar)
-        clearWebSession {
-            if (!isAdded) return@clearWebSession
-            Log.d(TAG, "Loading OIDC login page")
-            webView.loadUrl(authUrl)
+        return ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                FaraZamanTheme {
+                    OidcLoginScreen(
+                        title = getString(R.string.login_oidc_title),
+                        progress = loadingProgress,
+                        onHandleTouch = { pressed ->
+                            sheetBehavior?.isDraggable = pressed
+                        },
+                        createWebView = { context ->
+                            WebView(context).also { webView ->
+                                setupWebView(webView)
+                                clearWebSession {
+                                    if (!isAdded) return@clearWebSession
+                                    Log.d(TAG, "Loading OIDC login page")
+                                    webView.loadUrl(authUrl)
+                                }
+                            }
+                        },
+                    )
+                }
+            }
         }
     }
 
@@ -95,15 +104,31 @@ class OidcLoginBottomSheet : BottomSheetDialogFragment() {
         dialog.setCanceledOnTouchOutside(false)
         val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             ?: return
+        bottomSheet.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         val sheetHeight = (resources.displayMetrics.heightPixels * 0.88f).toInt()
         bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
             height = sheetHeight
         }
-        BottomSheetBehavior.from(bottomSheet).apply {
+        sheetBehavior = BottomSheetBehavior.from(bottomSheet).apply {
             state = BottomSheetBehavior.STATE_EXPANDED
             skipCollapsed = true
+            isHideable = true
             isDraggable = false
+            addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
+                override fun onStateChanged(bottomSheet: View, newState: Int) {
+                    if (newState != BottomSheetBehavior.STATE_DRAGGING) {
+                        isDraggable = false
+                    }
+                }
+
+                override fun onSlide(bottomSheet: View, slideOffset: Float) = Unit
+            })
         }
+    }
+
+    override fun onDestroyView() {
+        sheetBehavior = null
+        super.onDestroyView()
     }
 
     override fun onDismiss(dialog: android.content.DialogInterface) {
@@ -143,7 +168,7 @@ class OidcLoginBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
-    private fun setupWebView(webView: WebView, progressBar: ProgressBar) {
+    private fun setupWebView(webView: WebView) {
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
 
         webView.settings.apply {
@@ -158,12 +183,7 @@ class OidcLoginBottomSheet : BottomSheetDialogFragment() {
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                if (newProgress in 1..99) {
-                    progressBar.visibility = View.VISIBLE
-                    progressBar.progress = newProgress
-                } else {
-                    progressBar.visibility = View.GONE
-                }
+                loadingProgress = if (newProgress in 1..99) newProgress else 0
             }
         }
 

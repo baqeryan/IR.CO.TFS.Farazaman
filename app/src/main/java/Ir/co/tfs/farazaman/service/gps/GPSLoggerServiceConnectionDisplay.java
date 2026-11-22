@@ -7,7 +7,6 @@ import android.os.IBinder;
 import android.util.Log;
 
 import Ir.co.tfs.farazaman.OSMTracker;
-import Ir.co.tfs.farazaman.R;
 import Ir.co.tfs.farazaman.activity.DisplayTrackMap;
 import Ir.co.tfs.farazaman.activity.TrackLogger;
 import Ir.co.tfs.farazaman.data.db.TrackContentProvider;
@@ -64,7 +63,7 @@ public class GPSLoggerServiceConnectionDisplay implements ServiceConnection {
 			Log.e("GPSLoggerServiceConnection", "Error setting gpsLogger", e);
 		}
 
-		GpsStatusRecordDisplay gpsStatusRecord = (GpsStatusRecordDisplay) activity.findViewById(R.id.gpsStatus);
+		GpsStatusRecordDisplay gpsStatusRecord = activity.getGpsStatusRecord();
 		if (gpsStatusRecord != null) {
 			gpsStatusRecord.manageRecordingIndicator(activity.getGpsLogger().isTracking());
 			Log.d("GPSLoggerServiceConnection", "Updated GpsStatusRecord, isTracking: " + activity.getGpsLogger().isTracking());

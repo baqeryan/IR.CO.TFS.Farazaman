@@ -25,9 +25,14 @@ public class GpxUploader{
         void onFailure(String error);
     }
 
-    public static void uploadFile(Context context, File zipFile, String token, UploadCallback callback) {
+    public static void uploadFile(
+            Context context,
+            File zipFile,
+            OkHttpClient authenticatedClient,
+            UploadCallback callback
+    ) {
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
-        OkHttpClient client = new OkHttpClient.Builder()
+        OkHttpClient client = authenticatedClient.newBuilder()
                 .connectTimeout(NetworkTimeouts.UPLOAD_CONNECT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
                 .readTimeout(NetworkTimeouts.UPLOAD_READ_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
                 .writeTimeout(NetworkTimeouts.UPLOAD_WRITE_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
@@ -42,7 +47,6 @@ public class GpxUploader{
         Request request = new Request.Builder()
                 .url(SelectedServerUrl.apiUrl(preferences, "api/GisGeolocation/upload"))
                 .addHeader("Accept", "application/json")
-                .addHeader("Authorization", token)
                 .post(requestBody)
                 .build();
 

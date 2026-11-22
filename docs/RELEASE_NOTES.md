@@ -4,7 +4,15 @@ This file records build-type differences and confirmed Release-specific constrai
 
 ## Build configuration
 
-Current release: version code 115, dated 2026-09-07. Default published note: «بهبود سامانه اعلان‌ها، ارتباط برخط، مدیریت نقش‌ها و رابط کاربری».
+### Fz component-system validation (2026-09-30)
+
+- The Debug-only `Fz` component catalog now uses a complete central destination registry with duplicate/missing-section assertions.
+- `FzCatalogScreenshotTest` validates Persian RTL catalog rendering in light and dark modes at compact width and at 100%/200% font scale.
+- `:core:ui:testDebugUnitTest`, `:app:testDebugUnitTest`, and `:app:assembleDebug` completed successfully; the app suite ran 157 tests.
+- `:app:lintRelease` and the signed, minified, resource-shrunk `:app:assembleRelease` completed successfully with the existing legacy deprecation warnings and no blocking lint/build errors.
+- Release output was generated at `app/build/outputs/apk/release/farazaman.apk`; the catalog remains under Debug sources and is not packaged in Release.
+
+Current release: version code 124, dated 2026-11-21. Default published note: «بهبود پایداری ورود، ثبت تصویر و عملکرد عمومی برنامه».
 
 Firebase Cloud Messaging is enabled through the Google Services Gradle plugin and `app/google-services.json`.
 Firebase BoM 33.5.1 is intentionally pinned while the project uses Kotlin 1.9.22; BoM 34.18.0
@@ -45,6 +53,11 @@ Downloaded update candidates use the suffix `.part.apk`, not `.apk.part`, becaus
 `PackageManager.getPackageArchiveInfo()` rejects archive paths without a final `.apk` suffix on
 some OS versions. Versions built before this fix require one manual update before in-app updates
 can work reliably.
+
+If Android or an OEM security layer rejects an in-app self-update with an unknown-source block,
+the update dialog now explains the required permission (including Samsung Auto Blocker) and opens
+the device security settings. Returning from settings restores the explicit install confirmation
+instead of repeatedly retrying the blocked install.
 
 APK signature validation requests both modern signing-certificate data and the deprecated
 signature field as an Android 9/10 compatibility fallback. It accepts the same current signer or
@@ -119,7 +132,7 @@ The Release-only employer-list failure was reproduced on an emulator on 2026-08-
 the suspend return type of `FormDataApiService.getFormData()` to a raw `retrofit2.Response`, so
 Retrofit threw `Response must include generic type` before OkHttp created a request. Keeping
 `retrofit2.Response` in `app/proguard-rules.pro` fixed it. The minified Release build then sent
-`POST /api/BillOriginViEvent/FormData`, received HTTP 200, and populated the employer/contract
+`POST /api/Bill/Lookup/ViolationEvent`, received HTTP 200, and populated the employer/contract
 selection fields.
 
 An ANR after selecting the Babol OIDC city was also reproduced on 2026-08-31. The city callback
