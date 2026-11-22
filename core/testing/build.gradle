@@ -1,0 +1,20 @@
+plugins {
+    id 'java-library'
+    id 'java-test-fixtures'
+    id 'org.jetbrains.kotlin.jvm'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+kotlin {
+    jvmToolchain(17)
+}
+
+dependencies {
+    api project(':core:common')
+    api project(':core:model')
+    api 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3'
+}
