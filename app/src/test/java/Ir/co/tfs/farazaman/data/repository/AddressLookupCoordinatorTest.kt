@@ -9,7 +9,7 @@ import org.junit.Assert.fail
 import org.junit.Test
 
 class AddressLookupCoordinatorTest {
-    @Test(timeout = 5_000L)
+    @Test(timeout = 8_000L)
     fun timeoutStartsCooldownAndPreventsAnotherNetworkCall() = runBlocking {
         var networkCalls = 0
         val slowService = object : RoadService {

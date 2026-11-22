@@ -6,4 +6,5 @@ data class DailyPlanItem(
     val encryption: String,
     val violationCount: Int,
     val canRegisterViolation: Boolean = true,
+    val billSystemCode: String = "",
 )

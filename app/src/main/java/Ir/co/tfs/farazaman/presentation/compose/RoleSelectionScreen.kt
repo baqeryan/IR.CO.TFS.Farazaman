@@ -12,39 +12,38 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.LayoutDirection
 import Ir.co.tfs.farazaman.R
+import Ir.co.tfs.farazaman.presentation.design.components.FzBackButton
+import Ir.co.tfs.farazaman.presentation.design.components.FzBottomActionBar
+import Ir.co.tfs.farazaman.presentation.design.components.FzButtonVariant
+import Ir.co.tfs.farazaman.presentation.design.theme.FzPersianFontFamily
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanThemeTokens
 
 enum class RoleOption { SUPERVISOR, DRIVER, CONTRACTOR }
 
@@ -66,8 +65,6 @@ sealed interface RoleSelectionEvent {
     data object Logout : RoleSelectionEvent
     data object Enter : RoleSelectionEvent
 }
-
-private val IranSans = FontFamily(Font(R.font.iran_sans))
 
 @Composable
 fun RoleSelectionScreen(
@@ -95,21 +92,21 @@ fun RoleSelectionScreen(
                 .height(200.dp)
                 .padding(horizontal = 16.dp, vertical = 16.dp),
         ) {
-            Row(
-                modifier = Modifier.align(Alignment.TopEnd),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                HeaderIcon(R.drawable.ic_user, R.string.supervisor_profile) { onEvent(RoleSelectionEvent.OpenProfile) }
-                if (state.showBack) {
-                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        HeaderIcon(R.drawable.ic_arrow_back, R.string.back) { onEvent(RoleSelectionEvent.Back) }
-                    }
-                }
+            if (state.showBack) {
+                FzBackButton(
+                    onClick = { onEvent(RoleSelectionEvent.Back) },
+                    modifier = Modifier.align(Alignment.TopStart),
+                )
+            } else {
+                SupervisorNotificationAction(
+                    unreadCount = unreadCount,
+                    onClick = { onEvent(RoleSelectionEvent.OpenNotifications) },
+                    modifier = Modifier.align(Alignment.TopStart),
+                )
             }
-            NotificationHeaderIcon(
-                unreadCount = unreadCount,
-                onClick = { onEvent(RoleSelectionEvent.OpenNotifications) },
-                modifier = Modifier.align(Alignment.TopStart),
+            SupervisorProfileAction(
+                onClick = { onEvent(RoleSelectionEvent.OpenProfile) },
+                modifier = Modifier.align(Alignment.TopEnd),
             )
             Column(
                 modifier = Modifier
@@ -122,8 +119,8 @@ fun RoleSelectionScreen(
                         if (state.isEnterEnabled) R.string.role_selection_title
                         else R.string.role_access_denied_title,
                     ),
-                    color = colorResource(R.color.white),
-                    fontFamily = IranSans,
+                    color = FaraZamanThemeTokens.colors.onDecorative,
+                    fontFamily = FzPersianFontFamily,
                     fontWeight = FontWeight.Bold,
                     fontSize = 22.sp,
                 )
@@ -133,8 +130,8 @@ fun RoleSelectionScreen(
                         if (state.isEnterEnabled) R.string.role_selection_subtitle
                         else R.string.role_access_denied_subtitle,
                     ),
-                    color = colorResource(R.color.supervisor_header_subtitle),
-                    fontFamily = IranSans,
+                    color = FaraZamanThemeTokens.colors.onDecorative.copy(alpha = 0.82f),
+                    fontFamily = FzPersianFontFamily,
                     fontSize = 14.sp,
                 )
             }
@@ -146,13 +143,14 @@ fun RoleSelectionScreen(
                 .padding(top = 196.dp)
                 .clip(RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp))
                 .background(MaterialTheme.colorScheme.surface)
-                .padding(start = 20.dp, top = 28.dp, end = 20.dp, bottom = 20.dp),
+                .padding(top = 28.dp, bottom = 20.dp),
         ) {
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp),
             ) {
                 if (!state.isEnterEnabled) {
                     Spacer(Modifier.height(80.dp))
@@ -166,7 +164,7 @@ fun RoleSelectionScreen(
                     Text(
                         text = stringResource(R.string.role_access_denied_message),
                         color = MaterialTheme.colorScheme.onSurface,
-                        fontFamily = IranSans,
+                        fontFamily = FzPersianFontFamily,
                         fontSize = 15.sp,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                     )
@@ -176,7 +174,7 @@ fun RoleSelectionScreen(
                     RoleCard(
                         title = stringResource(R.string.role_supervisor),
                         description = stringResource(R.string.role_supervisor_description),
-                        icon = R.drawable.ic_daily_tasks,
+                        icon = R.drawable.ic_role_supervisor,
                         selected = state.selectedRole == RoleOption.SUPERVISOR,
                         onClick = { onEvent(RoleSelectionEvent.SelectRole(RoleOption.SUPERVISOR)) },
                     )
@@ -186,7 +184,7 @@ fun RoleSelectionScreen(
                     RoleCard(
                         title = stringResource(R.string.role_driver),
                         description = stringResource(R.string.role_driver_description),
-                        icon = R.drawable.ic_location,
+                        icon = R.drawable.ic_role_driver,
                         selected = state.selectedRole == RoleOption.DRIVER,
                         onClick = { onEvent(RoleSelectionEvent.SelectRole(RoleOption.DRIVER)) },
                     )
@@ -196,86 +194,24 @@ fun RoleSelectionScreen(
                     RoleCard(
                         title = stringResource(R.string.role_contractor),
                         description = stringResource(R.string.role_contractor_description),
-                        icon = R.drawable.ic_daily_tasks,
+                        icon = R.drawable.ic_role_contractor,
                         selected = state.selectedRole == RoleOption.CONTRACTOR,
                         onClick = { onEvent(RoleSelectionEvent.SelectRole(RoleOption.CONTRACTOR)) },
                     )
                 }
                 Spacer(Modifier.height(16.dp))
             }
-            Button(
-                onClick = {
+            FzBottomActionBar(
+                primaryText = stringResource(
+                    if (state.isEnterEnabled) R.string.role_selection_enter
+                    else R.string.role_access_denied_logout,
+                ),
+                onPrimaryClick = {
                     onEvent(if (state.isEnterEnabled) RoleSelectionEvent.Enter else RoleSelectionEvent.Logout)
                 },
-                enabled = true,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (state.isEnterEnabled) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.error
-                    },
-                    contentColor = if (state.isEnterEnabled) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onError
-                    },
-                ),
-            ) {
-                Text(
-                    stringResource(
-                        if (state.isEnterEnabled) R.string.role_selection_enter
-                        else R.string.role_access_denied_logout,
-                    ),
-                    fontFamily = IranSans,
-                    fontSize = 16.sp,
-                )
-            }
+                primaryVariant = if (state.isEnterEnabled) FzButtonVariant.Primary else FzButtonVariant.Danger,
+            )
         }
-    }
-}
-
-@Composable
-private fun NotificationHeaderIcon(
-    unreadCount: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(modifier) {
-        HeaderIcon(R.drawable.ic_notifications, R.string.supervisor_notifications, onClick)
-        if (unreadCount > 0) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(x = 4.dp, y = (-4).dp)
-                    .size(if (unreadCount > 9) 22.dp else 18.dp)
-                    .background(MaterialTheme.colorScheme.error, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = if (unreadCount > 99) "99+" else unreadCount.toString(),
-                    color = MaterialTheme.colorScheme.onError,
-                    fontSize = if (unreadCount > 99) 8.sp else 10.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun HeaderIcon(icon: Int, description: Int, onClick: () -> Unit) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier.size(44.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface),
-    ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = stringResource(description),
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(22.dp),
-        )
     }
 }
 
@@ -296,12 +232,17 @@ private fun RoleCard(title: String, description: String, icon: Int, selected: Bo
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
             ) {
-                Image(painterResource(icon), title, modifier = Modifier.size(32.dp))
+                Icon(
+                    painter = painterResource(icon),
+                    contentDescription = title,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp),
+                )
             }
             Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                Text(title, color = MaterialTheme.colorScheme.primary, fontFamily = IranSans, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(title, color = MaterialTheme.colorScheme.primary, fontFamily = FzPersianFontFamily, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Spacer(Modifier.height(4.dp))
-                Text(description, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f), fontFamily = IranSans, fontSize = 13.sp)
+                Text(description, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f), fontFamily = FzPersianFontFamily, fontSize = 13.sp)
             }
             RoleSelectionIndicator(selected)
         }

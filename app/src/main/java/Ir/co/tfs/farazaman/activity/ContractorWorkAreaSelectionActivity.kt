@@ -3,14 +3,15 @@ package Ir.co.tfs.farazaman.activity
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import Ir.co.tfs.farazaman.R
+import androidx.activity.compose.setContent
 import Ir.co.tfs.farazaman.contractor.ContractorWorkContextStore
 import Ir.co.tfs.farazaman.contractor.UnconfiguredContractorGateway
-import Ir.co.tfs.farazaman.databinding.ActivityContractorWorkAreaSelectionBinding
+import Ir.co.tfs.farazaman.presentation.compose.ContractorWorkAreaEvent
+import Ir.co.tfs.farazaman.presentation.compose.ContractorWorkAreaScreen
+import Ir.co.tfs.farazaman.presentation.compose.ContractorWorkAreaUiState
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanTheme
 
 class ContractorWorkAreaSelectionActivity : AppCompatActivity() {
-    private lateinit var binding: ActivityContractorWorkAreaSelectionBinding
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ContractorWorkContextStore.read(this)?.let {
@@ -18,10 +19,17 @@ class ContractorWorkAreaSelectionActivity : AppCompatActivity() {
             finish()
             return
         }
-        binding = ActivityContractorWorkAreaSelectionBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        binding.btnBack.setOnClickListener { finish() }
-        binding.btnProfile.setOnClickListener { SupervisorProfileActivity.open(this) }
-        binding.serviceMessage.text = UnconfiguredContractorGateway.unavailableMessage()
+        setContent {
+            FaraZamanTheme {
+                ContractorWorkAreaScreen(
+                    ContractorWorkAreaUiState(UnconfiguredContractorGateway.unavailableMessage()),
+                    onEvent = { event -> when (event) {
+                        ContractorWorkAreaEvent.Back -> finish()
+                        ContractorWorkAreaEvent.Profile -> SupervisorProfileActivity.open(this)
+                        ContractorWorkAreaEvent.Continue -> Unit
+                    } },
+                )
+            }
+        }
     }
 }

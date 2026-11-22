@@ -9,6 +9,7 @@ import Ir.co.tfs.farazaman.data.update.InstalledVersionProvider
 import Ir.co.tfs.farazaman.update.AppUpdateInstallStatus
 import Ir.co.tfs.farazaman.update.AppUpdateInstallStatusBus
 import Ir.co.tfs.farazaman.update.AppUpdateInstaller
+import Ir.co.tfs.farazaman.update.isUnknownSourceInstallBlock
 import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -124,6 +125,15 @@ class SplashViewModel @Inject constructor(
         }
     }
 
+    fun onSecuritySettingsResult() {
+        val info = mutableUpdateState.value.info ?: return
+        mutableUpdateState.value = if (updateInstaller.canInstallPackages()) {
+            SplashUpdateState.ReadyToInstall(info)
+        } else {
+            SplashUpdateState.InstallPermissionRequired(info)
+        }
+    }
+
     fun retry() {
         when (val state = mutableUpdateState.value) {
             is SplashUpdateState.Error -> when (state.retryAction) {
@@ -154,11 +164,17 @@ class SplashViewModel @Inject constructor(
                 mutableUpdateState.value = when (status) {
                     AppUpdateInstallStatus.AwaitingUserConfirmation -> SplashUpdateState.Installing(info)
                     AppUpdateInstallStatus.Success -> SplashUpdateState.Installing(info)
-                    is AppUpdateInstallStatus.Failure -> SplashUpdateState.Error(
-                        info = info,
-                        message = status.message,
-                        retryAction = UpdateRetryAction.INSTALL,
-                    )
+                    is AppUpdateInstallStatus.Failure -> {
+                        if (isUnknownSourceInstallBlock(status.message)) {
+                            SplashUpdateState.InstallSecuritySettingsRequired(info)
+                        } else {
+                            SplashUpdateState.Error(
+                                info = info,
+                                message = status.message,
+                                retryAction = UpdateRetryAction.INSTALL,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -210,6 +226,7 @@ sealed interface SplashUpdateState {
     data class Downloading(override val info: AppUpdateInfo, val progress: Int) : SplashUpdateState
     data class ReadyToInstall(override val info: AppUpdateInfo) : SplashUpdateState
     data class InstallPermissionRequired(override val info: AppUpdateInfo) : SplashUpdateState
+    data class InstallSecuritySettingsRequired(override val info: AppUpdateInfo) : SplashUpdateState
     data class Installing(override val info: AppUpdateInfo) : SplashUpdateState
     data class Error(
         override val info: AppUpdateInfo,

@@ -5,7 +5,7 @@ import retrofit2.Response
 import retrofit2.http.GET
 
 interface VehicleZoneWorkService {
-    @GET("/api/ApplicationUser/VehicleZoneWork")
+    @GET("api/Application/VehicleZoneWork")
     suspend fun getVehicleZoneWork(): Response<VehicleZoneWorkResponse>
 }
 

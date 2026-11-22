@@ -10,7 +10,13 @@ Start here instead of recursively searching source. Fully qualified paths are re
 - Application: `app/src/main/java/Ir/co/tfs/farazaman/MyApplication.kt` — Hilt, Persian locale, RTL, system dark mode, developer-options enforcement.
 - Manifest: `app/src/main/AndroidManifest.xml` — launcher, Activities, GPS service, providers, permissions, OIDC redirects.
 - Launcher UI: `app/src/main/java/Ir/co/tfs/farazaman/activity/SplashActivity.kt`.
+- Role-aware onboarding: `activity/Intro.kt` owns per-role completion and destination routing;
+  `presentation/compose/IntroScreen.kt` renders the shared five-step tutorial UI. Role selection and
+  single-role login paths enter it through `RoleTutorialLauncher` before opening the role destination.
 - Compose screen/theme: `app/src/main/java/Ir/co/tfs/farazaman/presentation/compose/SplashScreen.kt`, `FaraZamanTheme.kt`.
+- Shared Compose page chrome: `presentation/design/components/FzPageTemplate.kt` owns the green curved
+  header, semantic header heights, and rounded content surface. It deliberately has no bottom navigation;
+  the bottom navigation remains exclusive to supervisor Home/Today/History through `SupervisorScaffold.kt`.
 - Shared day/night button system: `app/src/main/res/values/styles.xml` (`FaraZaman.Button.*`), `app/src/main/res/color/button_*.xml`, and the semantic palettes in `values/colors.xml` / `values-night/colors.xml`; Compose mirrors these pairs in `presentation/compose/FaraZamanTheme.kt`.
 - Startup/update state and session routing: `presentation/viewmodel/SplashViewModel.kt`; `SplashActivity.kt` observes it, presents update UI, then routes to login or role selection.
 - In-app update UI: `presentation/compose/AppUpdateUi.kt`.
@@ -22,14 +28,16 @@ Start here instead of recursively searching source. Fully qualified paths are re
 ## Municipality selection and authentication
 
 - Entry/UI: `app/src/main/java/Ir/co/tfs/farazaman/presentation/login/LoginActivity.kt`.
-- City chooser: `presentation/login/CitySelectionBottomSheet.kt`, `CitySelectionAdapter.kt`; layouts `bottom_sheet_city_selection.xml`, `item_city_selection.xml`.
+- City chooser: `presentation/login/LoginScreen.kt` uses the shared searchable `FzSelect` bottom sheet; city data and selection side effects remain owned by `LoginActivity.kt`.
 - OIDC WebView: `presentation/login/OidcLoginBottomSheet.kt`; layout `bottom_sheet_oidc_login.xml`.
 - Login ViewModel/state: `presentation/login/LoginViewModel.kt`, `LoginState.kt` (password flow support; Activity also orchestrates auth directly).
 - Use case/contract: `domain/usecase/LoginUseCase.kt`, `domain/repository/AuthRepository.kt`.
 - Repository: `data/repository/AuthRepositoryImpl.kt` — password/refresh endpoints and OIDC refresh dispatch.
 - OIDC: `auth/OidcAuthManager.kt`; mode/config keys: `presentation/login/LoginModeHelper.kt`.
+  `auth/LocalRemoteEndpoints.kt` builds the `LocalRemote` authorization/token endpoints from the selected HTTPS
+  municipality `BaseAddress`; the authorization request uses that municipality's configured `ClientId`.
 - Token handling: `util/TokenManager.kt`, `SecureTokenStorage.kt`, `AndroidKeyStoreCipher.kt`, `AuthInterceptor.kt`, `AuthStateManager.kt`, `AuthHelper.kt`.
-- Logout/cache clearing: `util/LogoutCacheCleaner.kt`; called by `AuthHelper.kt` and legacy `activity/Preferences.java`.
+- Logout/cache clearing: `util/LogoutCacheCleaner.kt`; called by `AuthHelper.kt` and the Compose-backed `activity/Preferences.kt` settings destination.
 - Profile/roles: `service/remote/UserService.kt`, `RolesService.kt`; models `data/model/UserInfo.kt`, `UserRoles.kt`; stores `util/UserManager.kt`, `RolesManager.kt`.
 - Models: `data/model/req/LoginRequest.kt`, `data/model/res/LoginResponse.kt`, `ProvinceInstance.kt`, `domain/model/LoginResult.kt`, `User.kt`.
 - DI: `di/AppModule.kt`, `di/NetworkModule.kt`.
@@ -66,7 +74,7 @@ Start here instead of recursively searching source. Fully qualified paths are re
 ## Driver mission
 
 - Entry/UI/controller: `activity/DriverActivity.kt`; layout `app/src/main/res/layout/activity_driver.xml`.
-- Work-area API: `service/remote/VehicleZoneWorkService.kt` (`GET /api/ApplicationUser/VehicleZoneWork`).
+- Work-area API: `service/remote/VehicleZoneWorkService.kt` (`GET api/Application/VehicleZoneWork`).
 - Work-area model/UI: `data/model/VehicleZoneWorkResponse.kt`, `activity/ZoneSelectionBottomSheet.kt`, `ZoneWorkAdapter.kt`.
 - Mission/track storage: `data/db/DataHelper.java`, `TrackContentProvider.java`.
 - GPS: `service/gps/GPSLogger.java`; intent constants in `OSMTracker.java`.
@@ -81,7 +89,7 @@ Start here instead of recursively searching source. Fully qualified paths are re
 - Organ activity fence: `data/api/FormDataApiService.kt` (`POST api/GisLayersDataFenceOrgan/Details`), typed request/response in `data/model/OrganFenceResponse.kt`; fetched by `supervisor/SupervisorMissionSetup.kt` after confirmation.
 - Fence persistence/map: WKT is stored as `organFenceWkt` (and `organFenceName`) inside `mission_data_<trackId>`; `activity/DisplayTrackMap.kt` draws it as a low-opacity polygon below the GPS route.
 - Main host: `activity/NewSupervisorActivity.kt`; layout `activity_new_supervisor.xml`.
-- Tabs: `activity/SupervisorHomeFragment.kt`, `SupervisorTodayFragment.kt`, `SupervisorHistoryFragment.kt` with matching `fragment_supervisor_*.xml` layouts.
+- Tabs: `activity/SupervisorHomeFragment.kt`, `SupervisorTodayFragment.kt`, and `SupervisorHistoryFragment.kt` host pure Compose screens in `presentation/compose/`. The Activity still owns the temporary Fragment host until the final supervisor shell cutover.
 - Bottom navigation: `supervisor/SupervisorBottomNavHelper.kt`, `SupervisorNavTab` in the same helper file.
 - Mission routing/setup: `supervisor/SupervisorMissionHelper.kt`, `SupervisorMissionSetup.kt`, `SupervisorMissionHost.kt`.
 - Tracking/controller: `supervisor/SupervisorTrackController.kt`.
@@ -95,7 +103,7 @@ Start here instead of recursively searching source. Fully qualified paths are re
 - Selection UI: `activity/MissionItemSelectionBottomSheet.kt`, `MissionSelectionAdapter.kt`, `MissionSelectionOption.kt`.
 - Alternate ViewModel implementation: `presentation/viewmodel/NewMissionViewModel.kt`.
 - Repository/API: `data/repository/FormDataRepository.kt`, `data/api/FormDataApiService.kt`.
-- Endpoints: `POST api/BillOriginViEvent/FormData`, `POST api/BillOriginCleaningItemDailyItem/Create`, `POST .../Index`, `POST .../Details/{encryption}`.
+- Work-area cascade: `GET api/Bill/Lookup/ContractType` returns only contract-type/tenant pairs allowed for the signed-in user. The selected tenant is persisted after confirmation, `GET api/Bill/Lookup/Organs?tenantId={tenantId}` and `GET api/Bill/Lookup/Contracts?tenantId={tenantId}&organId={id}` use it explicitly, and subsequent `/api/Bill...` requests receive the same value through `X-Tenant-Id`. Separate cascade routes remain `POST api/Bill/Lookup/ViolationGroups`, `Violations`, `ItemGroups`, `OriginItems`, and `ViolationDetails`; mission creation continues through `POST api/BillOriginCleaningItemDailyItem/Create`, `Index`, and `Details/{encryption}`.
 - Models: `data/model/FormDataResponse.kt`, `MissionIndexResponse.kt`.
 - DI/base URL/auth: `di/NetworkModule.kt`, `util/AuthInterceptor.kt`.
 - Local result: mission JSON under `mission_data_<trackId>` in default preferences; associated track in ContentProvider.
@@ -131,18 +139,21 @@ Start here instead of recursively searching source. Fully qualified paths are re
 - Embedded supervisor form: `activity/CommitmentsViolationFormFragment.kt`; layout `fragment_commitments_violation_form.xml`.
 - Main form ViewModel: `presentation/viewmodel/FormDataViewModel.kt`.
 - Validation: `domain/validation/ViolationFormValidator.kt`.
-- Form repository/API: `data/repository/FormDataRepository.kt`, `data/api/FormDataApiService.kt` (`POST api/BillOriginViEvent/FormData`).
+- Form repository/API: `data/repository/FormDataRepository.kt`, `data/api/FormDataApiService.kt` (`POST api/Bill/Lookup/ViolationEvent`).
 - Submit API: `service/remote/ViolationApiService.kt` (`multipart POST api/BillOriginViEvent/Create`).
 - Models/location payload: `data/model/FormDataResponse.kt`, `ViolationModel.kt`,
   `ViolationGeoLocationMapper.kt`; the mapper converts the latest persisted `TrackPoint` into the
   violation GeoJSON/WKT/track payload without fabricated sensor values.
+- Fence submission guard: `supervisor/OrganFenceContainment.kt`; `SubmitViolationFormActivity` and
+  the embedded form in `NewSupervisorActivity` pass the mission `organFenceWkt` into
+  `FormDataViewModel.submitViolation()`, which rejects an outside GPS point before any server call.
 - Images: `activity/SelectedImagesAdapter.kt`; `FileProvider` configuration in manifest and `res/xml/filepaths.xml`.
 - Local waypoint save: `FormDataViewModel.saveViolationAsWaypoint()` -> `TrackContentProvider`.
 - Supervisor local history: `supervisor/SupervisorViolationHistoryStore.kt`.
 
 ## Address, road name, and road width
 
-- API: `service/remote/RoadService.kt` (`api/GisLayer/DataLayerRoadByPoint`) and legacy/raw `service/remote/ApiService.kt` (`api/GisLayers/DataLayerRoadByPoint`). Note the path spelling difference.
+- Road API: both `service/remote/RoadService.kt` and the raw `service/remote/ApiService.kt` use `api/GisLayer/DataLayerRoadByPoint`.
 - Coordinator: `data/repository/AddressLookupCoordinator.kt` — serialized calls, 2s timeout, 10s cooldown.
 - Model: `data/model/RoadData.kt`.
 - Width mapping: `domain/road/RoadWidthCategory.kt`.
@@ -163,7 +174,7 @@ Start here instead of recursively searching source. Fully qualified paths are re
 
 ## Track map and GIS layers
 
-- UI: `activity/DisplayTrackMap.kt`; layout `app/src/main/res/layout/displaytrackmap.xml`.
+- UI: `activity/DisplayTrackMap.kt` with pure Compose contract in `presentation/compose/TrackMapScreen.kt` and the shared `map/ComposeMapHost.kt` bridge.
 - ViewModel: `presentation/viewmodel/DisplayTrackMapViewModel.kt`.
 - Map library: MapLibre Native Android (`org.maplibre.gl:android-sdk`); dependency in `app/build.gradle`.
 - Baran basemap: `map/BaranMapStyle.kt` loads/caches `https://baran.tfs.co.ir/tiles/style.json`;
@@ -180,12 +191,17 @@ Start here instead of recursively searching source. Fully qualified paths are re
 
 ## Track management, export, and upload
 
-- Screens: `activity/TrackManager.kt`, `TrackLogger.kt`, `DisplayTrack.java`, `TrackDetail.java`, `WaypointList.java`, `OpenStreetMapUpload.java`.
+- Screens: `activity/TrackManager.kt` is now only a compatibility router; list/detail/waypoint/upload destinations are `TrackManagerComposeActivity.kt`, `TrackDetailComposeActivity.kt`, `WaypointListComposeActivity.kt`, and `OpenStreetMapUpload.kt`. `TrackLogger.kt` owns the GPS/service effects around a single Compose screen; its custom button layout and GPS indicator are isolated AndroidView bridges. The obsolete non-map `DisplayTrack.java` fallback was removed and all display routing uses `DisplayTrackMap.kt`.
 - ViewModel: `presentation/viewmodel/TrackManagerViewModel.kt`.
-- Adapters: `activity/TrackListRVAdapter.kt`, `data/db/TracklistAdapter.java`, `WaypointListAdapter.java`.
+- The legacy track-list and waypoint adapters/layouts have been removed; Compose lazy lists render those destinations.
 - GPX: `util/GpxWriter.java`, `util/GpxZipper.java`, and export tasks under `gpx/`; database export task `data/db/ExportDatabaseTask.java`.
 - Upload service/API: `service/remote/UploadService.kt`, `util/GpxUploader.java`, `util/SelectedServerUrl.kt`.
 - Endpoint: `api/GisGeolocation/upload` on selected municipality server.
+- Compose migration: `presentation/compose/track/TrackScreens.kt`,
+  `activity/TrackManagerComposeActivity.kt`, `TrackDetailComposeActivity.kt`, and
+  `WaypointListComposeActivity.kt`; route selection is controlled by `UiMigrationFlow.Track`.
+- Deterministic map surface for previews/goldens: `map/ComposeMapHost.kt` (`FakeComposeMapHost`);
+  native MapLibre lifecycle remains container-owned through the Map migration flag.
 - Legacy OSM API library: `osm/` and `osmapi-traces` dependency.
 
 ## Networking
@@ -225,3 +241,13 @@ Start here instead of recursively searching source. Fully qualified paths are re
 - Token expiry: `.../auth/TokenExpiryPolicyTest.kt`.
 - Developer guard: `.../security/DeveloperOptionsGuardTest.kt`.
 - No instrumented test class was found under `app/src/androidTest`; only resources/assets are present.
+
+## Fz component system and catalog
+
+- Production components: `core/ui/src/main/java/Ir/co/tfs/farazaman/presentation/design/components/`.
+- Shared sizes, semantic intents, theme tokens and shapes: `core/ui/src/main/java/Ir/co/tfs/farazaman/presentation/design/theme/`.
+- Caller-owned selection, field, collection and overlay state: `core/ui/src/main/java/Ir/co/tfs/farazaman/presentation/design/state/`.
+- Debug-only interactive catalog: `app/src/debug/java/Ir/co/tfs/farazaman/presentation/design/catalog/`.
+- Contract, semantics and Roborazzi tests: `app/src/test/java/Ir/co/tfs/farazaman/presentation/design/` and `core/ui/src/test/java/Ir/co/tfs/farazaman/presentation/design/`.
+- Coverage and native-mobile mappings: `specs/006-fz-component-system/contracts/component-catalog.md`.
+- Use public `Fz*` components instead of screen-local reusable styling. Keep state and side effects in the caller, use `FzComponentSize` and semantic variants, and preserve Persian RTL, dark mode and a 48dp minimum touch target.

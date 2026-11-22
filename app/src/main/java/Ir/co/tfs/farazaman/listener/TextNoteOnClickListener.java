@@ -23,7 +23,7 @@ public class TextNoteOnClickListener implements OnClickListener {
 	@Override
 	public void onClick(final View v) {
 		// let the TrackLogger activity open and control the dialog
-		tl.showDialog(TrackLogger.DIALOG_TEXT_NOTE);
+		tl.showTextNoteDialog();
 	}
 
 }

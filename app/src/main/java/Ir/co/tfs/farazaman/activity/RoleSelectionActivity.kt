@@ -177,15 +177,23 @@ class RoleSelectionActivity : AppCompatActivity() {
     }
 
     private fun navigateToSelectedRole(selectedRole: SelectedRole) {
-        val intent = when (selectedRole) {
+        val destination = when (selectedRole) {
             SelectedRole.SUPERVISOR -> createSupervisorIntent()
             SelectedRole.DRIVER -> Intent(this, DriverActivity::class.java)
             SelectedRole.CONTRACTOR -> Intent(this, ContractorWorkAreaSelectionActivity::class.java)
         }
         if (fromProfile) {
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            destination.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         }
-        startActivity(intent)
+        RoleTutorialLauncher.launch(
+            context = this,
+            role = when (selectedRole) {
+                SelectedRole.SUPERVISOR -> TutorialRole.Supervisor
+                SelectedRole.DRIVER -> TutorialRole.Driver
+                SelectedRole.CONTRACTOR -> TutorialRole.Contractor
+            },
+            destination = destination,
+        )
         finish()
     }
 

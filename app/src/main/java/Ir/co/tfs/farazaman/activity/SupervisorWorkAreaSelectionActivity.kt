@@ -1,22 +1,25 @@
 package Ir.co.tfs.farazaman.activity
 
-import android.content.Intent
-import android.os.Bundle
-import android.util.Log
-import android.view.View
-import android.widget.ProgressBar
-import android.widget.TextView
-import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
-import com.google.android.material.button.MaterialButton
-import dagger.hilt.android.AndroidEntryPoint
 import Ir.co.tfs.farazaman.R
 import Ir.co.tfs.farazaman.data.api.FormDataApiService
+import Ir.co.tfs.farazaman.presentation.compose.SupervisorWorkAreaEvent
+import Ir.co.tfs.farazaman.presentation.compose.SupervisorWorkAreaScreen
+import Ir.co.tfs.farazaman.presentation.compose.SupervisorWorkAreaUiState
+import Ir.co.tfs.farazaman.presentation.compose.SupervisorWorkAreaOption
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanTheme
 import Ir.co.tfs.farazaman.supervisor.SupervisorMissionHelper
 import Ir.co.tfs.farazaman.supervisor.SupervisorMissionSetup
 import Ir.co.tfs.farazaman.util.ErrorHandler
-import Ir.co.tfs.farazaman.util.LoadingDialog
+import Ir.co.tfs.farazaman.util.BillTenantContextStore
+import android.content.Intent
+import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
+import androidx.activity.compose.setContent
+import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.lifecycleScope
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -24,243 +27,205 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class SupervisorWorkAreaSelectionActivity : AppCompatActivity() {
-
-    private companion object {
-        const val TAG = "SupervisorWorkArea"
-    }
+    private companion object { const val TAG = "SupervisorWorkArea" }
 
     @Inject lateinit var formDataApiService: FormDataApiService
+    @Inject lateinit var billTenantContextStore: BillTenantContextStore
 
-    private lateinit var organSelector: View
-    private lateinit var contractSelector: View
-    private lateinit var organSelectedText: TextView
-    private lateinit var contractSelectedText: TextView
-    private lateinit var organProgress: ProgressBar
-    private lateinit var contractProgress: ProgressBar
-    private lateinit var confirmButton: MaterialButton
-
+    private val uiState = mutableStateOf(SupervisorWorkAreaUiState(loadingContractTypes = true))
+    private var selectedTenantId: Int? = null
     private var selectedOrganId: Int? = null
     private var selectedContractId: Int? = null
-    private var selectedOrganTitle: String? = null
-    private var selectedContractTitle: String? = null
     private var organOptions: List<MissionSelectionOption> = emptyList()
     private var contractOptions: List<MissionSelectionOption> = emptyList()
-    private var loadingDialog: LoadingDialog? = null
+    private var contractTypeOptions: List<SupervisorWorkAreaOption> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         if (SupervisorMissionHelper.hasExistingMission(this)) {
             navigateToHome()
             return
         }
 
-        setContentView(R.layout.activity_supervisor_work_area_selection)
-        findViewById<View>(R.id.btnProfile)?.setOnClickListener {
-            SupervisorProfileActivity.open(this)
+        setContent {
+            FaraZamanTheme {
+                SupervisorWorkAreaScreen(uiState.value, ::onEvent)
+            }
         }
-
-        organSelector = findViewById(R.id.organSelector)
-        contractSelector = findViewById(R.id.contractSelector)
-        organSelectedText = findViewById(R.id.organSelectedText)
-        contractSelectedText = findViewById(R.id.contractSelectedText)
-        organProgress = findViewById(R.id.organProgress)
-        contractProgress = findViewById(R.id.contractProgress)
-        confirmButton = findViewById(R.id.btnConfirm)
-
-        confirmButton.isEnabled = false
-        setOrganLoading(true)
-        setContractEnabled(false)
-
-        organSelector.setOnClickListener { openOrganSelection() }
-        contractSelector.setOnClickListener { openContractSelection() }
-        confirmButton.setOnClickListener { submitSelection() }
-
-        fetchOrgans()
+        fetchContractTypes()
     }
 
-    private fun fetchOrgans() {
-        setOrganLoading(true)
+    private fun onEvent(event: SupervisorWorkAreaEvent) {
+        when (event) {
+            SupervisorWorkAreaEvent.OpenProfile -> SupervisorProfileActivity.open(this)
+            is SupervisorWorkAreaEvent.SelectContractType -> selectContractType(event.tenantId)
+            is SupervisorWorkAreaEvent.SelectOrgan -> selectOrgan(event.id)
+            is SupervisorWorkAreaEvent.SelectContract -> selectContract(event.id)
+            SupervisorWorkAreaEvent.Submit -> submitSelection()
+        }
+    }
+
+    private fun fetchContractTypes() {
+        uiState.value = uiState.value.copy(loadingContractTypes = true, errorMessage = null)
         lifecycleScope.launch {
             try {
-                val options = withContext(Dispatchers.IO) {
-                    SupervisorMissionSetup.loadOrgans(formDataApiService)
+                contractTypeOptions = withContext(Dispatchers.IO) {
+                    SupervisorMissionSetup.loadContractTypes(formDataApiService)
+                }.map { SupervisorWorkAreaOption(it.tenantId, it.contractTypeName) }
+                uiState.value = uiState.value.copy(
+                    loadingContractTypes = false,
+                    contractTypeOptions = contractTypeOptions,
+                )
+            } catch (error: Exception) {
+                Log.e(TAG, "Unable to load contract types", error)
+                uiState.value = uiState.value.copy(
+                    loadingContractTypes = false,
+                    contractTypeOptions = emptyList(),
+                    errorMessage = error.message,
+                )
+                showMissionError(error, "خطا در دریافت انواع قرارداد")
+            }
+        }
+    }
+
+    private fun selectContractType(tenantId: Int) {
+        val option = contractTypeOptions.firstOrNull { it.id == tenantId } ?: return
+        selectedTenantId = tenantId
+        selectedOrganId = null
+        selectedContractId = null
+        organOptions = emptyList()
+        contractOptions = emptyList()
+        uiState.value = uiState.value.copy(
+            selectedTenantId = tenantId,
+            selectedContractTypeTitle = option.title,
+            selectedOrganId = null,
+            selectedOrganTitle = null,
+            selectedContractId = null,
+            selectedContractTitle = null,
+            organOptions = emptyList(),
+            contractOptions = emptyList(),
+        )
+        fetchOrgans(tenantId)
+    }
+
+    private fun fetchOrgans(tenantId: Int) {
+        uiState.value = uiState.value.copy(loadingOrgans = true, errorMessage = null)
+        lifecycleScope.launch {
+            try {
+                organOptions = withContext(Dispatchers.IO) {
+                    SupervisorMissionSetup.loadOrgans(formDataApiService, tenantId)
                 }
-                organOptions = options
-                setOrganLoading(false)
-            } catch (e: Exception) {
-                Log.e(TAG, "Unable to load employer list: ${e.javaClass.name}: ${e.message}", e)
-                setOrganLoading(false)
+                uiState.value = uiState.value.copy(
+                    loadingOrgans = false,
+                    organOptions = organOptions.map { SupervisorWorkAreaOption(it.id, it.title) },
+                )
+            } catch (error: Exception) {
+                Log.e(TAG, "Unable to load employer list", error)
                 organOptions = emptyList()
-                if (e is SupervisorMissionSetup.MissionSetupException) {
-                    Toast.makeText(this@SupervisorWorkAreaSelectionActivity, e.message, Toast.LENGTH_LONG).show()
-                } else {
-                    ErrorHandler.handleNetworkError(e, this@SupervisorWorkAreaSelectionActivity, "خطا در دریافت لیست کارفرما")
-                }
+                uiState.value = uiState.value.copy(
+                    loadingOrgans = false,
+                    organOptions = emptyList(),
+                    errorMessage = error.message,
+                )
+                showMissionError(error, "خطا در دریافت لیست کارفرما")
             }
         }
     }
 
     private fun fetchContracts(organId: Int) {
-        setContractEnabled(true)
-        setContractLoading(true)
+        val tenantId = selectedTenantId ?: return
+        uiState.value = uiState.value.copy(loadingContracts = true, errorMessage = null)
         lifecycleScope.launch {
             try {
-                val options = withContext(Dispatchers.IO) {
-                    SupervisorMissionSetup.loadContracts(formDataApiService, organId)
+                contractOptions = withContext(Dispatchers.IO) {
+                    SupervisorMissionSetup.loadContracts(formDataApiService, tenantId, organId)
                 }
-                contractOptions = options
-                setContractLoading(false)
-                setContractEnabled(true)
-                if (options.isEmpty()) {
-                    Toast.makeText(
-                        this@SupervisorWorkAreaSelectionActivity,
-                        R.string.mission_contracts_empty,
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                uiState.value = uiState.value.copy(
+                    loadingContracts = false,
+                    contractOptions = contractOptions.map { SupervisorWorkAreaOption(it.id, it.title) },
+                )
+                if (contractOptions.isEmpty()) {
+                    Toast.makeText(this@SupervisorWorkAreaSelectionActivity, R.string.mission_contracts_empty, Toast.LENGTH_SHORT).show()
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Unable to load contract list: ${e.javaClass.name}: ${e.message}", e)
-                setContractLoading(false)
+            } catch (error: Exception) {
+                Log.e(TAG, "Unable to load contract list", error)
                 contractOptions = emptyList()
-                if (e is SupervisorMissionSetup.MissionSetupException) {
-                    Toast.makeText(this@SupervisorWorkAreaSelectionActivity, e.message, Toast.LENGTH_LONG).show()
-                } else {
-                    ErrorHandler.handleNetworkError(e, this@SupervisorWorkAreaSelectionActivity, "خطا در دریافت لیست قراردادها")
-                }
+                uiState.value = uiState.value.copy(
+                    loadingContracts = false,
+                    contractOptions = emptyList(),
+                    errorMessage = error.message,
+                )
+                showMissionError(error, "خطا در دریافت لیست قراردادها")
             }
         }
     }
 
+    private fun selectOrgan(id: Int) {
+        val option = organOptions.firstOrNull { it.id == id } ?: return
+        selectedOrganId = option.id
+        selectedContractId = null
+        contractOptions = emptyList()
+        uiState.value = uiState.value.copy(
+            selectedOrganId = option.id,
+            selectedOrganTitle = option.title,
+            selectedContractId = null,
+            selectedContractTitle = null,
+            contractOptions = emptyList(),
+        )
+        fetchContracts(option.id)
+    }
+
+    private fun selectContract(id: Int) {
+        if (selectedOrganId == null || uiState.value.loadingContracts) return
+        val option = contractOptions.firstOrNull { it.id == id } ?: return
+        selectedContractId = option.id
+        uiState.value = uiState.value.copy(
+            selectedContractId = option.id,
+            selectedContractTitle = option.title,
+        )
+    }
+
     private fun submitSelection() {
+        val tenantId = selectedTenantId ?: return
         val organId = selectedOrganId ?: return
         val contractId = selectedContractId ?: return
-        val organTitle = selectedOrganTitle ?: return
-        val contractTitle = selectedContractTitle ?: return
-
-        confirmButton.isEnabled = false
-        confirmButton.text = getString(R.string.mission_submitting)
-        loadingDialog = LoadingDialog.showWithTimeout(this, "در حال ثبت برنامه کاری...", 180_000)
-
+        val organTitle = uiState.value.selectedOrganTitle ?: return
+        val contractTitle = uiState.value.selectedContractTitle ?: return
+        uiState.value = uiState.value.copy(submitting = true, errorMessage = null)
         lifecycleScope.launch {
             try {
                 withContext(Dispatchers.IO) {
                     SupervisorMissionSetup.createSupervisorMission(
                         context = this@SupervisorWorkAreaSelectionActivity,
                         service = formDataApiService,
+                        tenantId = tenantId,
                         organId = organId,
                         contractId = contractId,
                         organTitle = organTitle,
                         contractTitle = contractTitle,
                     )
                 }
-                loadingDialog?.dismiss()
-                loadingDialog = null
-                Toast.makeText(
-                    this@SupervisorWorkAreaSelectionActivity,
-                    "برنامه کاری با موفقیت ثبت شد",
-                    Toast.LENGTH_LONG,
-                ).show()
+                billTenantContextStore.saveTenantId(tenantId)
+                Toast.makeText(this@SupervisorWorkAreaSelectionActivity, "برنامه کاری با موفقیت ثبت شد", Toast.LENGTH_LONG).show()
                 navigateToHome()
-            } catch (e: Exception) {
-                Log.e(TAG, "Unable to create supervisor mission: ${e.javaClass.name}: ${e.message}", e)
-                loadingDialog?.dismiss()
-                loadingDialog = null
-                confirmButton.isEnabled = true
-                confirmButton.text = getString(R.string.work_area_confirm_continue)
-                if (e is SupervisorMissionSetup.MissionSetupException) {
-                    Toast.makeText(this@SupervisorWorkAreaSelectionActivity, e.message, Toast.LENGTH_LONG).show()
-                } else {
-                    ErrorHandler.handleNetworkError(e, this@SupervisorWorkAreaSelectionActivity, "خطا در ثبت برنامه کاری")
-                }
+            } catch (error: Exception) {
+                Log.e(TAG, "Unable to create supervisor mission", error)
+                uiState.value = uiState.value.copy(submitting = false, errorMessage = error.message)
+                showMissionError(error, "خطا در ثبت برنامه کاری")
             }
+        }
+    }
+
+    private fun showMissionError(error: Exception, fallback: String) {
+        if (error is SupervisorMissionSetup.MissionSetupException) {
+            Toast.makeText(this, error.message, Toast.LENGTH_LONG).show()
+        } else {
+            ErrorHandler.handleNetworkError(error, this, fallback)
         }
     }
 
     private fun navigateToHome() {
         startActivity(Intent(this, NewSupervisorActivity::class.java))
         finish()
-    }
-
-    private fun openOrganSelection() {
-        if (organProgress.visibility == View.VISIBLE) {
-            Toast.makeText(this, R.string.mission_organs_loading, Toast.LENGTH_SHORT).show()
-            return
-        }
-        if (organOptions.isEmpty()) {
-            Toast.makeText(this, R.string.mission_organs_unavailable, Toast.LENGTH_SHORT).show()
-            return
-        }
-        MissionItemSelectionBottomSheet.newInstance(
-            getString(R.string.mission_select_organ_title),
-            organOptions,
-        ).apply {
-            onItemSelected = { option -> onOrganSelected(option) }
-        }.show(supportFragmentManager, "work_area_organ_selection")
-    }
-
-    private fun openContractSelection() {
-        if (selectedOrganId == null) {
-            Toast.makeText(this, R.string.mission_contracts_unavailable, Toast.LENGTH_SHORT).show()
-            return
-        }
-        if (contractProgress.visibility == View.VISIBLE) return
-        if (contractOptions.isEmpty()) {
-            Toast.makeText(this, R.string.mission_contracts_empty, Toast.LENGTH_SHORT).show()
-            return
-        }
-        MissionItemSelectionBottomSheet.newInstance(
-            getString(R.string.mission_select_contract_title),
-            contractOptions,
-        ).apply {
-            onItemSelected = { option -> onContractSelected(option) }
-        }.show(supportFragmentManager, "work_area_contract_selection")
-    }
-
-    private fun onOrganSelected(option: MissionSelectionOption) {
-        selectedOrganId = option.id
-        selectedOrganTitle = option.title
-        organSelectedText.text = option.title
-        resetContractSelection()
-        fetchContracts(option.id)
-    }
-
-    private fun onContractSelected(option: MissionSelectionOption) {
-        selectedContractId = option.id
-        selectedContractTitle = option.title
-        contractSelectedText.text = option.title
-        updateConfirmState()
-    }
-
-    private fun resetContractSelection() {
-        selectedContractId = null
-        selectedContractTitle = null
-        contractOptions = emptyList()
-        contractSelectedText.text = null
-        contractSelectedText.setHint(R.string.mission_select_contract_hint)
-        setContractEnabled(false)
-        updateConfirmState()
-    }
-
-    private fun updateConfirmState() {
-        confirmButton.isEnabled = selectedOrganId != null && selectedContractId != null
-    }
-
-    private fun setOrganLoading(loading: Boolean) {
-        organProgress.visibility = if (loading) View.VISIBLE else View.GONE
-        organSelectedText.visibility = if (loading) View.INVISIBLE else View.VISIBLE
-        organSelector.isClickable = !loading
-    }
-
-    private fun setContractLoading(loading: Boolean) {
-        contractProgress.visibility = if (loading) View.VISIBLE else View.GONE
-        contractSelectedText.visibility = if (loading) View.INVISIBLE else View.VISIBLE
-        contractSelector.isClickable = !loading && selectedOrganId != null
-    }
-
-    private fun setContractEnabled(enabled: Boolean) {
-        contractSelector.isClickable = enabled
-        contractSelector.isFocusable = enabled
-        contractSelector.alpha = if (enabled) 1f else 0.6f
     }
 }

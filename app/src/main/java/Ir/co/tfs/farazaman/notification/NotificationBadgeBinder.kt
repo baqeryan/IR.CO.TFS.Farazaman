@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.view.View
+import android.annotation.SuppressLint
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -13,6 +14,7 @@ import com.google.android.material.badge.BadgeUtils
 import Ir.co.tfs.farazaman.R
 
 object NotificationBadgeBinder {
+    @SuppressLint("UnsafeOptInUsageError")
     fun bind(anchor: View, owner: LifecycleOwner) {
         val badge = BadgeDrawable.create(anchor.context).apply {
             backgroundColor = ContextCompat.getColor(anchor.context, R.color.app_error)

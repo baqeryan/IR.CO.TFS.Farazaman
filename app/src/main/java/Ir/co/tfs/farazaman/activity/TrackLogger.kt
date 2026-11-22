@@ -2,13 +2,10 @@ package Ir.co.tfs.farazaman.activity
 
 import android.Manifest
 import android.app.Activity
-import android.app.AlertDialog
-import android.app.Dialog
 import android.content.ComponentName
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
-import android.content.DialogInterface
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.SharedPreferences
@@ -31,6 +28,16 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.annotation.NonNull
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -41,6 +48,10 @@ import Ir.co.tfs.farazaman.data.db.DataHelper
 import Ir.co.tfs.farazaman.data.db.TrackContentProvider
 import Ir.co.tfs.farazaman.layout.GpsStatusRecord
 import Ir.co.tfs.farazaman.layout.UserDefinedLayout
+import Ir.co.tfs.farazaman.presentation.compose.track.TrackLoggerEvent
+import Ir.co.tfs.farazaman.presentation.compose.track.TrackLoggerScreen
+import Ir.co.tfs.farazaman.presentation.compose.track.TrackLoggerUiState
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanTheme
 import Ir.co.tfs.farazaman.listener.PressureListener
 import Ir.co.tfs.farazaman.listener.SensorListener
 import Ir.co.tfs.farazaman.receiver.MediaButtonReceiver
@@ -49,21 +60,20 @@ import Ir.co.tfs.farazaman.service.gps.GPSLoggerServiceConnection
 import Ir.co.tfs.farazaman.util.CustomLayoutsUtils
 import Ir.co.tfs.farazaman.util.FileSystemUtils
 import Ir.co.tfs.farazaman.util.ThemeValidator
-import Ir.co.tfs.farazaman.view.TextNoteDialog
-import Ir.co.tfs.farazaman.view.VoiceRecDialog
+import Ir.co.tfs.farazaman.presentation.design.components.FzButton
+import Ir.co.tfs.farazaman.presentation.design.components.FzButtonVariant
+import Ir.co.tfs.farazaman.presentation.design.components.FzTextField
 import java.io.File
 import java.util.Date
 import java.util.HashSet
 import java.util.UUID
 
-class TrackLogger : Activity() {
+class TrackLogger : ComponentActivity() {
     companion object {
         private val TAG = TrackLogger::class.java.simpleName
         const val STATE_IS_TRACKING = "isTracking"
         const val TAG_SEPARATOR = ","
         const val STATE_BUTTONS_ENABLED = "buttonsEnabled"
-        const val DIALOG_TEXT_NOTE = 1
-        const val DIALOG_VOICE_RECORDING = 2
         private const val REQCODE_IMAGE_CAPTURE = 0
         private const val REQCODE_GALLERY_CHOSEN = 1
     }
@@ -83,6 +93,16 @@ class TrackLogger : Activity() {
     private var mAudioManager: AudioManager? = null
     private var mediaButtonReceiver: ComponentName? = null
     private val layoutNameTags = HashSet<String>()
+    private lateinit var gpsStatusRecord: GpsStatusRecord
+    private val loggerUiState = mutableStateOf(TrackLoggerUiState(0L))
+    private val layoutVersion = mutableIntStateOf(0)
+    private val textNoteVisible = mutableStateOf(false)
+    private val textNoteValue = mutableStateOf("")
+    private var textNoteWaypointUuid: String? = null
+    private val voiceRecordingVisible = mutableStateOf(false)
+    private val gpsDisabledVisible = mutableStateOf(false)
+    private val pictureSourceVisible = mutableStateOf(false)
+    private lateinit var voiceRecording: VoiceRecordingController
 
     fun getButtonsEnabled(): Boolean = buttonsEnabled
 
@@ -94,12 +114,61 @@ class TrackLogger : Activity() {
         gpsLoggerServiceIntent = Intent(this, GPSLogger::class.java).apply {
             putExtra(TrackContentProvider.Schema.COL_TRACK_ID, currentTrackId)
         }
-        PreferenceManager.setDefaultValues(this, R.xml.preferences, false)
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
         setTheme(resources.getIdentifier(ThemeValidator.getValidTheme(prefs, resources), null, null))
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.tracklogger)
-        findViewById<View>(R.id.tracklogger_root).keepScreenOn = prefs?.getBoolean(OSMTracker.Preferences.KEY_UI_DISPLAY_KEEP_ON, OSMTracker.Preferences.VAL_UI_DISPLAY_KEEP_ON) == true
+        gpsStatusRecord = GpsStatusRecord(this, null)
+        voiceRecording = VoiceRecordingController(this)
+        window.decorView.keepScreenOn = prefs?.getBoolean(OSMTracker.Preferences.KEY_UI_DISPLAY_KEEP_ON, OSMTracker.Preferences.VAL_UI_DISPLAY_KEEP_ON) == true
+        loggerUiState.value = TrackLoggerUiState(currentTrackId, buttonsEnabled)
+        setContent {
+            FaraZamanTheme {
+                TrackLoggerScreen(
+                    state = loggerUiState.value,
+                    onEvent = ::handleComposeEvent,
+                    gpsStatus = { AndroidView(factory = { gpsStatusRecord }) },
+                    controls = {
+                        key(layoutVersion.intValue) {
+                            AndroidView(
+                                modifier = Modifier.fillMaxSize(),
+                                factory = { mainLayout ?: UserDefinedLayout(this@TrackLogger, currentTrackId, null).also { mainLayout = it } },
+                            )
+                        }
+                    },
+                )
+                if (textNoteVisible.value) AlertDialog(
+                    onDismissRequest = ::cancelTextNote,
+                    title = { Text(getString(R.string.gpsstatus_record_textnote)) },
+                    text = { FzTextField(value = textNoteValue.value, onValueChange = { textNoteValue.value = it }, label = getString(R.string.gpsstatus_record_textnote)) },
+                    confirmButton = { FzButton(getString(android.R.string.ok), ::saveTextNote) },
+                    dismissButton = { FzButton(getString(android.R.string.cancel), ::cancelTextNote, variant = FzButtonVariant.Ghost) },
+                )
+                if (voiceRecordingVisible.value) AlertDialog(
+                    onDismissRequest = ::stopVoiceRecording,
+                    title = { Text(getString(R.string.tracklogger_voicerec_title)) },
+                    text = { Text(getString(R.string.tracklogger_voicerec_text).replace("{0}", voiceRecording.durationSeconds.toString())) },
+                    confirmButton = { FzButton(getString(R.string.tracklogger_voicerec_stop), ::stopVoiceRecording, variant = FzButtonVariant.Danger) },
+                )
+                if (gpsDisabledVisible.value) AlertDialog(
+                    onDismissRequest = { gpsDisabledVisible.value = false },
+                    title = { Text(getString(R.string.tracklogger_gps_disabled)) },
+                    text = { Text(getString(R.string.tracklogger_gps_disabled_hint)) },
+                    confirmButton = { FzButton(getString(android.R.string.yes), { gpsDisabledVisible.value = false; startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }) },
+                    dismissButton = { FzButton(getString(android.R.string.no), { gpsDisabledVisible.value = false }, variant = FzButtonVariant.Ghost) },
+                )
+                if (pictureSourceVisible.value) AlertDialog(
+                    onDismissRequest = { pictureSourceVisible.value = false },
+                    title = { Text(getString(R.string.prefs_ui_picture_source)) },
+                    text = {
+                        androidx.compose.foundation.layout.Column {
+                            FzButton(getString(R.string.tracklogger_camera), { pictureSourceVisible.value = false; startCamera() })
+                            FzButton(getString(R.string.tracklogger_gallery), { pictureSourceVisible.value = false; startGallery() }, variant = FzButtonVariant.Secondary)
+                        }
+                    },
+                    confirmButton = {},
+                )
+            }
+        }
         if (savedInstanceState != null) {
             buttonsEnabled = savedInstanceState.getBoolean(STATE_BUTTONS_ENABLED, false)
         }
@@ -141,7 +210,7 @@ class TrackLogger : Activity() {
 
     override fun onResume() {
         title = getString(R.string.tracklogger) + ": #$currentTrackId"
-        findViewById<View>(R.id.tracklogger_root).keepScreenOn = prefs?.getBoolean(OSMTracker.Preferences.KEY_UI_DISPLAY_KEEP_ON, OSMTracker.Preferences.VAL_UI_DISPLAY_KEEP_ON) == true
+        window.decorView.keepScreenOn = prefs?.getBoolean(OSMTracker.Preferences.KEY_UI_DISPLAY_KEEP_ON, OSMTracker.Preferences.VAL_UI_DISPLAY_KEEP_ON) == true
         val preferredOrientation = prefs?.getString(OSMTracker.Preferences.KEY_UI_ORIENTATION, OSMTracker.Preferences.VAL_UI_ORIENTATION)
         when (preferredOrientation) {
             OSMTracker.Preferences.VAL_UI_ORIENTATION_PORTRAIT -> requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -156,8 +225,7 @@ class TrackLogger : Activity() {
                 val layoutFile = File(getExternalFilesDir(null), OSMTracker.Preferences.VAL_STORAGE_DIR + File.separator + Preferences.LAYOUTS_SUBDIR + File.separator + userLayout)
                 UserDefinedLayout(this, currentTrackId, layoutFile)
             }
-            (findViewById<ViewGroup>(R.id.tracklogger_root)).removeAllViews()
-            (findViewById<ViewGroup>(R.id.tracklogger_root)).addView(mainLayout)
+            layoutVersion.intValue++
         } catch (e: Exception) {
             Log.e(TAG, "Error while inflating UserDefinedLayout", e)
             Toast.makeText(this, R.string.error_userlayout_parsing, Toast.LENGTH_SHORT).show()
@@ -165,7 +233,7 @@ class TrackLogger : Activity() {
         if (checkGPSFlag && prefs?.getBoolean(OSMTracker.Preferences.KEY_GPS_CHECKSTARTUP, OSMTracker.Preferences.VAL_GPS_CHECKSTARTUP) == true) {
             checkGPSProvider()
         }
-        (findViewById<View>(R.id.gpsStatus) as GpsStatusRecord).requestLocationUpdates(true)
+        gpsStatusRecord.requestLocationUpdates(true)
         startService(gpsLoggerServiceIntent)
         gpsLoggerServiceIntent?.let { bindService(it, gpsLoggerConnection, 0) }
         sensorListener?.register(this)
@@ -183,25 +251,15 @@ class TrackLogger : Activity() {
     private fun checkGPSProvider() {
         val lm = getSystemService(LOCATION_SERVICE) as LocationManager
         if (!lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            AlertDialog.Builder(this)
-                .setTitle(R.string.tracklogger_gps_disabled)
-                .setIcon(android.R.drawable.ic_dialog_alert)
-                .setMessage(getString(R.string.tracklogger_gps_disabled_hint))
-                .setCancelable(true)
-                .setPositiveButton(android.R.string.yes) { _, _ ->
-                    startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
-                }
-                .setNegativeButton(android.R.string.no) { dialog, _ ->
-                    dialog.cancel()
-                }
-                .create().show()
+            gpsDisabledVisible.value = true
             checkGPSFlag = false
         }
     }
     // کد اصلاح شده برای TrackLogger.kt -> onPause()
     override fun onPause() {
+        if (::voiceRecording.isInitialized) stopVoiceRecording()
         super.onPause()
-        (findViewById<View>(R.id.gpsStatus) as GpsStatusRecord).requestLocationUpdates(false)
+        gpsStatusRecord.requestLocationUpdates(false)
 
         // فقط از سرویس جدا شو، آن را متوقف نکن
         gpsLogger?.let {
@@ -249,7 +307,30 @@ class TrackLogger : Activity() {
         mainLayout?.let {
             buttonsEnabled = enabled
             it.setEnabled(enabled)
+            loggerUiState.value = loggerUiState.value.copy(controlsEnabled = enabled)
         }
+    }
+
+    private fun handleComposeEvent(event: TrackLoggerEvent) {
+        when (event) {
+            TrackLoggerEvent.Stop -> stopTracking()
+            TrackLoggerEvent.Settings -> startActivity(Intent(this, Preferences::class.java))
+            TrackLoggerEvent.Waypoints -> startActivity(Intent(this, WaypointListComposeActivity::class.java).putExtra(TrackContentProvider.Schema.COL_TRACK_ID, currentTrackId))
+            TrackLoggerEvent.About -> startActivity(Intent(this, AboutComposeActivity::class.java))
+            TrackLoggerEvent.Map -> openTrackMap()
+        }
+    }
+
+    private fun stopTracking() {
+        if (gpsLogger?.isTracking != true) return
+        saveTagsForTrack()
+        sendBroadcast(Intent(OSMTracker.INTENT_STOP_TRACKING).setPackage(packageName))
+        gpsStatusRecord.manageRecordingIndicator(false)
+        finish()
+    }
+
+    private fun openTrackMap() {
+        startActivity(Intent(this, DisplayTrackMap::class.java).putExtra(TrackContentProvider.Schema.COL_TRACK_ID, currentTrackId))
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -261,35 +342,21 @@ class TrackLogger : Activity() {
         var i: Intent? = null
         when (item.itemId) {
             R.id.tracklogger_menu_stoptracking -> {
-                if (gpsLogger?.isTracking == true) {
-                    saveTagsForTrack()
-                    val intent = Intent(OSMTracker.INTENT_STOP_TRACKING)
-                    intent.setPackage(packageName)
-                    sendBroadcast(intent)
-                    (findViewById<View>(R.id.gpsStatus) as GpsStatusRecord).manageRecordingIndicator(false)
-                    finish()
-                }
+                stopTracking()
             }
             R.id.tracklogger_menu_settings -> {
                 startActivity(Intent(this, Preferences::class.java))
             }
             R.id.tracklogger_menu_waypointlist -> {
-                i = Intent(this, WaypointList::class.java)
+                i = Intent(this, WaypointListComposeActivity::class.java)
                 i.putExtra(TrackContentProvider.Schema.COL_TRACK_ID, currentTrackId)
                 startActivity(i)
             }
             R.id.tracklogger_menu_about -> {
-                startActivity(Intent(this, About::class.java))
+                startActivity(Intent(this, AboutComposeActivity::class.java))
             }
             R.id.tracklogger_menu_displaytrack -> {
-                val useOpenStreetMapBackground = PreferenceManager.getDefaultSharedPreferences(this).getBoolean(OSMTracker.Preferences.KEY_UI_DISPLAYTRACK_OSM, OSMTracker.Preferences.VAL_UI_DISPLAYTRACK_OSM)
-                i = if (useOpenStreetMapBackground) {
-                    Intent(this, DisplayTrackMap::class.java)
-                } else {
-                    Intent(this, DisplayTrack::class.java)
-                }
-                i.putExtra(TrackContentProvider.Schema.COL_TRACK_ID, currentTrackId)
-                startActivity(i)
+                openTrackMap()
             }
         }
         return super.onOptionsItemSelected(item)
@@ -313,13 +380,13 @@ class TrackLogger : Activity() {
             }
             KeyEvent.KEYCODE_DPAD_CENTER -> {
                 if ((gpsLogger?.isTracking == true) && (event.eventTime - event.downTime) > OSMTracker.LONG_PRESS_TIME) {
-                    showDialog(DIALOG_VOICE_RECORDING)
+                    showVoiceRecordingDialog()
                     return true
                 }
             }
             KeyEvent.KEYCODE_HEADSETHOOK -> {
                 if (gpsLogger?.isTracking == true) {
-                    showDialog(DIALOG_VOICE_RECORDING)
+                    showVoiceRecordingDialog()
                     return true
                 }
             }
@@ -333,19 +400,7 @@ class TrackLogger : Activity() {
             when (pictureSource) {
                 OSMTracker.Preferences.VAL_UI_PICTURE_SOURCE_CAMERA -> startCamera()
                 OSMTracker.Preferences.VAL_UI_PICTURE_SOURCE_GALLERY -> startGallery()
-                else -> {
-                    val getImageFrom = AlertDialog.Builder(this)
-                    getImageFrom.setTitle("Select:")
-                    val opsChars = arrayOf(getString(R.string.tracklogger_camera), getString(R.string.tracklogger_gallery))
-                    getImageFrom.setItems(opsChars) { dialog, which ->
-                        when (which) {
-                            0 -> startCamera()
-                            1 -> startGallery()
-                        }
-                        dialog.dismiss()
-                    }
-                    getImageFrom.show()
-                }
+                else -> pictureSourceVisible.value = true
             }
         } else {
             Toast.makeText(baseContext, getString(R.string.error_externalstorage_not_writable), Toast.LENGTH_SHORT).show()
@@ -405,6 +460,7 @@ class TrackLogger : Activity() {
 
     fun getGpsLogger(): GPSLogger? = gpsLogger
     fun setGpsLogger(l: GPSLogger) { gpsLogger = l }
+    fun getGpsStatusRecord(): GpsStatusRecord = gpsStatusRecord
 
     fun createImageFile(): File? {
         val trackDir = DataHelper.getTrackDirectory(currentTrackId, this)
@@ -421,30 +477,43 @@ class TrackLogger : Activity() {
         return null
     }
 
-    override fun onCreateDialog(id: Int): Dialog? {
-        return when (id) {
-            DIALOG_TEXT_NOTE -> TextNoteDialog(this, currentTrackId)
-            DIALOG_VOICE_RECORDING -> {
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                    if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO)) {
-                        Log.w(TAG, "we should explain why we need write and record audio permission")
-                    } else {
-                        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), RC_STORAGE_AUDIO_PERMISSIONS)
-                    }
-                    null
-                } else {
-                    VoiceRecDialog(this, currentTrackId)
-                }
-            }
-            else -> super.onCreateDialog(id)
+    fun showVoiceRecordingDialog() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), RC_STORAGE_AUDIO_PERMISSIONS); return
         }
+        if (voiceRecording.start(currentTrackId) { runOnUiThread { voiceRecordingVisible.value = false } }) voiceRecordingVisible.value = true
+        else Toast.makeText(this, R.string.error_voicerec_failed, Toast.LENGTH_SHORT).show()
     }
 
-    override fun onPrepareDialog(id: Int, dialog: Dialog) {
-        when (id) {
-            DIALOG_TEXT_NOTE -> (dialog as? TextNoteDialog)?.resetValues()
-        }
-        super.onPrepareDialog(id, dialog)
+    private fun stopVoiceRecording() { voiceRecording.stop(); voiceRecordingVisible.value = false }
+
+    fun showTextNoteDialog() {
+        textNoteValue.value = ""
+        textNoteWaypointUuid = UUID.randomUUID().toString()
+        sendBroadcast(Intent(OSMTracker.INTENT_TRACK_WP).apply {
+            putExtra(TrackContentProvider.Schema.COL_TRACK_ID, currentTrackId)
+            putExtra(OSMTracker.INTENT_KEY_UUID, textNoteWaypointUuid)
+            putExtra(OSMTracker.INTENT_KEY_NAME, getString(R.string.gpsstatus_record_textnote))
+            setPackage(packageName)
+        })
+        textNoteVisible.value = true
+    }
+
+    private fun saveTextNote() {
+        sendBroadcast(Intent(OSMTracker.INTENT_UPDATE_WP).apply {
+            putExtra(TrackContentProvider.Schema.COL_TRACK_ID, currentTrackId)
+            putExtra(OSMTracker.INTENT_KEY_NAME, textNoteValue.value)
+            putExtra(OSMTracker.INTENT_KEY_UUID, textNoteWaypointUuid)
+            setPackage(packageName)
+        })
+        textNoteVisible.value = false
+        textNoteWaypointUuid = null
+    }
+
+    private fun cancelTextNote() {
+        textNoteWaypointUuid?.let { uuid -> sendBroadcast(Intent(OSMTracker.INTENT_DELETE_WP).apply { putExtra(OSMTracker.INTENT_KEY_UUID, uuid); setPackage(packageName) }) }
+        textNoteVisible.value = false
+        textNoteWaypointUuid = null
     }
 
     override fun onNewIntent(newIntent: Intent) {
@@ -454,7 +523,7 @@ class TrackLogger : Activity() {
                 intent = newIntent
             }
             if (newIntent.hasExtra("mediaButton") && gpsLogger?.isTracking == true) {
-                showDialog(DIALOG_VOICE_RECORDING)
+                showVoiceRecordingDialog()
             }
         }
         super.onNewIntent(newIntent)
@@ -486,10 +555,11 @@ class TrackLogger : Activity() {
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, @NonNull permissions: Array<String>, @NonNull grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         when (requestCode) {
             RC_STORAGE_AUDIO_PERMISSIONS -> {
-                if (grantResults.size > 1) {
-                    VoiceRecDialog(this, currentTrackId)
+                if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+                    showVoiceRecordingDialog()
                 } else {
                     Log.v(TAG, "Voice recording permission is denied.")
                 }

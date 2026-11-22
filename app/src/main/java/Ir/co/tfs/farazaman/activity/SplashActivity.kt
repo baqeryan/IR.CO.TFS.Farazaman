@@ -47,6 +47,12 @@ class SplashActivity : AppCompatActivity() {
         splashViewModel.onInstallPermissionResult()
     }
 
+    private val securitySettingsLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        splashViewModel.onSecuritySettingsResult()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -77,6 +83,11 @@ class SplashActivity : AppCompatActivity() {
                                 AppUpdateEvent.Download -> splashViewModel.downloadUpdate()
                                 AppUpdateEvent.Install -> splashViewModel.installUpdate()
                                 AppUpdateEvent.OpenInstallSettings -> openInstallPermissionSettings()
+                                AppUpdateEvent.OpenSecuritySettings -> {
+                                    securitySettingsLauncher.launch(
+                                        updateInstaller.createSecuritySettingsIntent(),
+                                    )
+                                }
                                 AppUpdateEvent.Retry -> splashViewModel.retry()
                                 AppUpdateEvent.Later -> splashViewModel.continueWithoutUpdate()
                             }

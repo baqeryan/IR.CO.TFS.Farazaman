@@ -21,6 +21,7 @@ import Ir.co.tfs.farazaman.data.db.DatabaseHelper
 import Ir.co.tfs.farazaman.data.model.DropdownItem
 import Ir.co.tfs.farazaman.data.model.FormDataRequest
 import Ir.co.tfs.farazaman.data.model.FormDataResponse
+import Ir.co.tfs.farazaman.data.model.FormDataResponseData
 import Ir.co.tfs.farazaman.data.model.SubmitViolationRequest
 import Ir.co.tfs.farazaman.data.model.ViolationData
 import Ir.co.tfs.farazaman.data.model.ViolationErrorResponse
@@ -29,6 +30,7 @@ import Ir.co.tfs.farazaman.data.model.ViolationGeoLocationMapper
 import Ir.co.tfs.farazaman.data.db.model.TrackPoint
 import Ir.co.tfs.farazaman.data.repository.FormDataRepository
 import Ir.co.tfs.farazaman.service.remote.ViolationApiService
+import Ir.co.tfs.farazaman.supervisor.OrganFenceContainment
 import okhttp3.MultipartBody
 import retrofit2.Response
 import javax.inject.Inject
@@ -37,14 +39,24 @@ import android.content.Context
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import Ir.co.tfs.farazaman.util.BillTenantContextStore
 
 @HiltViewModel
 class FormDataViewModel @Inject constructor(
     private val application: Application,
     private val repository: FormDataRepository,
     private val violationApiService: ViolationApiService,
-    private val prefs: SharedPreferences
+    private val prefs: SharedPreferences,
+    private val billTenantContextStore: BillTenantContextStore,
 ) : ViewModel() {
+    enum class ViolationLookup {
+        Groups,
+        Violations,
+        ItemGroups,
+        OriginItems,
+        Details,
+    }
+
     // متغیرهایی برای نگهداری ID های انتخاب شده
     private var selectedOrganId: Int? = null
     private var selectedContractId: Int? = null
@@ -77,11 +89,11 @@ class FormDataViewModel @Inject constructor(
         billCleaningViolationIds = emptyList(),
         billCleaningItemGroupIds = emptyList(),
         billCleaningItemIds = emptyList(),
-        visitDate = "",
-        maxVisitDate = "",
-        minVisitDate = "",
+        visitDate = null,
+        maxVisitDate = null,
+        minVisitDate = null,
         isDeleted = false,
-        tenantId = 1,
+        tenantId = billTenantContextStore.getTenantId() ?: 0,
         billOriginCleaningItemIds = emptyList(),
         billCleaningViolationId = 0,
         contractId = 0,
@@ -110,7 +122,7 @@ class FormDataViewModel @Inject constructor(
                 put(TrackContentProvider.Schema.COL_TRACK_ID, trackId)
                 put(TrackContentProvider.Schema.COL_LATITUDE, latitude)
                 put(TrackContentProvider.Schema.COL_LONGITUDE, longitude)
-                put(TrackContentProvider.Schema.COL_NAME, "تخلف ثبت شده")
+                put(TrackContentProvider.Schema.COL_NAME, "نقص ثبت شده")
                 put(TrackContentProvider.Schema.COL_LINK, violationIdFromServer) // ذخیره ID سرور در ستون لینک
                 put(TrackContentProvider.Schema.COL_TIMESTAMP, System.currentTimeMillis())
                 put(TrackContentProvider.Schema.COL_NBSATELLITES, 0) // Default value to satisfy NOT NULL constraint
@@ -226,7 +238,7 @@ class FormDataViewModel @Inject constructor(
 
         formDataJob = viewModelScope.launch {
             try {
-                val response = repository.getFormData()
+                val response = repository.getViolationGroups(currentFormDataRequest)
                 if (response.isSuccessful) {
                     response.body()?.let { formData ->
                         _formData.value = formData
@@ -241,6 +253,7 @@ class FormDataViewModel @Inject constructor(
             } catch (e: IllegalStateException) {
                 _error.value = e.message ?: "Access token not available"
             } catch (e: Exception) {
+                Log.e("FormDataViewModel", "Failed to load violation groups", e)
                 _error.value = "Network error: ${e.message}"
             } finally {
                 if (isActive) {
@@ -250,17 +263,41 @@ class FormDataViewModel @Inject constructor(
         }
     }
 
-    fun fetchFormDataWithRequest(updatedRequest: FormDataRequest) {
+    fun fetchFormDataWithRequest(
+        updatedRequest: FormDataRequest,
+        lookup: ViolationLookup = ViolationLookup.Groups,
+    ) {
+        updatedRequest.organId.takeIf { it > 0 }
+            ?.let { selectedOrganId = it }
+            ?: updatedRequest.organIds.firstOrNull { it > 0 }
+                ?.let { selectedOrganId = it }
+        updatedRequest.contractId.takeIf { it > 0 }
+            ?.let { selectedContractId = it }
+            ?: updatedRequest.contractIds.firstOrNull { it > 0 }
+                ?.let { selectedContractId = it }
+
         formDataJob?.cancel()
         _isLoading.value = true
         _error.value = null
 
         formDataJob = viewModelScope.launch {
             try {
-                val response = repository.getFormData(updatedRequest)
+                val response = when (lookup) {
+                    ViolationLookup.Groups -> repository.getViolationGroups(updatedRequest)
+                    ViolationLookup.Violations -> repository.getViolations(updatedRequest)
+                    ViolationLookup.ItemGroups -> repository.getItemGroups(updatedRequest)
+                    ViolationLookup.OriginItems -> repository.getOriginItems(updatedRequest)
+                    ViolationLookup.Details -> repository.getViolationDetails(updatedRequest)
+                }
                 if (response.isSuccessful) {
                     response.body()?.let { formData ->
-                        _formData.value = formData
+                        _formData.value = formData.copy(
+                            response = mergeCascadeResponse(
+                                previous = _formData.value?.response,
+                                incoming = formData.response,
+                                lookup = lookup,
+                            ),
+                        )
                         currentFormDataRequest = updatedRequest
                     } ?: run {
                         _error.value = "Empty response from server"
@@ -273,6 +310,7 @@ class FormDataViewModel @Inject constructor(
             } catch (e: IllegalStateException) {
                 _error.value = e.message ?: "Access token not available"
             } catch (e: Exception) {
+                Log.e("FormDataViewModel", "Failed to load ${lookup.name}", e)
                 _error.value = "Network error: ${e.message}"
             } finally {
                 if (isActive) {
@@ -281,13 +319,46 @@ class FormDataViewModel @Inject constructor(
             }
         }
     }
+
+    private fun mergeCascadeResponse(
+        previous: FormDataResponseData?,
+        incoming: FormDataResponseData,
+        lookup: ViolationLookup,
+    ): FormDataResponseData {
+        previous ?: return incoming
+        return when (lookup) {
+            ViolationLookup.Groups -> incoming.copy(
+                organs = incoming.organs.ifEmpty { previous.organs },
+                contracts = incoming.contracts.ifEmpty { previous.contracts },
+            )
+            ViolationLookup.Violations -> incoming.copy(
+                organs = previous.organs,
+                contracts = previous.contracts,
+                billCleaningViolationGroups = previous.billCleaningViolationGroups,
+            )
+            ViolationLookup.ItemGroups -> incoming.copy(
+                organs = previous.organs,
+                contracts = previous.contracts,
+                billCleaningViolationGroups = previous.billCleaningViolationGroups,
+                billCleaningViolations = previous.billCleaningViolations,
+            )
+            ViolationLookup.OriginItems -> incoming.copy(
+                organs = previous.organs,
+                contracts = previous.contracts,
+                billCleaningViolationGroups = previous.billCleaningViolationGroups,
+                billCleaningViolations = previous.billCleaningViolations,
+                billCleaningItemGroups = previous.billCleaningItemGroups,
+            )
+            ViolationLookup.Details -> previous
+        }
+    }
     
     fun updateOrganSelection(organId: Int) {
         val updatedRequest = currentFormDataRequest.copy(
             organId = organId,
             organIds = listOf(organId)
         )
-        fetchFormDataWithRequest(updatedRequest)
+        fetchFormDataWithRequest(updatedRequest, ViolationLookup.Groups)
     }
     
     fun updateContractSelection(contractId: Int) {
@@ -295,7 +366,7 @@ class FormDataViewModel @Inject constructor(
             contractId = contractId,
             contractIds = listOf(contractId)
         )
-        fetchFormDataWithRequest(updatedRequest)
+        fetchFormDataWithRequest(updatedRequest, ViolationLookup.Groups)
     }
     
     fun updateViolationGroupSelection(violationGroupId: Int) {
@@ -309,7 +380,7 @@ class FormDataViewModel @Inject constructor(
             billOriginCleaningItemIds = selectedOriginItemId?.let { listOf(it) }
                 ?: currentFormDataRequest.billOriginCleaningItemIds,
         )
-        fetchFormDataWithRequest(updatedRequest)
+        fetchFormDataWithRequest(updatedRequest, ViolationLookup.Violations)
     }
     
     fun updateViolationSelection(violationId: Int) {
@@ -317,21 +388,21 @@ class FormDataViewModel @Inject constructor(
             billCleaningViolationId = violationId,
             billCleaningViolationIds = listOf(violationId)
         )
-        fetchFormDataWithRequest(updatedRequest)
+        fetchFormDataWithRequest(updatedRequest, ViolationLookup.ItemGroups)
     }
     
     fun updateItemGroupSelection(itemGroupId: Int) {
         val updatedRequest = currentFormDataRequest.copy(
             billCleaningItemGroupIds = listOf(itemGroupId)
         )
-        fetchFormDataWithRequest(updatedRequest)
+        fetchFormDataWithRequest(updatedRequest, ViolationLookup.OriginItems)
     }
     
     fun updateOriginItemSelection(originItemId: Int) {
         val updatedRequest = currentFormDataRequest.copy(
             billOriginCleaningItemIds = listOf(originItemId)
         )
-        fetchFormDataWithRequest(updatedRequest)
+        fetchFormDataWithRequest(updatedRequest, ViolationLookup.Details)
     }
     
     fun getOrgans(): List<DropdownItem> {
@@ -392,7 +463,8 @@ class FormDataViewModel @Inject constructor(
         description: String,
         imageUris: List<Uri>, // برای بارگذاری عکس‌ها در آینده
         location: TrackPoint?,
-        requireItemSelection: Boolean = true
+        requireItemSelection: Boolean = true,
+        organFenceWkt: String? = null,
     ) {
         if (isSubmitting) {
             Log.w("FormDataViewModel", "Submit already in progress, ignoring duplicate call")
@@ -466,7 +538,25 @@ class FormDataViewModel @Inject constructor(
             return
         }
 
+        if (!organFenceWkt.isNullOrBlank() && OrganFenceContainment.contains(
+                organFenceWkt,
+                validLocation.latitude,
+                validLocation.longitude,
+            ) == false
+        ) {
+            Log.w("FormDataViewModel", "Validation failed: GPS location is outside the mission fence")
+            _submissionState.value = SubmissionState.Error(
+                "موقعیت فعلی خارج از محدوده تعریف‌شده است و نقص ارسال نشد.",
+            )
+            return
+        }
+
         // ساخت آبجکت درخواست با استفاده از ID های واقعی انتخاب شده
+        val tenantId = billTenantContextStore.getTenantId()
+        if (tenantId == null) {
+            _submissionState.value = SubmissionState.Error("ابتدا نوع قرارداد و محدوده کاری را انتخاب کنید.")
+            return
+        }
         val violationData = ViolationData(
             organIds = listOf(selectedOrganId!!), // Use actual selected organ ID
             contractIds = listOf(selectedContractId!!), // Use actual selected contract ID
@@ -485,7 +575,7 @@ class FormDataViewModel @Inject constructor(
             billCleaningViolationGroupId = selectedViolationGroupId ?: 0, // Use actual selected violation group ID
             billCleaningItemGroupId = selectedItemGroupId,
             billOriginCleaningItemId = selectedOriginItemId,
-            tenantId = 1,
+            tenantId = tenantId,
             billOriginViEventGeoLocation = createGeoLocationData(visitDate, validLocation)
         )
         
@@ -525,12 +615,6 @@ class FormDataViewModel @Inject constructor(
             return
         }
 
-        if (violationData.visitedFault.isBlank()) {
-            Log.e("FormDataViewModel", "Validation failed: Description is blank")
-            _submissionState.value = SubmissionState.Error("لطفاً توضیحات را وارد کنید.")
-            return
-        }
-        
         Log.d("FormDataViewModel", "All validations passed successfully")
 
         isSubmitting = true
@@ -610,7 +694,7 @@ class FormDataViewModel @Inject constructor(
                 Log.d("FormDataViewModel", "Model part created successfully")
                 Log.d("API_REQUEST", "Making API call to violationApiService.createViolation...")
                 Log.d("API_REQUEST", "Number of files to upload: ${fileParts.size}")
-                val response = violationApiService.createViolation(modelPart, fileParts)
+                val response = violationApiService.createViolation(tenantId, modelPart, fileParts)
 
                 // Log the response
                 Log.d("FormDataViewModel", "=== API RESPONSE RECEIVED ===")
@@ -651,7 +735,7 @@ class FormDataViewModel @Inject constructor(
                     Log.d("FormDataViewModel", "Response body: ${gson.toJson(successBody)}")
                     Log.d("FormDataViewModel", "Generated violation ID: $newId")
                     Log.d("API_SUCCESS", "Violation submitted successfully with ID: $newId")
-                    _submissionState.value = SubmissionState.Success("تخلف با موفقیت ثبت شد", newId)
+                    _submissionState.value = SubmissionState.Success("نقص با موفقیت ثبت شد", newId)
 
                 } else {
                     // اگر پاسخ سرور شامل پیام خطا بود
@@ -674,7 +758,13 @@ class FormDataViewModel @Inject constructor(
                         500 -> "خطای سرور داخلی"
                         else -> "خطای نامشخص از سرور (کد: ${response.code()})"
                     }
-                    if (errorBodyString != null && errorBodyString.isNotEmpty()) {
+                    if (response.code() == 400) {
+                        errorMessage = Ir.co.tfs.farazaman.util.ErrorHandler.messageFromBody(
+                            400,
+                            errorBodyString,
+                            "درخواست ثبت نقص معتبر نیست",
+                        )
+                    } else if (errorBodyString != null && errorBodyString.isNotEmpty()) {
                         try {
                             Log.d("FormDataViewModel", "Raw error body: $errorBodyString")
                             Log.d("API_ERROR_DETAIL", "Raw error body: $errorBodyString")

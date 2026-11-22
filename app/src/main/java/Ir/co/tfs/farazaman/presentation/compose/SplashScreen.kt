@@ -25,12 +25,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import Ir.co.tfs.farazaman.R
+import Ir.co.tfs.farazaman.presentation.design.theme.FzPersianFontFamily
 
 data class SplashUiState(
     val slogan: String,
@@ -65,7 +64,7 @@ fun SplashScreen(state: SplashUiState) {
             Text(
                 text = state.slogan,
                 color = MaterialTheme.colorScheme.secondary,
-                fontFamily = FontFamily(Font(R.font.iran_sans)),
+                fontFamily = FzPersianFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 30.sp,
             )

@@ -2,8 +2,11 @@ package Ir.co.tfs.farazaman.activity
 
 import android.os.Bundle
 import Ir.co.tfs.farazaman.R
-import Ir.co.tfs.farazaman.databinding.ActivityContractorViolationsBinding
 import Ir.co.tfs.farazaman.presentation.base.BaseActivity
+import androidx.activity.compose.setContent
+import Ir.co.tfs.farazaman.presentation.compose.ContractorCorrectionsScreen
+import Ir.co.tfs.farazaman.presentation.compose.ContractorCorrectionsUiState
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
@@ -16,25 +19,15 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class ContractorViolationsActivity : BaseActivity() {
 
-    private lateinit var binding: ActivityContractorViolationsBinding
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityContractorViolationsBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        setSupportActionBar(binding.toolbar)
-        supportActionBar?.apply {
-            setDisplayHomeAsUpEnabled(true)
-            setHomeAsUpIndicator(R.drawable.ic_arrow_back)
-            title = ""
+        setContent {
+            FaraZamanTheme {
+                ContractorCorrectionsScreen(
+                    state = ContractorCorrectionsUiState(getString(R.string.contractor_violations_not_connected)),
+                    onEvent = { event -> if (event is Ir.co.tfs.farazaman.presentation.compose.ContractorCorrectionsEvent.Back) finish() },
+                )
+            }
         }
-        binding.toolbar.setNavigationOnClickListener { finish() }
-
-        binding.loadingIndicator.visibility = android.view.View.GONE
-        binding.violationsList.visibility = android.view.View.GONE
-        binding.errorContainer.visibility = android.view.View.GONE
-        binding.emptyContainer.visibility = android.view.View.VISIBLE
-        binding.emptyMessage.setText(R.string.contractor_violations_not_connected)
     }
 }

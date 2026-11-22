@@ -4,14 +4,13 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import Ir.co.tfs.farazaman.R
+import androidx.activity.compose.setContent
 import Ir.co.tfs.farazaman.contractor.ContractorWorkContextStore
 import Ir.co.tfs.farazaman.contractor.UnconfiguredContractorGateway
-import Ir.co.tfs.farazaman.databinding.ActivityContractorOperationsBinding
+import Ir.co.tfs.farazaman.presentation.compose.*
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanTheme
 
 class ContractorOperationsActivity : AppCompatActivity() {
-    private lateinit var binding: ActivityContractorOperationsBinding
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val workContext = ContractorWorkContextStore.read(this)
@@ -20,24 +19,19 @@ class ContractorOperationsActivity : AppCompatActivity() {
             finish()
             return
         }
-        binding = ActivityContractorOperationsBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        binding.workAreaValue.text = getString(
-            R.string.contractor_work_area_value,
-            workContext.organTitle,
-            workContext.contractTitle,
-        )
-        binding.startOperationButton.setOnClickListener { showUnavailable() }
-        binding.registerActionButton.setOnClickListener {
-            startActivity(Intent(this, ContractorActionActivity::class.java))
-        }
-        binding.correctionsButton.setOnClickListener {
-            startActivity(Intent(this, ContractorViolationsActivity::class.java))
-        }
-        binding.changeWorkAreaButton.setOnClickListener {
-            ContractorWorkContextStore.clear(this)
-            startActivity(Intent(this, ContractorWorkAreaSelectionActivity::class.java))
-            finish()
+        setContent {
+            FaraZamanTheme {
+                ContractorOperationsScreen(
+                    state = ContractorOperationsUiState(workContext, UnconfiguredContractorGateway.unavailableMessage()),
+                    onEvent = { event -> when (event) {
+                    ContractorOperationsEvent.Back -> finish()
+                    ContractorOperationsEvent.StartOperation -> showUnavailable()
+                    ContractorOperationsEvent.RegisterAction -> startActivity(Intent(this, ContractorActionActivity::class.java))
+                    ContractorOperationsEvent.Corrections -> startActivity(Intent(this, ContractorViolationsActivity::class.java))
+                    ContractorOperationsEvent.ChangeWorkArea -> { ContractorWorkContextStore.clear(this); startActivity(Intent(this, ContractorWorkAreaSelectionActivity::class.java)); finish() }
+                    } },
+                )
+            }
         }
     }
 

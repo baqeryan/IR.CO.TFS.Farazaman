@@ -18,5 +18,6 @@ buildscript {
         classpath "com.google.dagger:hilt-android-gradle-plugin:$hilt_version"
         classpath 'androidx.navigation:navigation-safe-args-gradle-plugin:2.9.1'
         classpath 'com.google.gms:google-services:4.5.0'
+        classpath 'io.github.takahirom.roborazzi:roborazzi-gradle-plugin:1.29.0'
     }
 }

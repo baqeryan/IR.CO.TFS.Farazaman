@@ -29,6 +29,8 @@ class AppUpdateInstaller @Inject constructor(
         )
     }
 
+    fun createSecuritySettingsIntent(): Intent = Intent(Settings.ACTION_SECURITY_SETTINGS)
+
     suspend fun install(apkFile: File) = withContext(Dispatchers.IO) {
         check(canInstallPackages()) { "Install permission has not been granted" }
         check(apkFile.isFile && apkFile.length() > 0) { "Downloaded APK is missing" }

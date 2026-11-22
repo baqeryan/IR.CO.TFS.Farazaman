@@ -21,3 +21,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "faraZaman-v2"
 include ':app'
+include ':core:common'
+include ':core:model'
+include ':core:ui'
+include ':core:testing'

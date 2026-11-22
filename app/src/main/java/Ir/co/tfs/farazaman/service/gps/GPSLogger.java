@@ -51,12 +51,14 @@ public class GPSLogger extends Service implements LocationListener {
 
 	private LocationManager lmgr_gps;
 	private LocationManager lmgr_network;
+	private boolean locationUpdatesRequested = false;
 
 	private long currentTrackId = -1;
 	private long gpsLoggingMinDistance;
 
 	private final Handler guaranteedLogHandler = new Handler(Looper.getMainLooper());
 	private static final long GUARANTEED_LOG_INTERVAL_MS = 5000;
+	private static final long MAX_LAST_KNOWN_AGE_MS = 2 * 60 * 1000;
 
 	private final Runnable guaranteedLogRunnable = () -> {
 		if (!isTracking) return;
@@ -88,37 +90,40 @@ public class GPSLogger extends Service implements LocationListener {
 
 		// Receiver فقط برای دستور توقف
 		IntentFilter filter = new IntentFilter(OSMTracker.INTENT_STOP_TRACKING);
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-			registerReceiver(stopReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-		} else {
-			registerReceiver(stopReceiver, filter);
-		}
+		ContextCompat.registerReceiver(this, stopReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
 
 		lmgr_gps = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 		lmgr_network = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
-		if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-			lmgr_gps.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1, this);
-			lmgr_network.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1000, 1, this);
-		}
 		sensorListener.register(this);
 	}
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		createNotificationChannel();
+		long trackIdToStart = -1;
 
 		if (intent != null && OSMTracker.INTENT_START_TRACKING.equals(intent.getAction())) {
 			long trackId = intent.getLongExtra(TrackContentProvider.Schema.COL_TRACK_ID, -1);
 			if (trackId != -1) {
+				trackIdToStart = trackId;
 				// فقط در صورتی شروع کن که در حال ردیابی همین ماموریت نباشی
-				if (!isTracking || currentTrackId != trackId) {
-					startTracking(trackId);
-				}
 			}
+		} else if (!isTracking) {
+			// START_STICKY can recreate this service with a null intent after process death.
+			// The active database row is the durable source of truth for recovery.
+			trackIdToStart = DataHelper.getActiveTrackId(getContentResolver());
 		}
 
-		startForeground(NOTIFICATION_ID, getNotification(currentTrackId));
+		long notificationTrackId = trackIdToStart != -1 ? trackIdToStart : currentTrackId;
+		startForeground(NOTIFICATION_ID, getNotification(notificationTrackId));
+		if (trackIdToStart != -1 && (!isTracking || currentTrackId != trackIdToStart)) {
+			startTracking(trackIdToStart);
+		} else if (trackIdToStart == -1 && !isTracking) {
+			stopForeground(true);
+			stopSelf(startId);
+			return Service.START_NOT_STICKY;
+		}
 		return Service.START_STICKY;
 	}
 
@@ -136,10 +141,43 @@ public class GPSLogger extends Service implements LocationListener {
 		isTracking = true;
 		lastLoggedLocation = null;
 		mostRecentLocation = null;
+		requestLocationUpdates();
+		logFreshLastKnownLocation();
 
 		Log.v(TAG, "Official start of tracking for track #" + trackId);
 		getSystemService(NotificationManager.class).notify(NOTIFICATION_ID, getNotification(trackId));
-		guaranteedLogHandler.postDelayed(guaranteedLogRunnable, GUARANTEED_LOG_INTERVAL_MS);
+		if (lastLoggedLocation == null) {
+			guaranteedLogHandler.postDelayed(guaranteedLogRunnable, GUARANTEED_LOG_INTERVAL_MS);
+		}
+	}
+
+	private void requestLocationUpdates() {
+		if (locationUpdatesRequested || ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+			return;
+		}
+		try {
+			lmgr_gps.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1, this);
+			lmgr_network.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1000, 1, this);
+			locationUpdatesRequested = true;
+		} catch (SecurityException error) {
+			Log.e(TAG, "Location permission was revoked before tracking started", error);
+		}
+	}
+
+	private void logFreshLastKnownLocation() {
+		if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return;
+		try {
+			Location gps = lmgr_gps.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+			Location network = lmgr_network.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+			Location newest = gps == null ? network : network == null || gps.getTime() >= network.getTime() ? gps : network;
+			if (newest == null || System.currentTimeMillis() - newest.getTime() > MAX_LAST_KNOWN_AGE_MS) return;
+			mostRecentLocation = newest;
+			if (TrackingPointPolicy.isAccuracyAcceptable(newest.getAccuracy(), newest.getSpeed())) {
+				logPoint(newest, "Fresh last known location");
+			}
+		} catch (SecurityException error) {
+			Log.e(TAG, "Unable to read last known location", error);
+		}
 	}
 
 	private void stopTrackingAndSave() {
@@ -203,6 +241,9 @@ public class GPSLogger extends Service implements LocationListener {
 				.setSmallIcon(R.drawable.ic_stat_track)
 				.setContentTitle(getResources().getString(R.string.notification_title))
 				.setContentText(getResources().getString(R.string.notification_text))
+				.setCategory(NotificationCompat.CATEGORY_SERVICE)
+				.setOngoing(true)
+				.setOnlyAlertOnce(true)
 				.setPriority(NotificationCompat.PRIORITY_DEFAULT)
 				.setContentIntent(pendingIntent)
 				.build();

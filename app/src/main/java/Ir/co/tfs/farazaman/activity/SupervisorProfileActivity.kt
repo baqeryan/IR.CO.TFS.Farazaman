@@ -4,13 +4,22 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.preference.PreferenceManager
-import android.view.View
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import Ir.co.tfs.farazaman.R
-import Ir.co.tfs.farazaman.databinding.ActivitySupervisorProfileBinding
+import Ir.co.tfs.farazaman.presentation.compose.SupervisorProfileEvent
+import Ir.co.tfs.farazaman.presentation.compose.SupervisorProfileScreen
+import Ir.co.tfs.farazaman.presentation.compose.SupervisorProfileUiState
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanTheme
+import Ir.co.tfs.farazaman.presentation.design.components.FzButton
+import Ir.co.tfs.farazaman.presentation.design.components.FzButtonVariant
 import Ir.co.tfs.farazaman.service.remote.RolesService
 import Ir.co.tfs.farazaman.util.AuthHelper
 import Ir.co.tfs.farazaman.util.RolesManager
@@ -33,18 +42,32 @@ class SupervisorProfileActivity : AppCompatActivity() {
     @Inject lateinit var tokenManager: TokenManager
     @Inject lateinit var okHttpClient: OkHttpClient
 
-    private lateinit var binding: ActivitySupervisorProfileBinding
+    private var profileState by mutableStateOf(SupervisorProfileUiState("پروفایل", null, null, false))
+    private var showLogoutConfirmation by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivitySupervisorProfileBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        binding.btnBack.setOnClickListener { finish() }
+        setContent { FaraZamanTheme {
+            SupervisorProfileScreen(profileState, ::handleProfileEvent)
+            if (showLogoutConfirmation) AlertDialog(
+                onDismissRequest = { showLogoutConfirmation = false },
+                title = { Text(getString(R.string.prefs_logout_dialog_title)) },
+                text = { Text(getString(R.string.prefs_logout_dialog_message)) },
+                confirmButton = { FzButton(getString(R.string.prefs_logout_dialog_confirm), { showLogoutConfirmation = false; performLogout() }) },
+                dismissButton = { FzButton(getString(R.string.prefs_logout_dialog_cancel), { showLogoutConfirmation = false }, variant = FzButtonVariant.Ghost) },
+            )
+        } }
         bindUserInfo()
         setupChangeRoleButton()
-        binding.btnLogout.setOnClickListener { confirmLogout() }
         refreshRolesIfNeeded()
+    }
+
+    private fun handleProfileEvent(event: SupervisorProfileEvent) {
+        when (event) {
+            SupervisorProfileEvent.Back -> finish()
+            SupervisorProfileEvent.ChangeRole -> startActivity(RoleSelectionActivity.createIntent(this, true, RoleSelectionActivity.ROLE_SUPERVISOR))
+            SupervisorProfileEvent.Logout -> confirmLogout()
+        }
     }
 
     private fun refreshRolesIfNeeded() {
@@ -66,7 +89,10 @@ class SupervisorProfileActivity : AppCompatActivity() {
                     rolesService.getUserRoles("Bearer $token").execute()
                 }
                 if (response.isSuccessful) {
-                    response.body()?.let { rolesManager.saveUserRoles(it) }
+                    response.body()?.let {
+                        rolesManager.saveUserRoles(it)
+                        bindUserInfo()
+                    }
                     setupChangeRoleButton()
                 }
             } catch (_: Exception) {
@@ -76,39 +102,23 @@ class SupervisorProfileActivity : AppCompatActivity() {
 
     private fun setupChangeRoleButton() {
         val canChangeRole = rolesManager.canSwitchRoles()
-        binding.btnChangeRole.visibility = if (canChangeRole) View.VISIBLE else View.GONE
-        binding.btnChangeRole.setOnClickListener {
-            startActivity(
-                RoleSelectionActivity.createIntent(
-                    context = this,
-                    fromProfile = true,
-                    currentRole = RoleSelectionActivity.ROLE_SUPERVISOR,
-                ),
-            )
-        }
+        profileState = profileState.copy(canChangeRole = canChangeRole)
     }
 
     private fun bindUserInfo() {
         val userInfo = userManager.getUserInfo()
-        binding.txtDisplayName.text =
-            userInfo?.displayName?.takeIf { it.isNotBlank() }
-                ?: userInfo?.userName
-                ?: getString(R.string.supervisor_profile)
-        binding.txtUserName.text = userInfo?.userName ?: "-"
-        binding.txtRoleName.text = userInfo?.defaultRoleName?.takeIf { it.isNotBlank() } ?: "-"
-        binding.txtUserName.visibility =
-            if (userInfo?.userName.isNullOrBlank()) View.GONE else View.VISIBLE
+        profileState = SupervisorProfileUiState(
+            displayName = userInfo?.displayName?.takeIf { it.isNotBlank() } ?: userInfo?.userName ?: getString(R.string.supervisor_profile),
+            userName = userInfo?.userName,
+            mail = userInfo?.mail?.takeIf { it.isNotBlank() },
+            roleName = rolesManager.getProfileRoleLabel()
+                ?: userInfo?.defaultRoleName?.takeIf { it.isNotBlank() },
+            canChangeRole = rolesManager.canSwitchRoles(),
+        )
     }
 
     private fun confirmLogout() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.prefs_logout_dialog_title)
-            .setMessage(R.string.prefs_logout_dialog_message)
-            .setPositiveButton(R.string.prefs_logout_dialog_confirm) { _, _ ->
-                performLogout()
-            }
-            .setNegativeButton(R.string.prefs_logout_dialog_cancel, null)
-            .show()
+        showLogoutConfirmation = true
     }
 
     private fun performLogout() {

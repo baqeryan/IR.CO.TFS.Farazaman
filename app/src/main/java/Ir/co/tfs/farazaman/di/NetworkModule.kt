@@ -94,8 +94,9 @@ object NetworkModule {
         tokenManager: TokenManager,
         authStateManager: AuthStateManager,
         authRepository: Ir.co.tfs.farazaman.domain.repository.AuthRepository,
+        billTenantContextStore: Ir.co.tfs.farazaman.util.BillTenantContextStore,
     ): AuthInterceptor {
-        return AuthInterceptor(tokenManager, authStateManager, authRepository)
+        return AuthInterceptor(tokenManager, authStateManager, authRepository, billTenantContextStore)
     }
     
     @Provides

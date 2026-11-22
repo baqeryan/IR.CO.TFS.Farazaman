@@ -11,11 +11,13 @@ import kotlinx.coroutines.launch
 import Ir.co.tfs.farazaman.data.api.FormDataApiService
 import Ir.co.tfs.farazaman.data.repository.FormDataRepository
 import javax.inject.Inject
+import Ir.co.tfs.farazaman.util.BillTenantContextStore
 
 @HiltViewModel
 class NewMissionViewModel @Inject constructor(
     private val formDataRepository: FormDataRepository,
-    private val formDataApiService: FormDataApiService
+    private val formDataApiService: FormDataApiService,
+    private val billTenantContextStore: BillTenantContextStore,
 ) : ViewModel() {
 
     companion object {
@@ -62,17 +64,12 @@ class NewMissionViewModel @Inject constructor(
             
             try {
                 Log.d(TAG, "Loading form data...")
-                val response = formDataRepository.getFormData()
+                val tenantId = requireNotNull(billTenantContextStore.getTenantId()) { "نوع قرارداد انتخاب نشده است." }
+                val response = formDataApiService.getAllowedOrgans(tenantId = tenantId)
                 
                 if (response.isSuccessful) {
-                    val formDataResponse = response.body()
-                    _formData.value = formDataResponse
-                    
-                    // Extract organs and contracts from response
-                    formDataResponse?.let { data ->
-                        _organs.value = extractOrgans(data)
-                        _contracts.value = extractContracts(data)
-                    }
+                    _organs.value = response.body().orEmpty().map { OrganItem(it.value, it.text) }
+                    _contracts.value = emptyList()
                     
                     Log.d(TAG, "Form data loaded successfully")
                 } else {
@@ -99,8 +96,9 @@ class NewMissionViewModel @Inject constructor(
             try {
                 Log.d(TAG, "Creating mission: organId=$organId, contractId=$contractId, visitDate=$visitDate")
                 
-                val requestBody = createMissionRequestBody(organId, contractId, visitDate)
-                val response = formDataApiService.createMission(requestBody)
+                val tenantId = requireNotNull(billTenantContextStore.getTenantId()) { "نوع قرارداد انتخاب نشده است." }
+                val requestBody = createMissionRequestBody(tenantId, organId, contractId, visitDate)
+                val response = formDataApiService.createMission(tenantId, requestBody)
                 
                 if (response.isSuccessful) {
                     Log.d(TAG, "Mission created successfully")
@@ -112,7 +110,11 @@ class NewMissionViewModel @Inject constructor(
                 } else {
                     val errorBody = response.errorBody()?.string()
                     Log.e(TAG, "Failed to create mission: ${response.code()} - $errorBody")
-                    _errorMessage.value = "خطا در ثبت ماموریت جدید"
+                    _errorMessage.value = Ir.co.tfs.farazaman.util.ErrorHandler.messageFromBody(
+                        response.code(),
+                        errorBody,
+                        "خطا در ثبت ماموریت جدید",
+                    )
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Exception while creating mission", e)
@@ -163,13 +165,13 @@ class NewMissionViewModel @Inject constructor(
     /**
      * Create request body for mission creation
      */
-    private fun createMissionRequestBody(organId: Int, contractId: Int, visitDate: String): Any {
+    private fun createMissionRequestBody(tenantId: Int, organId: Int, contractId: Int, visitDate: String): Any {
         return mapOf(
             "request" to mapOf(
                 "organIds" to listOf(organId),
                 "contractIds" to listOf(contractId),
                 "visitdate" to visitDate,
-                "TenantId" to 1,
+                "TenantId" to tenantId,
                 "OrganId" to organId,
                 "contractId" to contractId
             )
@@ -180,12 +182,13 @@ class NewMissionViewModel @Inject constructor(
      * Create request body for mission index/details
      */
     private fun createIndexRequestBody(organId: Int, contractId: Int, visitDate: String): Any {
+        val tenantId = requireNotNull(billTenantContextStore.getTenantId()) { "نوع قرارداد انتخاب نشده است." }
         return mapOf(
             "request" to mapOf(
                 "organIds" to listOf(organId),
                 "contractIds" to listOf(contractId),
                 "visitdate" to visitDate,
-                "TenantId" to 1,
+                "TenantId" to tenantId,
                 "OrganId" to organId,
                 "contractId" to contractId
             ),

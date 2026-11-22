@@ -112,7 +112,7 @@ Foundation نباید componentهای فرضی Feature را پیش‌بینی ک
 - visual delta عمدی در Migration Record با rationale ثبت می‌شود.
 - قبولی checklist و automated tests برای Visual Intent کافی است و تأیید انسانی جداگانه شرط نیست.
 - XML/container قبلی تا پذیرش حفظ می‌شود؛ rollback صفحه‌های عادی با کد/نسخه بعدی انجام می‌شود.
-- Map/Camera/GPS/Track تا پایان rollout یک runtime flag محلی دارند که پیش‌فرض Compose است و از diagnostics/support مخفی و محافظت‌شده به XML تغییر می‌کند؛ کاربران عادی به آن دسترسی ندارند.
+- Map/Camera/GPS/Track تا پایان rollout یک runtime flag محلی دارند که پیش‌فرض Compose است و از diagnostics/support مخفی به XML تغییر می‌کند؛ Activity کنترل `exported=false` است و دسترسی production فقط پس از احراز نقش موجود `superAdministrator` مجاز است.
 
 ## Validation Gates
 

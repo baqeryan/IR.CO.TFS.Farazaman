@@ -14,6 +14,10 @@ import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.lifecycleScope
@@ -37,8 +41,13 @@ import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
-import javax.inject.Inject
 import Ir.co.tfs.farazaman.data.db.TrackContentProvider
+import Ir.co.tfs.farazaman.map.ComposeMapHost
+import Ir.co.tfs.farazaman.map.MapRoadNameResolver
+import Ir.co.tfs.farazaman.presentation.compose.ViolationMapEvent
+import Ir.co.tfs.farazaman.presentation.compose.ViolationMapScreen
+import Ir.co.tfs.farazaman.presentation.compose.ViolationMapUiState
+import Ir.co.tfs.farazaman.presentation.design.theme.FaraZamanTheme
 
 @AndroidEntryPoint
 class SubmitViolationActivity : AppCompatActivity() {
@@ -54,13 +63,12 @@ class SubmitViolationActivity : AppCompatActivity() {
     private var displayedTrackPoints: List<LatLng> = emptyList()
     private var lastRoadAddressCoordinates: Pair<Double, Double>? = null
     private var receivingLocationUpdates = false
+    private var composeOwnsMapLifecycle = true
 
     // ViewModel
     private val viewModel: SubmitViolationViewModel by viewModels()
 
-    private lateinit var roadNameTextView: TextView
-    private lateinit var roadTypeTextView: TextView
-    private lateinit var speedLimitTextView: TextView
+    private val mapUiState = mutableStateOf(ViolationMapUiState())
 
     companion object {
         private const val TAG = "SubmitViolationActivity"
@@ -80,16 +88,30 @@ class SubmitViolationActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         MapLibre.getInstance(this)
-        setContentView(R.layout.activity_submit_violation)
-
         trackId = intent.getLongExtra(EXTRA_TRACK_ID, -1)
-
-        initializeViews()
-        initializeLocationManager()
         initializePreferences()
-        initializeMap(savedInstanceState)
-        setupSubmitButton()
-        setupZoomControls()
+        val keepScreenOn = prefs.getBoolean(OSMTracker.Preferences.KEY_UI_DISPLAY_KEEP_ON, OSMTracker.Preferences.VAL_UI_DISPLAY_KEEP_ON)
+        restoreMapState(savedInstanceState)
+        setContent {
+            FaraZamanTheme {
+                ViolationMapScreen(
+                    state = mapUiState.value,
+                    onEvent = ::handleMapEvent,
+                    map = {
+                        ComposeMapHost(
+                            modifier = Modifier.fillMaxSize(),
+                            savedInstanceState = savedInstanceState,
+                            keepScreenOn = keepScreenOn,
+                            onMapViewReady = { createdMap ->
+                                mapView = createdMap
+                                configureMap(savedInstanceState)
+                            },
+                        )
+                    },
+                )
+            }
+        }
+        initializeLocationManager()
         setupViewModelObservers()
         
         if (trackId != -1L) {
@@ -97,10 +119,17 @@ class SubmitViolationActivity : AppCompatActivity() {
         }
     }
 
-    private fun initializeViews() {
-        roadNameTextView = findViewById(R.id.road_name)
-        roadTypeTextView = findViewById(R.id.road_type)
-        speedLimitTextView = findViewById(R.id.speed_limit)
+    private fun handleMapEvent(event: ViolationMapEvent) {
+        when (event) {
+            ViolationMapEvent.Back -> finish()
+            ViolationMapEvent.ZoomIn -> mapOverlays?.zoomIn()
+            ViolationMapEvent.ZoomOut -> mapOverlays?.zoomOut()
+            ViolationMapEvent.Center -> {
+                centerToGpsPos = true
+                mapOverlays?.center(currentPosition, CENTER_DEFAULT_ZOOM_LEVEL, ANIMATION_DURATION_MS.toInt())
+            }
+            ViolationMapEvent.Submit -> startActivity(Intent(this, SubmitViolationFormActivity::class.java))
+        }
     }
 
     private fun initializeLocationManager() {
@@ -138,13 +167,7 @@ class SubmitViolationActivity : AppCompatActivity() {
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
     }
 
-    private fun initializeMap(savedInstanceState: Bundle?) {
-        mapView = findViewById(R.id.map_view)
-        mapView.keepScreenOn = prefs.getBoolean(
-            OSMTracker.Preferences.KEY_UI_DISPLAY_KEEP_ON,
-            OSMTracker.Preferences.VAL_UI_DISPLAY_KEEP_ON,
-        )
-        mapView.onCreate(savedInstanceState)
+    private fun restoreMapState(savedInstanceState: Bundle?) {
         centerToGpsPos = savedInstanceState?.getBoolean(
             CURRENT_CENTER_TO_GPS_POS,
             centerToGpsPos,
@@ -154,6 +177,9 @@ class SubmitViolationActivity : AppCompatActivity() {
             zoomedToTrackAlready,
         ) ?: zoomedToTrackAlready
 
+    }
+
+    private fun configureMap(savedInstanceState: Bundle?) {
         mapView.getMapAsync { map ->
             mapLibreMap = map
             map.uiSettings.isCompassEnabled = false
@@ -194,24 +220,6 @@ class SubmitViolationActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupSubmitButton() {
-        findViewById<Button>(R.id.submit_violation).setOnClickListener {
-            startActivity(Intent(this, SubmitViolationFormActivity::class.java))
-        }
-    }
-
-    private fun setupZoomControls() {
-        findViewById<View>(R.id.displaytrackmap_imgZoomIn).setOnClickListener {
-            mapOverlays?.zoomIn()
-        }
-        findViewById<View>(R.id.displaytrackmap_imgZoomOut).setOnClickListener {
-            mapOverlays?.zoomOut()
-        }
-        findViewById<View>(R.id.displaytrackmap_imgZoomCenter).setOnClickListener {
-            centerToGpsPos = true
-            mapOverlays?.center(currentPosition, CENTER_DEFAULT_ZOOM_LEVEL, ANIMATION_DURATION_MS.toInt())
-        }
-    }
 
     private fun startGettingLocation() {
         try {
@@ -280,9 +288,7 @@ class SubmitViolationActivity : AppCompatActivity() {
                     // Keep the last resolved address visible during GPS refreshes.
                     // Otherwise every new location update replaces it with loading.
                     if (isLoading && viewModel.roadData.value == null) {
-                        roadNameTextView.text = "در حال دریافت..."
-                        roadTypeTextView.text = ""
-                        speedLimitTextView.text = ""
+                        mapUiState.value = ViolationMapUiState(roadName = "در حال دریافت...")
                     }
                 }
             }
@@ -294,9 +300,7 @@ class SubmitViolationActivity : AppCompatActivity() {
                 viewModel.errorMessage.collect { error ->
                     error?.let {
                         Log.e("SubmitViolationActivity", "ViewModel error: $it")
-                        roadNameTextView.text = "خطا در دریافت اطلاعات"
-                        roadTypeTextView.text = ""
-                        speedLimitTextView.text = ""
+                        mapUiState.value = ViolationMapUiState(roadName = "خطا در دریافت اطلاعات")
                         viewModel.clearError()
                     }
                 }
@@ -310,6 +314,21 @@ class SubmitViolationActivity : AppCompatActivity() {
         accuracyMeters: Float,
         requestedCoordinates: Pair<Double, Double>,
     ) {
+        val mapRoad = mapLibreMap?.let { map ->
+            MapRoadNameResolver.resolve(map, LatLng(latitude, longitude))
+        }
+        if (mapRoad != null) {
+            mapUiState.value = ViolationMapUiState(
+                roadName = mapRoad.name,
+                roadType = mapRoad.roadClass,
+                speedLimit = "",
+            )
+            lastRoadAddressCoordinates = requestedCoordinates
+            return
+        }
+
+        // Fall back to the selected municipality service until the required vector tile is
+        // rendered, or when the nearby map features do not contain a usable street name.
         val buffer = Ir.co.tfs.farazaman.util.RoadQueryBuffer.forAccuracy(
             accuracyMeters.takeIf { it > 0f },
         )
@@ -319,9 +338,7 @@ class SubmitViolationActivity : AppCompatActivity() {
     }
 
     private fun updateRoadInfo(roadData: RoadData) {
-        roadNameTextView.text = roadData.name
-        roadTypeTextView.text = roadData.fclass
-        speedLimitTextView.text = "${roadData.maxspeed} km/h"
+        mapUiState.value = ViolationMapUiState(roadData.name, roadData.fclass, "${roadData.maxspeed} km/h")
     }
 
     override fun onRequestPermissionsResult(
@@ -341,35 +358,35 @@ class SubmitViolationActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        mapView.onStart()
+        if (!composeOwnsMapLifecycle) mapView.onStart()
     }
 
     override fun onPause() {
         stopGettingLocation()
-        mapView.onPause()
+        if (!composeOwnsMapLifecycle) mapView.onPause()
         super.onPause()
     }
 
     override fun onStop() {
-        mapView.onStop()
+        if (!composeOwnsMapLifecycle) mapView.onStop()
         super.onStop()
     }
 
     override fun onDestroy() {
         stopGettingLocation()
-        mapView.onDestroy()
+        if (!composeOwnsMapLifecycle && ::mapView.isInitialized) mapView.onDestroy()
         super.onDestroy()
     }
 
     override fun onResume() {
         super.onResume()
-        mapView.onResume()
+        if (!composeOwnsMapLifecycle) mapView.onResume()
         if (hasLocationPermission()) startGettingLocation()
     }
 
     override fun onLowMemory() {
         super.onLowMemory()
-        mapView.onLowMemory()
+        if (!composeOwnsMapLifecycle && ::mapView.isInitialized) mapView.onLowMemory()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -381,7 +398,7 @@ class SubmitViolationActivity : AppCompatActivity() {
         outState.putBoolean(CURRENT_CENTER_TO_GPS_POS, centerToGpsPos)
         outState.putBoolean(CURRENT_ZOOMED_TO_TRACK, zoomedToTrackAlready)
         super.onSaveInstanceState(outState)
-        mapView.onSaveInstanceState(outState)
+        if (!composeOwnsMapLifecycle && ::mapView.isInitialized) mapView.onSaveInstanceState(outState)
     }
 
     private fun stopGettingLocation() {

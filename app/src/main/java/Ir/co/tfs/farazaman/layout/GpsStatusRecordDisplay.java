@@ -11,7 +11,6 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.AttributeSet;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -94,7 +93,7 @@ public class GpsStatusRecordDisplay extends LinearLayout implements LocationList
 
 	public GpsStatusRecordDisplay(Context context, AttributeSet attrs) {
 		super(context, attrs);
-		LayoutInflater.from(context).inflate(R.layout.gpsstatus_record, this, true);
+		GpsStatusViewFactory.populate(this);
 
 		//read the logging interval from preferences
 		gpsLoggingInterval = Long.parseLong(PreferenceManager.getDefaultSharedPreferences(context).getString(
@@ -147,7 +146,7 @@ public class GpsStatusRecordDisplay extends LinearLayout implements LocationList
 						.replace("{0}", Long.toString(fixCount))
 						.replace("{1}", Long.toString(satCount)));
 
-				((ImageView) findViewById(R.id.gpsstatus_record_imgSatIndicator)).setImageResource(R.drawable.sat_indicator_unknown);
+				setGpsQualityColor(R.color.stop);
 			}
 
 			Log.v(TAG, "Found " + satCount + " satellites. " + fixCount + " used in fix.");
@@ -190,7 +189,7 @@ public class GpsStatusRecordDisplay extends LinearLayout implements LocationList
 	public void onProviderDisabled(String provider) {
 		Log.d(TAG, "Location provider " + provider + " disabled");
 		gpsActive = false;
-		((ImageView) findViewById(R.id.gpsstatus_record_imgSatIndicator)).setImageResource(R.drawable.sat_indicator_off);
+		setGpsQualityColor(R.color.icon_gray);
 		((TextView) findViewById(R.id.gpsstatus_record_tvAccuracy)).setText("");
 //		activity.onGpsDisabled();
 	}
@@ -198,7 +197,7 @@ public class GpsStatusRecordDisplay extends LinearLayout implements LocationList
 	@Override
 	public void onProviderEnabled(String provider) {
 		Log.d(TAG, "Location provider " + provider + " enabled");
-		((ImageView) findViewById(R.id.gpsstatus_record_imgSatIndicator)).setImageResource(R.drawable.sat_indicator_unknown);
+		setGpsQualityColor(R.color.stop);
 	}
 
 	@Override
@@ -212,13 +211,13 @@ public class GpsStatusRecordDisplay extends LinearLayout implements LocationList
 			// Don't do anything for status AVAILABLE, as this event occurs frequently,
 			// changing the graphics cause flickering .
 			case LocationProvider.OUT_OF_SERVICE:
-				imgSatIndicator.setImageResource(R.drawable.sat_indicator_off);
+				setGpsQualityColor(R.color.icon_gray);
 				tvAccuracy.setText("");
 				gpsActive = false;
 //				activity.onGpsDisabled();
 				break;
 			case LocationProvider.TEMPORARILY_UNAVAILABLE:
-				imgSatIndicator.setImageResource(R.drawable.sat_indicator_unknown);
+				setGpsQualityColor(R.color.stop);
 				tvAccuracy.setText("");
 				gpsActive = false;
 				break;
@@ -232,11 +231,8 @@ public class GpsStatusRecordDisplay extends LinearLayout implements LocationList
 	 */
 	public void manageRecordingIndicator(boolean isTracking) {
 		ImageView recordStatus = findViewById(R.id.gpsstatus_record_animRec);
-		if (isTracking) {
-			recordStatus.setImageResource(R.drawable.record_red);
-		} else {
-			recordStatus.setImageResource(R.drawable.record_grey);
-		}
+		recordStatus.setImageResource(R.drawable.ic_route_recording);
+		recordStatus.setColorFilter(ContextCompat.getColor(getContext(), isTracking ? R.color.brand_green : R.color.icon_gray));
 	}
 
 	/**
@@ -246,27 +242,14 @@ public class GpsStatusRecordDisplay extends LinearLayout implements LocationList
 	private void manageSatelliteStatusIndicator(int accuracy){
 		ImageView imgSatIndicator = findViewById(R.id.gpsstatus_record_imgSatIndicator);
 
-		int nbBars = accuracy / 4;
+		imgSatIndicator.setImageResource(R.drawable.ic_gps_fix);
+		setGpsQualityColor(accuracy <= 10 ? R.color.brand_green : accuracy <= 25 ? R.color.stop : R.color.app_error);
+	}
 
-		if (nbBars == 0) {
-			Log.v(TAG, "Will draw 5 bars.");
-			imgSatIndicator.setImageResource(R.drawable.sat_indicator_5);
-		} else if (nbBars == 1) {
-			Log.v(TAG, "Will draw 4 bars.");
-			imgSatIndicator.setImageResource(R.drawable.sat_indicator_4);
-		} else if (nbBars == 2) {
-			Log.v(TAG, "Will draw 3 bars.");
-			imgSatIndicator.setImageResource(R.drawable.sat_indicator_3);
-		} else if (nbBars == 3) {
-			Log.v(TAG, "Will draw 2 bars.");
-			imgSatIndicator.setImageResource(R.drawable.sat_indicator_2);
-		} else if (nbBars == 4) {
-			Log.v(TAG, "Will draw 1 bars.");
-			imgSatIndicator.setImageResource(R.drawable.sat_indicator_1);
-		} else {
-			Log.v(TAG, "Will draw 0 bars.");
-			imgSatIndicator.setImageResource(R.drawable.sat_indicator_0);
-		}
+	private void setGpsQualityColor(int colorResource) {
+		ImageView indicator = findViewById(R.id.gpsstatus_record_imgSatIndicator);
+		indicator.setImageResource(R.drawable.ic_gps_fix);
+		indicator.setColorFilter(ContextCompat.getColor(getContext(), colorResource));
 	}
 
 }

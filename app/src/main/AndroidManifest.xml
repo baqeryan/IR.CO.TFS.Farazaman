@@ -12,6 +12,7 @@
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" /> <!-- Foreground services and network permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
@@ -102,9 +103,18 @@
             android:exported="false"
             android:label="@string/app_intro"
             android:theme="@style/AppTheme" />
-        <activity
-            android:name=".activity.TrackManager"
-            android:exported="true" />
+          <activity
+              android:name=".activity.TrackManager"
+              android:exported="true" />
+          <activity
+              android:name=".activity.TrackManagerComposeActivity"
+              android:exported="false" />
+          <activity
+              android:name=".activity.TrackDetailComposeActivity"
+              android:exported="false" />
+          <activity
+              android:name=".activity.WaypointListComposeActivity"
+              android:exported="false" />
         <activity
             android:name=".activity.SupervisorWorkAreaSelectionActivity"
             android:exported="false"
@@ -128,12 +138,6 @@
         <activity
             android:name=".activity.Preferences"
             android:label="@string/prefs" />
-        <activity
-            android:name=".activity.WaypointList"
-            android:label="@string/wplist" />
-        <activity
-            android:name=".activity.TrackDetail"
-            android:label="@string/trackdetail" />
         <activity
             android:name=".activity.OpenStreetMapUpload"
             android:exported="true"
@@ -161,29 +165,13 @@
                     android:host="signin-oidc" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".activity.About"
-            android:label="@string/about" />
-        <activity
-            android:name=".activity.DisplayTrack"
-            android:label="@string/displaytrack" />
+        <activity android:name=".activity.AboutComposeActivity" android:exported="false" />
         <activity
             android:name=".activity.DisplayTrackMap"
             android:label="@string/displaytrackmap" >
 
 
         </activity>
-        <activity
-            android:name=".activity.ButtonsPresets"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="launch_buttons_presets" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-        <activity android:name=".activity.AvailableLayouts" />
-
         <service
             android:name=".notification.FarazamanFirebaseMessagingService"
             android:exported="false">
